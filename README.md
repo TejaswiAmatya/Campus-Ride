@@ -22,6 +22,3 @@ The second lab is building an asp.net core ordering application.
 
 Implementing DDD for the asp-net core ordering application.
 
-# Project
-
-Implementing a game or ordering system with asp.net core web technologies
