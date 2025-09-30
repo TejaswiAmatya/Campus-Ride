@@ -3,7 +3,7 @@
 As a group you can pick one of the following projects available for the class.
 
 1. [Board game café](boardgame_cafe.md): A system for a fictional board game café where customers reserve tables and borrow games.
-2. [Personal finance traker](finance_tracker.md): A web/mobile application that helps users track their expenses, categorize transactions, set budgets, and gain insights into their financial health. Users can view dashboards, get automated reports, and optionally enable gamified challenges to encourage saving. Admins (optional) can manage system-wide settings, categories, and promotional features.
+2. [Personal finance traker](finance_tracker.md): A web/mobile application that helps users track their personal finances.
 
 
 
