@@ -47,7 +47,7 @@ This is not a design course. You will not be penalized for having an application
 ## Report
 
 * Report can be written in a Word document or an overleaf template [here](https://www.overleaf.com/read/nkhzxdyqhkjn)
-* The report can be maximum 10 pages please submit in pdf format only
+* The report can be maximum 10 pages please submit in pdf format only (pdf should be named with your group name in QuickFeed.)
 * The report should reflect:
   - The report should emphasize the reasoning behind your choices, not just a description of what you did.
   - Highlight the technical decisions you made, *explain why you chose them*, and reflect on how they aligned with your design document.
