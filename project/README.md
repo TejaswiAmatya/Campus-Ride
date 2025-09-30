@@ -39,7 +39,7 @@ This is not a design course. You will not be penalized for having an application
 
 ## Design document
 
-* Every team has to deliver a design document by **30.10.2025**.
+* Every team has to deliver a design document by **23.10.2025**.
 * Design document is not graded but an obligatory deliverable.
 * Glenn will explain what is a good design document in one of the lectures.
 * One of the lectures will be dedicated to discuss and give feedback on the design document.
