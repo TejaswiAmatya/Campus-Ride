@@ -1,6 +1,9 @@
 # Group project
 
-As a group you can pick one of the two projects available for the class.
+As a group you can pick one of the following projects available for the class.
+
+1. [Board game café](boardgame_cafe.md): A system for a fictional board game café where customers reserve tables and borrow games.
+2. [Personal finance traker](finance_tracker.md): A web/mobile application that helps users track their expenses, categorize transactions, set budgets, and gain insights into their financial health. Users can view dashboards, get automated reports, and optionally enable gamified challenges to encourage saving. Admins (optional) can manage system-wide settings, categories, and promotional features.
 
 
 
@@ -47,7 +50,7 @@ This is not a design course. You will not be penalized for having an application
 * The report can be maximum 10 pages please submit in pdf format only
 * The report should reflect:
   - The report should emphasize the reasoning behind your choices, not just a description of what you did.
-  - Highlight the technical decisions you made, explain why you chose them, and reflect on how they aligned with your design document.
+  - Highlight the technical decisions you made, *explain why you chose them*, and reflect on how they aligned with your design document.
   - Reflect on how and why you structured collaboration the way you did, and what impact that had on the project.
   - Discuss how you approached breaking down the project into smaller tasks, and why that structure worked (or didn’t work) for your team.
   - Share insights on how you tracked progress, focusing on what tools or methods supported your workflow best and why.
