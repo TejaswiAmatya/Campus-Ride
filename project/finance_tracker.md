@@ -1,7 +1,7 @@
 # Personal Finance & Budgeting App
 
 ## Application description
-A web/mobile application that helps users track their expenses, categorize transactions, set budgets, and gain insights into their financial health. Users can view dashboards, get automated reports, and optionally enable gamified challenges to encourage saving. Admins (optional) can manage system-wide settings, categories, and promotional features.
+A web application that helps users track their expenses, categorize transactions, set budgets, and gain insights into their financial health. Users can view dashboards, get automated reports, and optionally enable gamified challenges to encourage saving. Admins (optional) can manage system-wide settings, categories, and promotional features.
 
 ---
 
