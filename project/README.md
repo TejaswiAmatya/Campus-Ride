@@ -3,17 +3,14 @@
 As a group you can pick one of the following projects available for the class.
 
 1. [Board game café](boardgame_cafe.md): A system for a fictional board game café where customers reserve tables and borrow games.
-2. [Personal finance traker](finance_tracker.md): A web/mobile application that helps users track their personal finances.
-3. Online pub quiz - review roulette
-4. Social events app for campus (meetup for the university)
-5. Fitness tracker: Organize your workouts and plan them
+2. [Personal finance tracker](finance_tracker.md): A web/mobile application that helps users track their personal finances.
+3. [Online pub quiz - review roulette](review_roulette.md): A real-time web application where users can join quiz rooms and answer questions about landmarks around the world.
+4. [Campus Eats](campus_eats.md): A food delivery service for a campus environment.
+5. [Campus Ride](campus_ride.md): A ride-sharing application for a campus environment.
 
+## Common for all projects
 
-
-
-# Common for all projects
-
-## Technology
+### Technology
 
 You are free to use what ever technology you want, within the requirements of the project. That includes languages, but we expect you to write good, maintainable code in whatever language you pick.
 
@@ -21,9 +18,7 @@ This is not a front-end course, but several of the topics we have touched upon m
 
 This is not a design course. You will not be penalized for having an application that looks crap, as long as it's functional. The functionality is the important thing.
 
-
-
-## Criteria for judging the delivery
+### Criteria for judging the delivery
 
 * Separation of concerns. Business logic is clearly separated from infrastructure logic and UI logic.
 * Separation of contexts. See what belongs together and keep it together.
