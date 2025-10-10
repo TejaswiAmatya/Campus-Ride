@@ -3,7 +3,7 @@
 As a group you can pick one of the following projects available for the class.
 
 1. [Board game café](boardgame_cafe.md): A system for a fictional board game café where customers reserve tables and borrow games.
-2. [Personal finance tracker](finance_tracker.md): A web/mobile application that helps users track their personal finances.
+2. [Personal finance tracker](finance_tracker.md): A web application that helps users track their personal finances.
 3. [Online pub quiz - review roulette](review_roulette.md): A real-time web application where users can join quiz rooms and answer questions about landmarks around the world.
 4. [Campus Eats](campus_eats.md): A food delivery service for a campus environment.
 5. [Campus Ride](campus_ride.md): A ride-sharing application for a campus environment.
