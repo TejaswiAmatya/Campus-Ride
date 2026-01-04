@@ -38,7 +38,7 @@ This is not a design course. You will not be penalized for having an application
 
 ## Design document
 
-* Every team has to deliver a design document by **23.10.2025**.
+* Every team has to deliver a design document by **18/03/2026**.
 * Design document is not graded but an obligatory deliverable.
 * Glenn will explain what is a good design document in one of the lectures.
 * One of the lectures will be dedicated to discuss and give feedback on the design document.
@@ -67,11 +67,11 @@ This is not a design course. You will not be penalized for having an application
 
 ## Deadline
 
-* Deadline for the project code and the report is **23.11.2025 by 23.59**
+* Deadline for the project code and the report is **28/04/2026 	 by 23.59**
 
 ## Oral presentation
 
 * 100% of the grade is based on the oral exam and performance in the project.
-* Date of the oral presentation is set to be **09.12.2025** 
+* Date of the oral presentation is set to be **TBD** 
 * More details will follow.
 

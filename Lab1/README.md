@@ -9,7 +9,7 @@
 
 ## Overview
 
-Please go through the [signup process for QuickFeed](https://github.com/dat240-2025/info/blob/main/signup.md) before starting the lab.
+Please go through the [signup process for QuickFeed](https://github.com/dat240-2026/info/blob/main/signup.md) before starting the lab.
 
 ### Summary
 

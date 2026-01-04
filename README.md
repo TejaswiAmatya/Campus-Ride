@@ -5,9 +5,9 @@ Useful links:
 * FAQ: [FAQ.md](./FAQ.md)
   
 # Deadlines
-* Lab1 04.09.2025
-* Lab2 25.09.2025
-* Lab3 16.10.2025
+* Lab1 27/01/2026
+* Lab2 17/02/2026
+* Lab3 10/03/2026
 
 # Lab1
 

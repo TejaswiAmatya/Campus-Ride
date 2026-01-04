@@ -1,6 +1,5 @@
 # Lab 3 Domain Driven Design
 
-* Deadline: 16.10.2025
 * The lab has to be manually approved by the teaching assistants during lab hour.
   * The student is expected to explain the code during the manually approval.
   * All code has to be submitted before the deadline, but can be approved on the first lab after the deadline.
