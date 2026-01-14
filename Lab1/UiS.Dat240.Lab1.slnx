@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/UiS.Dat240.Lab1.Console/UiS.Dat240.Lab1.Console.csproj" />
+    <Project Path="src/UiS.Dat240.Lab1.Domain/UiS.Dat240.Lab1.Domain.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UiS.Dat240.Lab1.Tests/UiS.Dat240.Lab1.Tests.csproj" />
+  </Folder>
+</Solution>
