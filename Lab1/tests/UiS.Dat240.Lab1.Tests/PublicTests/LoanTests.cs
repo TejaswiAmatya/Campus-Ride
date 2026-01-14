@@ -17,12 +17,12 @@ public class LoanTests
         var borrowDate = new DateTime(2024, 1, 1);
 
         // Act
-        var loan = new Loan("L001", "M001", "978-0-123456-78-9", borrowDate);
+        var loan = new Loan("L001", "M001", new Book("978-0-123456-78-9", "Test Book", "Test Author"), borrowDate);
 
         // Assert
         Assert.That(loan.LoanId, Is.EqualTo("L001"));
         Assert.That(loan.MemberId, Is.EqualTo("M001"));
-        Assert.That(loan.BookISBN, Is.EqualTo("978-0-123456-78-9"));
+        Assert.That(loan.Book.ISBN, Is.EqualTo("978-0-123456-78-9"));
         Assert.That(loan.BorrowDate, Is.EqualTo(borrowDate));
         Assert.That(loan.DueDate, Is.EqualTo(borrowDate.AddDays(14)));
         Assert.That(loan.IsReturned, Is.False);
@@ -33,7 +33,7 @@ public class LoanTests
     {
         // Arrange
         var borrowDate = DateTime.Now.AddDays(-5);
-        var loan = new Loan("L001", "M001", "978-0-123456-78-9", borrowDate);
+        var loan = new Loan("L001", "M001", new Book("978-0-123456-78-9", "Test Book", "Test Author"), borrowDate);
 
         // Act
         var fine = loan.CalculateFine();
@@ -47,7 +47,7 @@ public class LoanTests
     {
         // Arrange
         var borrowDate = DateTime.Now.AddDays(-19); // 19 days ago, so 5 days overdue
-        var loan = new Loan("L001", "M001", "978-0-123456-78-9", borrowDate);
+        var loan = new Loan("L001", "M001", new Book("978-0-123456-78-9", "Test Book", "Test Author"), borrowDate);
 
         // Act
         var fine = loan.CalculateFine();
@@ -62,7 +62,7 @@ public class LoanTests
     {
         // Arrange
         var borrowDate = DateTime.Now.AddDays(-24); // 24 days ago, so 10 days overdue
-        var loan = new Loan("L001", "M001", "978-0-123456-78-9", borrowDate);
+        var loan = new Loan("L001", "M001", new Book("978-0-123456-78-9", "Test Book", "Test Author"), borrowDate);
 
         // Act
         var fine = loan.CalculateFine();
@@ -77,7 +77,7 @@ public class LoanTests
     {
         // Arrange
         var borrowDate = DateTime.Now.AddDays(-34); // 34 days ago, so 20 days overdue
-        var loan = new Loan("L001", "M001", "978-0-123456-78-9", borrowDate);
+        var loan = new Loan("L001", "M001", new Book("978-0-123456-78-9", "Test Book", "Test Author"), borrowDate);
 
         // Act
         var fine = loan.CalculateFine();
@@ -92,7 +92,7 @@ public class LoanTests
     {
         // Arrange
         var borrowDate = DateTime.Now.AddDays(-30);
-        var loan = new Loan("L001", "M001", "978-0-123456-78-9", borrowDate);
+        var loan = new Loan("L001", "M001", new Book("978-0-123456-78-9", "Test Book", "Test Author"), borrowDate);
         loan.Return(DateTime.Now);
 
         // Act
@@ -106,7 +106,7 @@ public class LoanTests
     public void Return_SetsReturnDate()
     {
         // Arrange
-        var loan = new Loan("L001", "M001", "978-0-123456-78-9", DateTime.Now.AddDays(-5));
+        var loan = new Loan("L001", "M001", new Book("978-0-123456-78-9", "Test Book", "Test Author"), DateTime.Now.AddDays(-5));
         var returnDate = DateTime.Now;
 
         // Act
@@ -121,7 +121,7 @@ public class LoanTests
     public void Return_WhenAlreadyReturned_ThrowsInvalidOperationException()
     {
         // Arrange
-        var loan = new Loan("L001", "M001", "978-0-123456-78-9", DateTime.Now.AddDays(-5));
+        var loan = new Loan("L001", "M001", new Book("978-0-123456-78-9", "Test Book", "Test Author"), DateTime.Now.AddDays(-5));
         loan.Return(DateTime.Now);
 
         // Act & Assert
@@ -133,7 +133,7 @@ public class LoanTests
     {
         // Arrange
         var borrowDate = DateTime.Now.AddDays(-20); // Borrowed 20 days ago
-        var loan = new Loan("L001", "M001", "978-0-123456-78-9", borrowDate);
+        var loan = new Loan("L001", "M001", new Book("978-0-123456-78-9", "Test Book", "Test Author"), borrowDate);
 
         // Act & Assert
         Assert.That(loan.IsOverdue, Is.True);
@@ -144,7 +144,7 @@ public class LoanTests
     {
         // Arrange
         var borrowDate = DateTime.Now.AddDays(-5); // Borrowed 5 days ago
-        var loan = new Loan("L001", "M001", "978-0-123456-78-9", borrowDate);
+        var loan = new Loan("L001", "M001", new Book("978-0-123456-78-9", "Test Book", "Test Author"), borrowDate);
 
         // Act & Assert
         Assert.That(loan.IsOverdue, Is.False);
