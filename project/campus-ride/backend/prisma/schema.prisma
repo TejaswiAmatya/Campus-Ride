@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  PASSENGER
+  DRIVER
+  ADMIN
+}
+
+enum RideStatus {
+  OPEN        // accepting bookings
+  FULL        // no seats left
+  IN_PROGRESS // driver has started the ride
+  COMPLETED   // ride finished
+  CANCELLED   // cancelled by driver or admin
+}
+
+enum BookingStatus {
+  PENDING    // waiting for driver to accept
+  CONFIRMED  // driver accepted
+  CANCELLED  // cancelled by passenger, driver, or admin
+  COMPLETED  // ride finished, earnings settled
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id               String   @id @default(uuid())
+  // Must match the Supabase Auth user ID so JWTs resolve correctly.
+  // When creating a user, use the UUID returned by supabaseAdmin.auth.admin.createUser().
+  email            String   @unique
+  name             String
+  phone            String?
+  role             Role     @default(PASSENGER)
+  isDriverApproved Boolean  @default(false)
+  licenceUrl       String?  // Supabase Storage URL for uploaded driving licence
+  avatarUrl        String?  // Supabase Storage URL for profile picture
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  vehicle         Vehicle?
+  ridesAsDriver   Ride[]    @relation("DriverRides")
+  bookings        Booking[] @relation("PassengerBookings")
+  reviewsGiven    Review[]  @relation("ReviewsGiven")
+  reviewsReceived Review[]  @relation("ReviewsReceived")
+  reports         Report[]  @relation("FiledReports")
+}
+
+model Vehicle {
+  id          String   @id @default(uuid())
+  userId      String   @unique // one vehicle per driver
+  make        String
+  model       String
+  year        Int
+  colour      String
+  plateNumber String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Ride {
+  id                 String     @id @default(uuid())
+  driverId           String
+  originAddress      String
+  originLat          Float
+  originLng          Float
+  destinationAddress String
+  destinationLat     Float
+  destinationLng     Float
+  departureTime      DateTime
+  totalSeats         Int
+  availableSeats     Int
+  pricePerSeat       Decimal    @db.Decimal(10, 2)
+  status             RideStatus @default(OPEN)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  driver   User      @relation("DriverRides", fields: [driverId], references: [id])
+  bookings Booking[]
+}
+
+model Booking {
+  id             String        @id @default(uuid())
+  rideId         String
+  passengerId    String
+  seatsBooked    Int
+  totalFare      Decimal       @db.Decimal(10, 2)
+  platformFee    Decimal       @db.Decimal(10, 2) // 10% of totalFare
+  driverEarnings Decimal       @db.Decimal(10, 2) // 90% of totalFare
+  status         BookingStatus @default(PENDING)
+  // Sprint 3: Stripe fields
+  stripePaymentIntentId String?
+  paymentStatus         String  @default("UNPAID") // UNPAID | PAID | REFUNDED
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  ride      Ride    @relation(fields: [rideId], references: [id])
+  passenger User    @relation("PassengerBookings", fields: [passengerId], references: [id])
+  review    Review?
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  bookingId  String   @unique // one review per completed booking
+  reviewerId String
+  revieweeId String
+  rating     Int      // 1–5; enforced at application layer via Zod
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  booking  Booking @relation(fields: [bookingId], references: [id])
+  reviewer User    @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewee User    @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+}
+
+// Audit log for emails dispatched through the BullMQ worker.
+// The actual queue lives in Redis; this table is for debugging and admin visibility.
+model EmailJob {
+  id             String    @id @default(uuid())
+  type           String    // welcome | booking-confirmed | ride-started | etc.
+  recipientEmail String
+  payload        Json
+  sentAt         DateTime? // null until the worker processes the job
+  createdAt      DateTime  @default(now())
+}
+
+// Key-value store for platform settings editable by admins at runtime.
+model Config {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// User-filed reports about other users or rides.
+model Report {
+  id           String   @id @default(uuid())
+  reporterId   String
+  targetUserId String?
+  targetRideId String?
+  reason       String
+  status       String   @default("OPEN") // OPEN | RESOLVED | DISMISSED
+  note         String?  // admin resolution note
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reporter User @relation("FiledReports", fields: [reporterId], references: [id])
+}

@@ -1,0 +1,71 @@
+version: '3.9'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - campus-ride
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - '8000:8000'
+    env_file: ./backend/.env
+    environment:
+      NODE_ENV: development
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+    networks:
+      - campus-ride
+
+  email-worker:
+    build:
+      context: ./email-worker
+      dockerfile: Dockerfile
+      target: development
+    env_file: ./backend/.env
+    environment:
+      NODE_ENV: development
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./email-worker/src:/app/src
+    networks:
+      - campus-ride
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - '5173:5173'
+    env_file: ./frontend/.env
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    networks:
+      - campus-ride
+
+networks:
+  campus-ride:
+    driver: bridge
