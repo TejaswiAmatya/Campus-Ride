@@ -18,21 +18,23 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
 
   const loginMutation = useMutation({
-    mutationFn: async (creds: { email: string; password: string }) => {
-      const res = await api.post<LoginResponse>('/api/users/login', creds)
+    mutationFn: async (credentials: { email: string; password: string }) => {
+      const res = await api.post<LoginResponse>('/api/users/login', credentials)
       return res.data.data
     },
     onSuccess: (data) => {
       localStorage.setItem('access_token', data.access_token)
       localStorage.setItem('refresh_token', data.refresh_token)
       // Invalidate the auth query so Navbar re-fetches the user profile
-      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
+      queryClient.invalidateQueries({ queryKey: ['auth', 'currentUser'] })
+      // redirect to the rides page
       navigate('/rides')
     },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    // validate the form 
     loginMutation.mutate({ email, password })
   }
 
