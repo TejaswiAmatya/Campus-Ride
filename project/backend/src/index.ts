@@ -1,7 +1,5 @@
 import express from 'express'
-import http from 'http'
 import cors from 'cors'
-import { initSocket } from './socket'
 import { usersRouter } from './users/router'
 import { ridesRouter } from './rides/router'
 import { bookingsRouter } from './bookings/router'
@@ -9,10 +7,6 @@ import { adminRouter } from './admin/router'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
-const server = http.createServer(app)
-
-// ── Socket.io ────────────────────────────────────────────────────────────────
-initSocket(server)
 
 // ── Global middleware ────────────────────────────────────────────────────────
 app.use(
@@ -40,8 +34,8 @@ app.use(errorHandler)
 // ── Start ────────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT || '8000', 10)
 
-server.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`[backend] Server running on http://0.0.0.0:${PORT}`)
 })
 
-export { app, server }
+export { app }

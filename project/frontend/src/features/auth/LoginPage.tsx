@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Car } from 'lucide-react'
 import { api } from '@/api/client'
-import { connectSocket } from '@/socket'
 
 interface LoginResponse {
   data: {
@@ -28,8 +27,6 @@ export function LoginPage() {
       localStorage.setItem('refresh_token', data.refresh_token)
       // Invalidate the auth query so Navbar re-fetches the user profile
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
-      // Connect Socket.io now that we have a valid token
-      connectSocket()
       navigate('/rides')
     },
   })

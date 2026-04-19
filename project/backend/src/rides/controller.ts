@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { CreateRideSchema, SearchRidesSchema, UpdateRideStatusSchema } from './schemas'
 import { prisma } from '../lib/prisma'
-import { notify } from '../socket'
 import { AppError } from '../middleware/errorHandler'
 
 /**
@@ -29,7 +28,7 @@ export async function createRide(req: Request, res: Response, next: NextFunction
     // })
     // res.status(201).json({ data: ride })
 
-    void notify  // silence unused import until wired
+    // TODO: add notifications later
     res.status(201).json({ message: 'TODO: create ride', body })
   } catch (err) {
     next(err)

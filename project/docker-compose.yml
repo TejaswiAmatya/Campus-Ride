@@ -1,18 +1,6 @@
 version: '3.9'
 
 services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - '6379:6379'
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    networks:
-      - campus-ride
-
   backend:
     build:
       context: ./backend
@@ -23,30 +11,9 @@ services:
     env_file: ./backend/.env
     environment:
       NODE_ENV: development
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      redis:
-        condition: service_healthy
     volumes:
       - ./backend/src:/app/src
       - ./backend/prisma:/app/prisma
-    networks:
-      - campus-ride
-
-  email-worker:
-    build:
-      context: ./email-worker
-      dockerfile: Dockerfile
-      target: development
-    env_file: ./backend/.env
-    environment:
-      NODE_ENV: development
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./email-worker/src:/app/src
     networks:
       - campus-ride
 

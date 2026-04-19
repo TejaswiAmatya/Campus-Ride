@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { CreateBookingSchema, UpdateBookingStatusSchema, CreateReviewSchema } from './schemas'
 import { prisma } from '../lib/prisma'
-import { notify } from '../socket'
 import { AppError } from '../middleware/errorHandler'
 
 const PLATFORM_FEE_PERCENT = 0.10 // 10% — move to Config table in Sprint 2
@@ -57,7 +56,7 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
     // notify.bookingNew(ride.driverId, { bookingId: booking.id, rideId: body.rideId, passengerName: ... })
     // res.status(201).json({ data: booking })
 
-    void notify
+    // TODO: add notifications later
     void prisma
     void AppError
     void PLATFORM_FEE_PERCENT
