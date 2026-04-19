@@ -25,7 +25,7 @@ export function useAuth() {
   const token = localStorage.getItem('access_token')
 
   const { data: user, isLoading } = useQuery({
-    queryKey: ['auth', 'me'],
+    queryKey: ['auth', 'currentUser'],
     queryFn: async (): Promise<AuthUser> => {
       const res = await api.get<MeResponse>('/api/users/me')
       return res.data.data

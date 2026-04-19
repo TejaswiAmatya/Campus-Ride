@@ -13,7 +13,7 @@ export function ProfilePage() {
   const updateMutation = useMutation({
     mutationFn: (data: { name: string }) => api.patch('/api/users/me', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
+      queryClient.invalidateQueries({ queryKey: ['auth', 'currentUser'] })
       setEditing(false)
     },
   })
