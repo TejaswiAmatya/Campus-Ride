@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx prisma *)",
+      "Bash(npx tsc *)",
+      "Bash(DATABASE_URL=\"postgresql://x@localhost/x\" npm test)"
+    ]
+  }
+}
