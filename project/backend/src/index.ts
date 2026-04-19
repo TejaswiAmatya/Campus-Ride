@@ -8,7 +8,6 @@ import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
 
-// ── Global middleware ────────────────────────────────────────────────────────
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
@@ -18,7 +17,6 @@ app.use(
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// ── Routes ───────────────────────────────────────────────────────────────────
 app.get('/healthz', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
@@ -28,14 +26,12 @@ app.use('/api/rides', ridesRouter)
 app.use('/api/bookings', bookingsRouter)
 app.use('/api/admin', adminRouter)
 
-// ── Global error handler (must be last) ──────────────────────────────────────
 app.use(errorHandler)
 
-// ── Start ────────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT || '8000', 10)
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[backend] Server running on http://0.0.0.0:${PORT}`)
+app.listen(PORT, () => {
+  console.log(`[backend] Server running on PORT ${PORT}`)
 })
 
 export { app }
