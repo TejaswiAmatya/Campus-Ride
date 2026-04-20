@@ -1,10 +1,11 @@
 import type { Request, Response, NextFunction } from 'express'
-import jwt from 'jsonwebtoken'
+import { prisma } from '../lib/prisma'
+import { supabaseAdmin } from '../lib/supabase'
 
 export interface AuthUser {
-  sub: string    
-  email: string
-  role?: string  
+  sub: string
+  email?: string
+  role: string
 }
 
 declare global {
@@ -16,12 +17,12 @@ declare global {
 }
 
 /**
- * requireAuth — verifies the Bearer JWT issued by Supabase Auth.
+ * requireAuth — validates the Bearer JWT with Supabase Auth.
  *
- * If the token is valid, `req.user` is populated with the decoded payload.
- * Returns 401 if the header is missing or the token is invalid/expired.
+ * If the token is valid and user exists in Prisma, `req.user` is populated
+ * with DB-backed role data.
  */
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
     res.status(401).json({
@@ -31,23 +32,37 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 
   const token = authHeader.slice(7)
-  const secret = process.env.SUPABASE_JWT_SECRET
-
-  if (!secret) {
-    res.status(500).json({
-      error: { code: 'SERVER_ERROR', message: 'JWT secret is not configured' },
-    })
-    return
-  }
 
   try {
-    const payload = jwt.verify(token, secret) as AuthUser
-    req.user = payload
-    next()
-  } catch {
-    res.status(401).json({
-      error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' },
+    const { data, error } = await supabaseAdmin.auth.getUser(token)
+    if (error || !data?.user) {
+      res.status(401).json({
+        error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' },
+      })
+      return
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: data.user.id },
+      select: { email: true, role: true },
     })
+
+    if (!user) {
+      res.status(401).json({
+        error: { code: 'UNAUTHORIZED', message: 'Authenticated user not found' },
+      })
+      return
+    }
+
+    req.user = {
+      sub: data.user.id,
+      email: user.email ?? data.user.email ?? undefined,
+      role: user.role,
+    }
+
+    next()
+  } catch (err) {
+    next(err)
   }
 }
 
@@ -60,10 +75,12 @@ export function requireRole(...roles: string[]) {
       res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } })
       return
     }
-    if (!roles.includes(req.user.role ?? '')) {
+
+    if (!roles.includes(req.user.role)) {
       res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } })
       return
     }
+
     next()
   }
 }
