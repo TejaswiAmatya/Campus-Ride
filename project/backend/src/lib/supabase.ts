@@ -11,13 +11,6 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
 
 /**
  * Supabase admin client — uses the service-role key for elevated access.
- *
- * Use this server-side only:
- *  - Creating / deleting auth users
- *  - Uploading to Storage on behalf of users
- *  - Bypassing Row-Level Security when necessary
- *
- * NEVER expose SUPABASE_SERVICE_ROLE_KEY to the browser.
  */
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: {
