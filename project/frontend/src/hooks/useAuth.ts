@@ -10,7 +10,7 @@ export interface AuthUser {
   isDriverApproved: boolean
 }
 
-interface MeResponse {
+interface currentUserResponse {
   data: AuthUser
 }
 
@@ -26,9 +26,13 @@ export function useAuth() {
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['auth', 'currentUser'],
-    queryFn: async (): Promise<AuthUser> => {
-      const res = await api.get<MeResponse>('/api/users/me')
-      return res.data.data
+    queryFn: async (): Promise<AuthUser | null> => {
+      try {
+        const res = await api.get<currentUserResponse>('/api/users/me')
+        return res.data?.data ?? null
+      } catch {
+        return null
+      }
     },
     enabled: !!token,
     retry: false,
