@@ -4,7 +4,7 @@ import { usersRouter } from './users/router'
 import { ridesRouter } from './rides/router'
 import { bookingsRouter } from './bookings/router'
 import { adminRouter } from './admin/router'
-import { errorHandler } from './middleware/errorHandler'
+import { errorHandler } from './middleware/error'
 
 const app = express()
 

@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { CreateBookingSchema, UpdateBookingStatusSchema, CreateReviewSchema } from './schemas'
 import { prisma } from '../lib/prisma'
-import { AppError } from '../middleware/errorHandler'
+import { AppError } from '../middleware/error'
 
 const PLATFORM_FEE_PERCENT = 0.10 // 10% — move to Config table in Sprint 2
 
