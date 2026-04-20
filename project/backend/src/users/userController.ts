@@ -81,14 +81,19 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
  */
 export async function getCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // TODO: fetch from Prisma
-    // const user = await prisma.user.findUniqueOrThrow({
-    //   where: { id: req.user!.sub },
-    //   include: { vehicle: true },
-    // })
-    // res.json({ data: user })
+    if (!req.user?.sub) {
+      res.status(401).json({
+        error: { code: 'UNAUTHORIZED', message: 'Not authenticated' },
+      })
+      return
+    }
 
-    res.json({ message: 'TODO: get own profile', userId: req.user?.sub })
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: req.user.sub },
+      include: { vehicle: true },
+    })
+
+    res.json({ data: user })
   } catch (err) {
     next(err)
   }
