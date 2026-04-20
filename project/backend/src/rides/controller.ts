@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { CreateRideSchema, SearchRidesSchema, UpdateRideStatusSchema } from './schemas'
 import { prisma } from '../lib/prisma'
-import { AppError } from '../middleware/errorHandler'
+import { AppError } from '../middleware/error'
 
 /**
  * POST /api/rides
