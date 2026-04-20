@@ -2,12 +2,11 @@ import type { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 
 export interface AuthUser {
-  sub: string    // Supabase user ID (UUID)
+  sub: string    
   email: string
-  role?: string  // populated from app_metadata by Supabase if set
+  role?: string  
 }
 
-// Augment Express Request so req.user is typed throughout the codebase
 declare global {
   namespace Express {
     interface Request {
@@ -54,8 +53,6 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
 /**
  * requireRole — must be used AFTER requireAuth in the middleware chain.
- *
- * Example: router.delete('/:id', requireAuth, requireRole('ADMIN'), controller.delete)
  */
 export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
