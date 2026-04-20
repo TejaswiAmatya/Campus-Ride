@@ -9,49 +9,38 @@ import {
 import { prisma } from '../lib/prisma'
 import { supabaseAdmin } from '../lib/supabase'
 
-/**
- * POST /api/users/register
- *
- * 1. Validate the request body (university email + strong password).
- * 2. Create a Supabase Auth user with supabaseAdmin.auth.admin.createUser().
- * 3. Create a corresponding Prisma User record using the Supabase user ID.
- * 4. Enqueue a "welcome" email job via BullMQ (Track D wires this up).
- * 5. Return the new user profile (never return the password).
- */
+// POST /api/users/register
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = RegisterSchema.parse(req.body)
 
-    // TODO: create Supabase auth user
-    // const { data: authData, error } = await supabaseAdmin.auth.admin.createUser({
-    //   email: body.email,
-    //   password: body.password,
-    //   email_confirm: true,
-    // })
-    // if (error) throw new AppError('AUTH_ERROR', error.message)
-
-    // TODO: create Prisma user using authData.user.id as the primary key
-    // const user = await prisma.user.create({
-    //   data: { id: authData.user.id, email: body.email, name: body.name, phone: body.phone },
-    // })
+    // create Supabase auth user
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email: body.email,
+      password: body.password,
+      email_confirm: true,
+    })
+    if (error || !data?.user) {
+      res.status(500).json({error: error?.message,
+        message: 'User not created',})
+      return
+    }
+    
+    // create new user
+    const user = await prisma.user.create({
+      data: { id: data.user.id, email: body.email, name: body.name, phone: body.phone },
+    })
 
     // TODO: enqueue welcome email
     // await emailQueue.add('welcome', { recipientEmail: body.email, payload: { name: body.name } })
 
     res.status(201).json({ message: 'TODO: register user', email: body.email })
-    void prisma // silence unused import warning until implemented
-    void supabaseAdmin
   } catch (err) {
     next(err)
   }
 }
 
-/**
- * POST /api/users/login
- *
- * Delegates to Supabase Auth. Returns access_token + refresh_token.
- * The client stores access_token and sends it as Bearer on subsequent requests.
- */
+// POST /api/users/login
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     // validate the request body
@@ -71,7 +60,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return
     }
 
-    // Success
+    // return the access_token and refresh_token
     const session = data.session
     res.status(200).json({
       data: {
@@ -90,7 +79,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
  * Returns the full profile of the currently authenticated user,
  * including their vehicle info if they are a driver.
  */
-export async function getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function getCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     // TODO: fetch from Prisma
     // const user = await prisma.user.findUniqueOrThrow({
@@ -111,7 +100,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
  * Updates name, phone, or avatarUrl. Avatar upload to Supabase Storage
  * is handled client-side; this endpoint receives the resulting URL.
  */
-export async function updateMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function updateCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = UpdateProfileSchema.parse(req.body)
 
