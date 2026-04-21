@@ -8,6 +8,9 @@ import { bookingsRouter } from "./bookings/router";
 import { adminRouter } from "./admin/router";
 import { errorHandler } from "./middleware/error";
 
+//this initializes the email workers, which will listen for jobs to send emails
+import "./workers/emailWorkers";
+
 const app = express();
 app.use(
   cors({
