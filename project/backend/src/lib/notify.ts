@@ -1,3 +1,4 @@
+//this file is here so that when notify.bookingNew is called they just have to keep passengerId and bookingId instead of writing the whole payload
 import {
   notifyBookingNew,
   notifyBookingStatus,
