@@ -1,6 +1,6 @@
 import express from 'express'
 import cors from 'cors'
-import { usersRouter } from './users/router'
+import { authRouter, usersRouter } from './users/router'
 import { ridesRouter } from './rides/router'
 import { bookingsRouter } from './bookings/router'
 import { adminRouter } from './admin/router'
@@ -21,6 +21,7 @@ app.get('/healthz', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
+app.use('/api/auth', authRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/rides', ridesRouter)
 app.use('/api/bookings', bookingsRouter)

@@ -1,15 +1,19 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
-import * as controller from './userController'
+import * as authController from './authController'
+import * as userController from './userController'
 
 export const usersRouter = Router()
+export const authRouter = Router()
 
-// Public routes
-usersRouter.post('/register', controller.register)
-usersRouter.post('/login', controller.login)
-usersRouter.get('/:id/reviews', controller.getDriverReviews)
+// Auth routes
+authRouter.post('/register', authController.register)
+authRouter.post('/login', authController.login)
+
+// Public user routes
+usersRouter.get('/:id/reviews', userController.getDriverReviews)
 
 // Authenticated routes
-usersRouter.get('/me', requireAuth, controller.getCurrentUser)
-usersRouter.patch('/me', requireAuth, controller.updateCurrentUser)
-usersRouter.post('/me/driver', requireAuth, controller.applyAsDriver)
+usersRouter.get('/me', requireAuth, userController.getCurrentUser)
+usersRouter.patch('/me', requireAuth, userController.updateCurrentUser)
+usersRouter.post('/me/driver', requireAuth, userController.applyAsDriver)
