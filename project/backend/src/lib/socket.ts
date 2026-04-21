@@ -52,20 +52,20 @@ export function getIO(): Server {
 //notifies the driver of a new booking request
 export function notifyBookingNew(driverId: string, payload: BookingNewPayload) {
   io = getIO();
-  io.to(driverId).emit("booking:new", payload);
+  io.to(`user:${driverId}`).emit("booking:new", payload);
 }
 
 //notifies the user of a booking status change
 export function notifyBookingStatus(
-  userId: string,
+  passengerId: string,
   payload: BookingStatusPayload,
 ) {
   io = getIO();
-  io.to(userId).emit("booking:status", payload);
+  io.to(`user:${passengerId}`).emit("booking:status", payload);
 }
 
 //notifies the ride of a ride status (ride is the room for both the passenger and driver to join)
 export function notifyRideStatus(rideId: string, payload: RideStatusPayload) {
   io = getIO();
-  io.to(rideId).emit("ride:status", payload);
+  io.to(`ride:${rideId}`).emit("ride:status", payload);
 }
