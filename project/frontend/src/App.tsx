@@ -2,13 +2,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navbar } from './components/Navbar'
 import { ProtectedRoute } from './components/ProtectedRoute'
-import { LoginPage } from './features/auth/LoginPage'
-import { RegisterPage } from './features/auth/RegisterPage'
-import { RidesPage } from './features/rides/RidesPage'
-import { PostRidePage } from './features/rides/PostRidePage'
-import { BookingsPage } from './features/bookings/BookingsPage'
-import { ProfilePage } from './features/profile/ProfilePage'
-import { AdminDashboard } from './features/admin/AdminDashboard'
+import { authRoutes } from './features/auth/routes'
+import { rideRoutes } from './features/rides/routes'
+import { bookingRoutes } from './features/bookings/routes'
+import { profileRoutes } from './features/profile/routes'
+import { adminRoutes } from './features/admin/routes'
+import type { AppRoute } from './routes/types'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +20,13 @@ const queryClient = new QueryClient({
 })
 
 export function App() {
+  const protectedRoutes: AppRoute[] = [...rideRoutes, ...bookingRoutes, ...profileRoutes].filter(
+    (route) => route.requiresAuth && !route.requiredRole,
+  )
+  const protectedAdminRoutes: AppRoute[] = adminRoutes.filter(
+    (route) => route.requiresAuth && route.requiredRole === 'ADMIN',
+  )
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -28,25 +34,22 @@ export function App() {
           <Navbar />
           <main className="container mx-auto px-4 py-6">
             <Routes>
-              {/* Public */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+              {authRoutes.map((route) => (
+                <Route key={route.path} path={route.path} element={route.element} />
+              ))}
 
-              {/* Authenticated (any role) */}
               <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<Navigate to="/rides" replace />} />
-                <Route path="/rides" element={<RidesPage />} />
-                <Route path="/rides/post" element={<PostRidePage />} />
-                <Route path="/bookings" element={<BookingsPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+                {protectedRoutes.map((route) => (
+                  <Route key={route.path} path={route.path} element={route.element} />
+                ))}
               </Route>
 
-              {/* Admin only */}
               <Route element={<ProtectedRoute requiredRole="ADMIN" />}>
-                <Route path="/admin" element={<AdminDashboard />} />
+                {protectedAdminRoutes.map((route) => (
+                  <Route key={route.path} path={route.path} element={route.element} />
+                ))}
               </Route>
 
-              {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
