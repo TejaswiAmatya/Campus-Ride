@@ -37,7 +37,7 @@ async function rideStatus(rideId: string, status: RideStatusPayload) {
 }
 
 export const notify = {
-  bookingNew: notifyBookingNew,
-  bookingStatus: notifyBookingStatus,
-  rideStatus: notifyRideStatus,
+  bookingNew,
+  bookingStatus,
+  rideStatus,
 };
