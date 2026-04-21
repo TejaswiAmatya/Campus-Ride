@@ -14,7 +14,7 @@ import { prisma } from '../lib/prisma'
  */
 export async function getCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    if (!req.user?.sub) {
+    if (!req.user?.id) {
       res.status(401).json({
         error: { code: 'UNAUTHORIZED', message: 'Not authenticated' },
       })
@@ -22,7 +22,7 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
     }
 
     const user = await prisma.user.findUniqueOrThrow({
-      where: { id: req.user.sub },
+      where: { id: req.user.id },
       include: { vehicle: true },
     })
 
@@ -42,7 +42,7 @@ export async function updateCurrentUser(req: Request, res: Response, next: NextF
   try {
     const body = UpdateProfileSchema.parse(req.body)
 
-    // TODO: prisma.user.update({ where: { id: req.user!.sub }, data: body })
+    // TODO: prisma.user.update({ where: { id: req.user!.id }, data: body })
 
     res.json({ message: 'TODO: update profile', updates: body })
   } catch (err) {
@@ -66,17 +66,17 @@ export async function applyAsDriver(req: Request, res: Response, next: NextFunct
     // TODO:
     // await prisma.$transaction([
     //   prisma.user.update({
-    //     where: { id: req.user!.sub },
+    //     where: { id: req.user!.id },
     //     data: { role: 'DRIVER', isDriverApproved: false, licenceUrl: body.licenceUrl },
     //   }),
     //   prisma.vehicle.upsert({
-    //     where: { userId: req.user!.sub },
-    //     create: { userId: req.user!.sub, ...body.vehicle },
+    //     where: { userId: req.user!.id },
+    //     create: { userId: req.user!.id, ...body.vehicle },
     //     update: { ...body.vehicle },
     //   }),
     // ])
 
-    res.status(201).json({ message: 'TODO: submit driver application', userId: req.user?.sub, body })
+    res.status(201).json({ message: 'TODO: submit driver application', userId: req.user?.id, body })
   } catch (err) {
     next(err)
   }
