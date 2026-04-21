@@ -11,6 +11,7 @@ services:
     env_file: ./backend/.env
     environment:
       NODE_ENV: development
+      REDIS_URL: redis://redis:6379
     volumes:
       - ./backend/src:/app/src
       - ./backend/prisma:/app/prisma
@@ -41,6 +42,8 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
+    networks:
+      - campus-ride
 
 networks:
   campus-ride:
