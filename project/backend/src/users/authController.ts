@@ -2,7 +2,9 @@ import type { Request, Response, NextFunction } from "express";
 import { RegisterSchema, LoginSchema } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { supabaseAdmin } from "../lib/supabase";
+import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
+
 // POST /api/auth/register
 export async function register(
   req: Request,
@@ -11,35 +13,62 @@ export async function register(
 ): Promise<void> {
   try {
     const body = RegisterSchema.parse(req.body);
+    const email = body.email.toLowerCase();
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (existingUser) {
+      throw new AppError("CONFLICT", "Email is already registered", 409);
+    }
 
     // create Supabase auth user
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email: body.email,
+      email,
       password: body.password,
       email_confirm: true,
     });
     if (error || !data?.user) {
-      res.status(500).json({
-        error: error?.message,
-        message: "User not created",
-      });
-      return;
+      throw new AppError(
+        "AUTH_PROVIDER_ERROR",
+        error?.message ?? "Unable to create authentication user",
+        502,
+      );
     }
 
-    // create new user
-    const newUser = await prisma.user.create({
-      data: {
-        id: data.user.id,
-        email: body.email,
-        name: body.name,
-        phone: body.phone,
-      },
-    });
+    let user;
+    try {
+      // create new user
+      user = await prisma.user.create({
+        data: { id: data.user.id, email, name: body.name, phone: body.phone },
+      });
+    } catch (prismaErr) {
+      // Compensate Supabase user creation to avoid orphaned auth users.
+      const { error: rollbackError } =
+        await supabaseAdmin.auth.admin.deleteUser(data.user.id);
+      if (rollbackError) {
+        console.error(
+          "[auth/register] Failed to rollback Supabase user after Prisma failure",
+          {
+            supabaseUserId: data.user.id,
+            rollbackError: rollbackError.message,
+          },
+        );
+      }
+      throw prismaErr;
+    }
 
     // TODO: enqueue welcome email
     // await emailQueue.add('welcome', { recipientEmail: body.email, payload: { name: body.name } })
-    await emailQueue.welcomeEmail(newUser.id, newUser.email);
-    res.status(201).json({ message: "TODO: register user", email: body.email });
+
+    res.status(201).json({
+      data: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -62,11 +91,11 @@ export async function login(
 
     // Invalid credentials
     if (error || !data?.session) {
-      res.status(401).json({
-        error: "INVALID_CREDENTIALS",
-        message: "Email or password is incorrect",
-      });
-      return;
+      throw new AppError(
+        "INVALID_CREDENTIALS",
+        "Email or password is incorrect",
+        401,
+      );
     }
 
     // return the access_token and refresh_token
