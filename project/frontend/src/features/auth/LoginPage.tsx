@@ -1,36 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Car } from "lucide-react";
-import { api } from "@/api/client";
-
-interface LoginResponse {
-  data: {
-    access_token: string;
-    refresh_token: string;
-  };
-}
+import { useLogin } from "@/hooks/useAuth";
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const loginMutation = useLogin();
 
-  const loginMutation = useMutation({
-    mutationFn: async (credentials: { email: string; password: string }) => {
-      const res = await api.post<LoginResponse>("/api/auth/login", credentials);
-      return res.data.data;
-    },
-    onSuccess: (data) => {
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("refresh_token", data.refresh_token);
-      // Invalidate the auth query so Navbar re-fetches the user profile
-      queryClient.invalidateQueries({ queryKey: ["auth", "currentUser"] });
-      // redirect to the rides page
+  useEffect(() => {
+    if (loginMutation.isSuccess) {
       navigate("/rides");
-    },
-  });
+    }
+  }, [loginMutation.isSuccess, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

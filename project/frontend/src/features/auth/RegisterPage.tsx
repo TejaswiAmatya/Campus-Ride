@@ -1,23 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
 import { Car } from 'lucide-react'
-import { api } from '@/api/client'
+import { useRegister } from '@/hooks/useAuth'
 
 export function RegisterPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' })
+  const registerMutation = useRegister()
 
-  const registerMutation = useMutation({
-    mutationFn: async (data: typeof form) => {
-      const res = await api.post('/api/users/register', data)
-      return res.data
-    },
-    onSuccess: () => {
+  useEffect(() => {
+    if (registerMutation.isSuccess) {
       // TODO: auto-login after register, or redirect to a "check your email" page
       navigate('/login')
-    },
-  })
+    }
+  }, [registerMutation.isSuccess, navigate])
 
   const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
