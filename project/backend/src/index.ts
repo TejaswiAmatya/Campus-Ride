@@ -9,7 +9,6 @@ import { adminRouter } from "./admin/router";
 import { errorHandler } from "./middleware/error";
 
 const app = express();
-
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:5173",
