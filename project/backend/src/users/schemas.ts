@@ -1,18 +1,13 @@
 import { z } from 'zod'
 
-/**
- * Accepts common university email patterns:
- *   .edu  |  .ac.xx  |  .university.xx
- * Extend the regex or move to a DB config table as needed.
- */
-const UNIVERSITY_EMAIL_RE = /@[a-zA-Z0-9.-]+\.(edu|ac\.[a-zA-Z]{2,}|university\.[a-zA-Z]{2,})$/i
+const UNIVERSITY_EMAIL_RE = /@[a-zA-Z0-9.-]+\.(edu|no)$/i
 
 export const RegisterSchema = z.object({
   email: z
     .string()
     .email('Must be a valid email address')
     .refine((e) => UNIVERSITY_EMAIL_RE.test(e), {
-      message: 'Must be a university email address (e.g. you@university.edu)',
+      message: 'Must be a university email (.edu or .no)',
     }),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().min(2).max(100),
