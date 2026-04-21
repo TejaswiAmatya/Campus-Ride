@@ -1,7 +1,8 @@
 // Data sent when a new booking is created
 export interface BookingNewPayload {
   bookingId: string;
-  userId: string;
+  passengerId: string;
+  passengerName?: string; // optional, can be filled in later for richer notifications
   pickupLocation: { lat: number; lng: number };
   dropoffLocation: { lat: number; lng: number };
   requestedAt: string; // ISO timestamp
