@@ -8,9 +8,15 @@ describe('RegisterSchema', () => {
     expect(RegisterSchema.safeParse(valid).success).toBe(true)
   })
 
-  it('accepts a .ac.uk university email', () => {
+  it('rejects a .ac.uk university email', () => {
     expect(
       RegisterSchema.safeParse({ ...valid, email: 'bob@imperial.ac.uk' }).success,
+    ).toBe(false)
+  })
+
+  it('accepts a valid .no email', () => {
+    expect(
+      RegisterSchema.safeParse({ ...valid, email: 'bob@ntnu.no' }).success,
     ).toBe(true)
   })
 
