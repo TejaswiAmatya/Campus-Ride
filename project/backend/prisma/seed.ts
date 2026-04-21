@@ -17,7 +17,7 @@ const prisma = new PrismaClient({
 
 // ── Fixed IDs (stable across re-seeds) ───────────────────────────────────────
 const IDS = {
-  admin:    'a0000000-0000-0000-0000-000000000001',
+  admin:    '09b524d2-c041-465f-bd62-59475b0d6999',
   alice:    'a0000000-0000-0000-0000-000000000002', // passenger
   bob:      'a0000000-0000-0000-0000-000000000003', // passenger
   carol:    'a0000000-0000-0000-0000-000000000004', // passenger
