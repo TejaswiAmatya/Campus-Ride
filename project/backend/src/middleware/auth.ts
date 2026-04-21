@@ -3,8 +3,7 @@ import { prisma } from '../lib/prisma'
 import { supabaseAdmin } from '../lib/supabase'
 
 export interface AuthUser {
-  sub: string
-  email?: string
+  id: string
   role: string
 }
 
@@ -44,7 +43,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     const user = await prisma.user.findUnique({
       where: { id: data.user.id },
-      select: { email: true, role: true },
+      select: { role: true },
     })
 
     if (!user) {
@@ -55,8 +54,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     req.user = {
-      sub: data.user.id,
-      email: user.email ?? data.user.email ?? undefined,
+      id: data.user.id,
       role: user.role,
     }
 

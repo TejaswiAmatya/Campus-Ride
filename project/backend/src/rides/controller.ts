@@ -15,12 +15,12 @@ export async function createRide(req: Request, res: Response, next: NextFunction
     const body = CreateRideSchema.parse(req.body)
 
     // TODO:
-    // const driver = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.sub } })
+    // const driver = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.id } })
     // if (!driver.isDriverApproved) throw new AppError('FORBIDDEN', 'Driver application not yet approved', 403)
     //
     // const ride = await prisma.ride.create({
     //   data: {
-    //     driverId: req.user!.sub,
+    //     driverId: req.user!.id,
     //     ...body,
     //     departureTime: new Date(body.departureTime),
     //     availableSeats: body.totalSeats,
@@ -82,13 +82,13 @@ export async function getMyRides(req: Request, res: Response, next: NextFunction
   try {
     // TODO:
     // const rides = await prisma.ride.findMany({
-    //   where: { driverId: req.user!.sub },
+    //   where: { driverId: req.user!.id },
     //   include: { _count: { select: { bookings: true } } },
     //   orderBy: { departureTime: 'desc' },
     // })
     // res.json({ data: rides })
 
-    res.json({ message: 'TODO: get my rides', driverId: req.user?.sub })
+    res.json({ message: 'TODO: get my rides', driverId: req.user?.id })
   } catch (err) {
     next(err)
   }
@@ -136,7 +136,7 @@ export async function updateRideStatus(req: Request, res: Response, next: NextFu
 
     // TODO:
     // const ride = await prisma.ride.findUniqueOrThrow({ where: { id } })
-    // if (ride.driverId !== req.user!.sub) throw new AppError('FORBIDDEN', 'Not the driver of this ride', 403)
+    // if (ride.driverId !== req.user!.id) throw new AppError('FORBIDDEN', 'Not the driver of this ride', 403)
     // const updated = await prisma.ride.update({ where: { id }, data: { status: body.status } })
     //
     // notify.rideStatus(id, { status: body.status, updatedAt: new Date().toISOString() })

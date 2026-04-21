@@ -182,7 +182,7 @@ export async function createReport(req: Request, res: Response, next: NextFuncti
 
     // TODO:
     // const report = await prisma.report.create({
-    //   data: { ...body, reporterId: req.user!.sub },
+    //   data: { ...body, reporterId: req.user!.id },
     // })
     // res.status(201).json({ data: report })
 

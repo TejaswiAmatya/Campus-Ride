@@ -34,7 +34,7 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
     //   const booking = await tx.booking.create({
     //     data: {
     //       rideId: body.rideId,
-    //       passengerId: req.user!.sub,
+    //       passengerId: req.user!.id,
     //       seatsBooked: body.seatsBooked,
     //       totalFare,
     //       platformFee,
@@ -79,21 +79,21 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
     // if (asDriver) {
     //   // bookings on rides owned by this driver
     //   const bookings = await prisma.booking.findMany({
-    //     where: { ride: { driverId: req.user!.sub } },
+    //     where: { ride: { driverId: req.user!.id } },
     //     include: { passenger: { select: { id: true, name: true, avatarUrl: true } }, ride: true },
     //     orderBy: { createdAt: 'desc' },
     //   })
     //   res.json({ data: bookings })
     // } else {
     //   const bookings = await prisma.booking.findMany({
-    //     where: { passengerId: req.user!.sub },
+    //     where: { passengerId: req.user!.id },
     //     include: { ride: { include: { driver: { select: { id: true, name: true } } } } },
     //     orderBy: { createdAt: 'desc' },
     //   })
     //   res.json({ data: bookings })
     // }
 
-    res.json({ message: 'TODO: list bookings', userId: req.user?.sub })
+    res.json({ message: 'TODO: list bookings', userId: req.user?.id })
   } catch (err) {
     next(err)
   }
@@ -182,13 +182,13 @@ export async function getEarnings(req: Request, res: Response, next: NextFunctio
   try {
     // TODO:
     // const earnings = await prisma.booking.aggregate({
-    //   where: { ride: { driverId: req.user!.sub }, status: 'COMPLETED' },
+    //   where: { ride: { driverId: req.user!.id }, status: 'COMPLETED' },
     //   _sum: { driverEarnings: true },
     //   _count: true,
     // })
     // res.json({ data: earnings })
 
-    res.json({ message: 'TODO: get earnings', driverId: req.user?.sub })
+    res.json({ message: 'TODO: get earnings', driverId: req.user?.id })
   } catch (err) {
     next(err)
   }
