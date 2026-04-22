@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireAuth } from '../middleware/auth'
+import { requireAuth, requireRole } from '../middleware/auth'
 import * as controller from './controller'
 
 export const ridesRouter = Router()
@@ -10,6 +10,6 @@ ridesRouter.get('/mine', requireAuth, controller.getMyRides) // must come before
 ridesRouter.get('/:id', controller.getRide)
 
 // ── Driver only ───────────────────────────────────────────────────────────────
-ridesRouter.post('/', requireAuth, controller.createRide)
-ridesRouter.patch('/:id/status', requireAuth, controller.updateRideStatus)
-ridesRouter.delete('/:id', requireAuth, controller.cancelRide)
+ridesRouter.post('/', requireAuth, requireRole('DRIVER'), controller.createRide)
+ridesRouter.patch('/:id/status', requireAuth, requireRole('DRIVER'), controller.updateRideStatus)
+ridesRouter.delete('/:id', requireAuth, requireRole('DRIVER'), controller.cancelRide)
