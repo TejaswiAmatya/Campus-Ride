@@ -2,17 +2,18 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navbar } from './components/Navbar'
 import { ProtectedRoute } from './components/ProtectedRoute'
-import { authRoutes } from './features/auth/routes'
-import { rideRoutes } from './features/rides/routes'
-import { bookingRoutes } from './features/bookings/routes'
-import { profileRoutes } from './features/profile/routes'
-import { adminRoutes } from './features/admin/routes'
-import type { AppRoute } from './routes/types'
+import { LoginPage } from './features/auth/LoginPage'
+import { RegisterPage } from './features/auth/RegisterPage'
+import { RidesPage } from './features/rides/RidesPage'
+import { PostRidePage } from './features/rides/PostRidePage'
+import { BookingsPage } from './features/bookings/BookingsPage'
+import { ProfilePage } from './features/profile/ProfilePage'
+import { AdminDashboard } from './features/admin/AdminDashboard'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60_000,
+      staleTime: 60_000,      // 1 minute
       retry: 1,
       refetchOnWindowFocus: false,
     },
@@ -20,13 +21,6 @@ const queryClient = new QueryClient({
 })
 
 export function App() {
-  const protectedRoutes: AppRoute[] = [...rideRoutes, ...bookingRoutes, ...profileRoutes].filter(
-    (r) => r.requiresAuth && !r.requiredRole,
-  )
-  const adminOnlyRoutes: AppRoute[] = adminRoutes.filter(
-    (r) => r.requiresAuth && r.requiredRole === 'ADMIN',
-  )
-
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -34,22 +28,25 @@ export function App() {
           <Navbar />
           <main className="container mx-auto px-4 py-6">
             <Routes>
-              {authRoutes.map((route) => (
-                <Route key={route.path} path={route.path} element={route.element} />
-              ))}
+              {/* Public */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
+              {/* Authenticated (any role) */}
               <Route element={<ProtectedRoute />}>
-                {protectedRoutes.map((route) => (
-                  <Route key={route.path} path={route.path} element={route.element} />
-                ))}
+                <Route path="/" element={<Navigate to="/rides" replace />} />
+                <Route path="/rides" element={<RidesPage />} />
+                <Route path="/rides/post" element={<PostRidePage />} />
+                <Route path="/bookings" element={<BookingsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
               </Route>
 
+              {/* Admin only */}
               <Route element={<ProtectedRoute requiredRole="ADMIN" />}>
-                {adminOnlyRoutes.map((route) => (
-                  <Route key={route.path} path={route.path} element={route.element} />
-                ))}
+                <Route path="/admin" element={<AdminDashboard />} />
               </Route>
 
+              {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
