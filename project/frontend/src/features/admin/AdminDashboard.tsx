@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LayoutDashboard, Users, Car, BookOpen, DollarSign, FileWarning, CheckCircle, XCircle } from 'lucide-react'
 import { api } from '@/api/client'
+import { StatsCard } from './StatsCard'
 
 interface Stats {
   activeRides: number
@@ -68,11 +69,23 @@ export function AdminDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard icon={<Car />} label="Active rides" value={stats?.activeRides ?? 0} />
-        <StatCard icon={<Users />} label="Total users" value={stats?.totalUsers ?? 0} />
-        <StatCard icon={<BookOpen />} label="Pending drivers" value={stats?.pendingDrivers ?? 0} accent="yellow" />
-        <StatCard icon={<FileWarning />} label="Open reports" value={stats?.openReports ?? 0} accent="red" />
-        <StatCard icon={<DollarSign />} label="Revenue (all-time)" value={`${stats?.revenueAllTime ?? 0} NOK`} />
+        <StatsCard icon={<Car className="text-primary" />} title="Active rides" value={stats?.activeRides ?? 0} />
+        <StatsCard icon={<Users className="text-primary" />} title="Total users" value={stats?.totalUsers ?? 0} />
+        <StatsCard
+          icon={<BookOpen className="text-yellow-600" />}
+          title="Pending drivers"
+          value={stats?.pendingDrivers ?? 0}
+        />
+        <StatsCard
+          icon={<FileWarning className="text-destructive" />}
+          title="Open reports"
+          value={stats?.openReports ?? 0}
+        />
+        <StatsCard
+          icon={<DollarSign className="text-primary" />}
+          title="Revenue (all-time)"
+          value={`${stats?.revenueAllTime ?? 0} NOK`}
+        />
       </div>
 
       {/* Pending driver approvals */}
@@ -150,32 +163,6 @@ export function AdminDashboard() {
 
       {/* TODO Sprint 2: Reports table */}
       {/* TODO Sprint 2: Config editor (platform fee) */}
-    </div>
-  )
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string | number
-  accent?: 'yellow' | 'red'
-}) {
-  const accentClass = accent === 'yellow'
-    ? 'text-yellow-600'
-    : accent === 'red'
-      ? 'text-destructive'
-      : 'text-primary'
-
-  return (
-    <div className="rounded-lg border p-4 space-y-1">
-      <div className={`${accentClass} [&>svg]:h-5 [&>svg]:w-5`}>{icon}</div>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   )
 }
