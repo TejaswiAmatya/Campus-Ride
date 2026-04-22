@@ -30,7 +30,6 @@ export const UpdateProfileSchema = z
   })
 
 export const DriverApplicationSchema = z.object({
-  licenceUrl: z.string().url('Licence URL must be a valid URL (upload to Supabase Storage first)'),
   vehicle: z.object({
     make: z.string().min(1),
     model: z.string().min(1),
