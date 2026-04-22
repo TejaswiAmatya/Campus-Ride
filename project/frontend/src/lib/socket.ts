@@ -18,10 +18,12 @@ export function getSocket(): Socket {
 }
 
 export function useSocket() {
-  const [isConnected, setIsConnected] = useState(false)
   const s = getSocket()
+  const [isConnected, setIsConnected] = useState(s.connected)
 
   useEffect(() => {
+    setIsConnected(s.connected)
+
     function onConnect() {
       setIsConnected(true)
     }
