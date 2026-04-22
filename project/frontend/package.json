@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-query": "5.56.2",
     "axios": "^1.15.1",
     "class-variance-authority": "0.7.0",
@@ -19,9 +20,15 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-leaflet": "4.2.1",
+<<<<<<< Updated upstream
     "react-router-dom": "^6.30.3",
     "tailwind-merge": "2.5.2",
     "zustand": "^5.0.12"
+=======
+    "react-router-dom": "6.26.2",
+    "socket.io-client": "^4.8.3",
+    "tailwind-merge": "2.5.2"
+>>>>>>> Stashed changes
   },
   "devDependencies": {
     "@types/leaflet": "1.9.14",
