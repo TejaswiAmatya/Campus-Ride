@@ -1,32 +1,34 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Car } from 'lucide-react'
-import { useLogin } from '@/hooks/useAuth'
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Car } from "lucide-react";
+import { useLogin } from "@/hooks/useAuth";
 
 export function LoginPage() {
-  const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const loginMutation = useLogin()
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const loginMutation = useLogin();
 
   useEffect(() => {
     if (loginMutation.isSuccess) {
-      navigate('/rides')
+      navigate("/rides");
     }
-  }, [loginMutation.isSuccess, navigate])
+  }, [loginMutation.isSuccess, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // validate the form 
-    loginMutation.mutate({ email, password })
-  }
+    e.preventDefault();
+    // validate the form
+    loginMutation.mutate({ email, password });
+  };
 
   return (
     <div className="mx-auto max-w-sm mt-16 px-4">
       <div className="mb-8 text-center">
         <Car className="mx-auto h-10 w-10 text-primary mb-3" />
         <h1 className="text-2xl font-bold">Welcome back</h1>
-        <p className="text-sm text-muted-foreground mt-1">Sign in to Campus Ride</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Sign in to Campus Ride
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -71,16 +73,19 @@ export function LoginPage() {
           disabled={loginMutation.isPending}
           className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
-          {loginMutation.isPending ? 'Signing in…' : 'Sign in'}
+          {loginMutation.isPending ? "Signing in…" : "Sign in"}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Don't have an account?{' '}
-        <Link to="/register" className="font-medium text-primary hover:underline">
+        Don't have an account?{" "}
+        <Link
+          to="/register"
+          className="font-medium text-primary hover:underline"
+        >
           Create one
         </Link>
       </p>
     </div>
-  )
+  );
 }
