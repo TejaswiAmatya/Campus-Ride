@@ -54,12 +54,7 @@ export async function updateCurrentUser(req: Request, res: Response, next: NextF
 
 /**
  * POST /api/users/me/driver
- *
- * Submits a driver application:
- * 1. Validates licence URL (must already be uploaded to Supabase Storage).
- * 2. Creates or updates the User's Vehicle record.
- * 3. Sets User.role = DRIVER, User.isDriverApproved = false.
- * 4. Admin reviews the application at GET /api/admin/drivers/pending.
+ * Uploads a driver license and creates or updates the User's Vehicle record.
  */
 export async function applyAsDriver(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
