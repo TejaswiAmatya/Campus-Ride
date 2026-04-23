@@ -13,23 +13,43 @@ import { AppError } from '../middleware/error'
 export async function createRide(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = CreateRideSchema.parse(req.body)
+    const driverId = req.user?.id
 
-    // TODO:
-    // const driver = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.id } })
-    // if (!driver.isDriverApproved) throw new AppError('FORBIDDEN', 'Driver application not yet approved', 403)
-    //
-    // const ride = await prisma.ride.create({
-    //   data: {
-    //     driverId: req.user!.id,
-    //     ...body,
-    //     departureTime: new Date(body.departureTime),
-    //     availableSeats: body.totalSeats,
-    //   },
-    // })
-    // res.status(201).json({ data: ride })
+    if (!driverId) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    // TODO: add notifications later
-    res.status(201).json({ message: 'TODO: create ride', body })
+    const driver = await prisma.user.findUniqueOrThrow({
+      where: { id: driverId },
+      select: { isDriverApproved: true },
+    })
+
+    if (!driver.isDriverApproved) {
+      throw new AppError('FORBIDDEN', 'Driver application not yet approved', 403)
+    }
+
+    const ride = await prisma.ride.create({
+      data: {
+        driverId,
+        originAddress: body.origin.address,
+        originLat: body.origin.lat,
+        originLng: body.origin.lng,
+        destinationAddress: body.destination.address,
+        destinationLat: body.destination.lat,
+        destinationLng: body.destination.lng,
+        departureTime: new Date(body.departureTime),
+        totalSeats: body.totalSeats,
+        availableSeats: body.totalSeats,
+        pricePerSeat: body.pricePerSeat,
+      },
+      include: {
+        driver: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+      },
+    })
+
+    res.status(201).json({ data: ride })
   } catch (err) {
     next(err)
   }
@@ -46,28 +66,29 @@ export async function createRide(req: Request, res: Response, next: NextFunction
 export async function searchRides(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = SearchRidesSchema.parse(req.query)
+    const where = {
+      status: 'OPEN' as const,
+      ...(query.date && {
+        departureTime: {
+          gte: new Date(`${query.date}T00:00:00.000Z`),
+          lt: new Date(`${query.date}T23:59:59.999Z`),
+        },
+      }),
+      ...(query.location && {
+        OR: [
+          { originAddress: { contains: query.location, mode: 'insensitive' as const } },
+          { destinationAddress: { contains: query.location, mode: 'insensitive' as const } },
+        ],
+      }),
+    }
 
-    // TODO:
-    // const where: Prisma.RideWhereInput = {
-    //   status: 'OPEN',
-    //   availableSeats: { gte: query.seats ?? 1 },
-    //   ...(query.date && {
-    //     departureTime: {
-    //       gte: new Date(query.date),
-    //       lt: new Date(new Date(query.date).getTime() + 86_400_000),
-    //     },
-    //   }),
-    //   ...(query.origin && { originAddress: { contains: query.origin, mode: 'insensitive' } }),
-    //   ...(query.destination && { destinationAddress: { contains: query.destination, mode: 'insensitive' } }),
-    // }
-    // const rides = await prisma.ride.findMany({
-    //   where,
-    //   include: { driver: { select: { id: true, name: true, avatarUrl: true } } },
-    //   orderBy: { departureTime: 'asc' },
-    // })
-    // res.json({ data: rides })
+    const rides = await prisma.ride.findMany({
+      where,
+      include: { driver: { select: { id: true, name: true, avatarUrl: true } } },
+      orderBy: { departureTime: 'asc' },
+    })
 
-    res.json({ message: 'TODO: search rides', query })
+    res.json({ data: rides })
   } catch (err) {
     next(err)
   }
@@ -80,15 +101,17 @@ export async function searchRides(req: Request, res: Response, next: NextFunctio
  */
 export async function getMyRides(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // TODO:
-    // const rides = await prisma.ride.findMany({
-    //   where: { driverId: req.user!.id },
-    //   include: { _count: { select: { bookings: true } } },
-    //   orderBy: { departureTime: 'desc' },
-    // })
-    // res.json({ data: rides })
+    if (!req.user?.id) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    res.json({ message: 'TODO: get my rides', driverId: req.user?.id })
+    const rides = await prisma.ride.findMany({
+      where: { driverId: req.user.id },
+      include: { _count: { select: { bookings: true } } },
+      orderBy: { departureTime: 'desc' },
+    })
+
+    res.json({ data: rides })
   } catch (err) {
     next(err)
   }
@@ -103,18 +126,21 @@ export async function getMyRides(req: Request, res: Response, next: NextFunction
 export async function getRide(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params
+    const ride = await prisma.ride.findUniqueOrThrow({
+      where: { id },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+            vehicle: true,
+          },
+        },
+      },
+    })
 
-    // TODO:
-    // const ride = await prisma.ride.findUniqueOrThrow({
-    //   where: { id },
-    //   include: {
-    //     driver: { select: { id: true, name: true, avatarUrl: true } },
-    //     vehicle: true,
-    //   },
-    // })
-    // res.json({ data: ride })
-
-    res.json({ message: 'TODO: get ride detail', rideId: id })
+    res.json({ data: ride })
   } catch (err) {
     next(err)
   }
