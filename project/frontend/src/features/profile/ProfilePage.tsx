@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { User, Car, Star } from 'lucide-react'
 import { api } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
@@ -106,13 +107,12 @@ export function ProfilePage() {
           <p className="text-sm text-muted-foreground">
             Apply to become a driver and start earning on your commute.
           </p>
-          <a
-            href="#driver-application"
+          <Link
+            to="/driver/register"
             className="inline-block rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
           >
-            {/* TODO: open driver application form / page */}
             Apply as driver
-          </a>
+          </Link>
         </div>
       )}
 

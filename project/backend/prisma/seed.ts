@@ -17,35 +17,35 @@ const prisma = new PrismaClient({
 
 // ── Fixed IDs (stable across re-seeds) ───────────────────────────────────────
 const IDS = {
-  admin: "248faa97-078b-49ff-a97e-c3f0d75518a3",
-  alice: "a0000000-0000-0000-0000-000000000002", // passenger
-  bob: "a0000000-0000-0000-0000-000000000003", // passenger
-  carol: "a0000000-0000-0000-0000-000000000004", // passenger
-  dave: "a0000000-0000-0000-0000-000000000005", // driver (approved)
-  eve: "a0000000-0000-0000-0000-000000000006", // driver (pending)
-  vehicle1: "v0000000-0000-0000-0000-000000000001",
-  vehicle2: "v0000000-0000-0000-0000-000000000002",
-  ride1: "r0000000-0000-0000-0000-000000000001", // OPEN
-  ride2: "r0000000-0000-0000-0000-000000000002", // COMPLETED
-  ride3: "r0000000-0000-0000-0000-000000000003", // IN_PROGRESS
-  booking1: "b0000000-0000-0000-0000-000000000001", // CONFIRMED on ride1
-  booking2: "b0000000-0000-0000-0000-000000000002", // PENDING on ride1
-  booking3: "b0000000-0000-0000-0000-000000000003", // COMPLETED on ride2
-  booking4: "b0000000-0000-0000-0000-000000000004", // CANCELLED on ride1
-};
+  admin:          'a0000000-0000-0000-0000-000000000001',
+  alice:          'a0000000-0000-0000-0000-000000000002', // passenger
+  bob:            'a0000000-0000-0000-0000-000000000003', // passenger
+  carol:          'a0000000-0000-0000-0000-000000000004', // passenger
+  dave:           'a0000000-0000-0000-0000-000000000005', // driver (approved)
+  eve:            'a0000000-0000-0000-0000-000000000006', // driver application pending
+  driverProfile1: 'dp000000-0000-0000-0000-000000000001',
+  driverProfile2: 'dp000000-0000-0000-0000-000000000002',
+  ride1:          'r0000000-0000-0000-0000-000000000001', // OPEN
+  ride2:          'r0000000-0000-0000-0000-000000000002', // COMPLETED
+  ride3:          'r0000000-0000-0000-0000-000000000003', // IN_PROGRESS
+  booking1:       'b0000000-0000-0000-0000-000000000001', // CONFIRMED on ride1
+  booking2:       'b0000000-0000-0000-0000-000000000002', // PENDING on ride1
+  booking3:       'b0000000-0000-0000-0000-000000000003', // COMPLETED on ride2
+  booking4:       'b0000000-0000-0000-0000-000000000004', // CANCELLED on ride1
+}
 
 async function main() {
   console.log("[seed] Clearing existing data…");
 
   // Delete in reverse dependency order
-  await prisma.review.deleteMany();
-  await prisma.report.deleteMany();
-  await prisma.emailJob.deleteMany();
-  await prisma.booking.deleteMany();
-  await prisma.ride.deleteMany();
-  await prisma.vehicle.deleteMany();
-  await prisma.config.deleteMany();
-  await prisma.user.deleteMany();
+  await prisma.review.deleteMany()
+  await prisma.report.deleteMany()
+  await prisma.emailJob.deleteMany()
+  await prisma.booking.deleteMany()
+  await prisma.ride.deleteMany()
+  await prisma.driverProfile.deleteMany()
+  await prisma.config.deleteMany()
+  await prisma.user.deleteMany()
 
   console.log("[seed] Creating users…");
 
@@ -56,10 +56,9 @@ async function main() {
     data: [
       {
         id: IDS.admin,
-        email: "admin@campus-ride.app",
-        name: "Campus Admin",
-        role: "ADMIN",
-        isDriverApproved: false,
+        email: 'admin@campus-ride.app',
+        name: 'Campus Admin',
+        role: 'ADMIN',
       },
       {
         id: IDS.alice,
@@ -84,46 +83,51 @@ async function main() {
       },
       {
         id: IDS.dave,
-        email: "dave@university.edu",
-        name: "Dave Dahl",
-        phone: "+4791000004",
-        role: "DRIVER",
-        isDriverApproved: true,
-        licenceUrl: "https://placehold.co/licence-dave.jpg",
+        email: 'dave@university.edu',
+        name: 'Dave Dahl',
+        phone: '+4791000004',
+        role: 'DRIVER',
       },
       {
         id: IDS.eve,
-        email: "eve@university.edu",
-        name: "Eve Eriksen",
-        phone: "+4791000005",
-        role: "DRIVER",
-        isDriverApproved: false,
-        licenceUrl: "https://placehold.co/licence-eve.jpg",
+        email: 'eve@university.edu',
+        name: 'Eve Eriksen',
+        phone: '+4791000005',
+        role: 'PASSENGER',
       },
     ],
   });
 
-  console.log("[seed] Creating vehicles…");
+  console.log('[seed] Creating driver profiles…')
 
-  await prisma.vehicle.createMany({
+  await prisma.driverProfile.createMany({
     data: [
       {
-        id: IDS.vehicle1,
+        id: IDS.driverProfile1,
         userId: IDS.dave,
-        make: "Toyota",
-        model: "Prius",
-        year: 2020,
-        colour: "Silver",
-        plateNumber: "AB12345",
+        licencePath: 'https://placehold.co/licence-dave.jpg',
+        vehicleInfo: {
+          make: 'Toyota',
+          model: 'Prius',
+          year: 2020,
+          colour: 'Silver',
+          plateNumber: 'AB12345',
+        },
+        status: 'APPROVED',
+        approvedAt: now,
       },
       {
-        id: IDS.vehicle2,
+        id: IDS.driverProfile2,
         userId: IDS.eve,
-        make: "Volkswagen",
-        model: "Golf",
-        year: 2019,
-        colour: "Blue",
-        plateNumber: "CD67890",
+        licencePath: 'https://placehold.co/licence-eve.jpg',
+        vehicleInfo: {
+          make: 'Volkswagen',
+          model: 'Golf',
+          year: 2019,
+          colour: 'Blue',
+          plateNumber: 'CD67890',
+        },
+        status: 'PENDING',
       },
     ],
   });

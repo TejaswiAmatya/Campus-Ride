@@ -4,6 +4,7 @@ import { Navbar } from './components/Navbar'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './features/auth/LoginPage'
 import { RegisterPage } from './features/auth/RegisterPage'
+import { DriverRegistrationPage } from './features/auth/DriverRegistrationPage'
 import { SearchRidesPage } from './features/rides/SearchRidesPage'
 import { PostRidePage } from './features/rides/PostRidePage'
 import { RideDetailPage } from './features/rides/RideDetailPage'
@@ -36,6 +37,8 @@ export function App() {
               {/* Authenticated (any role) */}
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Navigate to="/rides" replace />} />
+                <Route path="/driver/register" element={<DriverRegistrationPage />} />
+              
                 <Route path="/rides" element={<SearchRidesPage />} />
                 <Route path="/rides/post" element={<PostRidePage />} />
                 <Route path="/rides/:id" element={<RideDetailPage />} />

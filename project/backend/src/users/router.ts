@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
+import { upload } from '../middleware/upload'
 import * as authController from './authController'
 import * as userController from './userController'
 
@@ -16,4 +17,4 @@ usersRouter.get('/:id/reviews', userController.getDriverReviews)
 // Authenticated routes
 usersRouter.get('/me', requireAuth, userController.getCurrentUser)
 usersRouter.patch('/me', requireAuth, userController.updateCurrentUser)
-usersRouter.post('/me/driver', requireAuth, userController.applyAsDriver)
+usersRouter.post('/me/driver', requireAuth, upload.single('licence'), userController.applyAsDriver)

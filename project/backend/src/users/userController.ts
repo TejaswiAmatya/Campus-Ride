@@ -3,14 +3,17 @@ import type { Request, Response, NextFunction } from 'express'
 import {
   UpdateProfileSchema,
   DriverApplicationSchema,
+  type DriverApplicationInput,
 } from './schemas'
 import { prisma } from '../lib/prisma'
+import { uploadLicense } from '../lib/supabase'
+import { AppError } from '../middleware/error'
 
 /**
  * GET /api/users/me
  *
  * Returns the full profile of the currently authenticated user,
- * including their vehicle info if they are a driver.
+ * including their driver application profile if present.
  */
 export async function getCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -23,7 +26,7 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
 
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: req.user.id },
-      include: { vehicle: true },
+      include: { driverProfile: true },
     })
 
     res.json({ data: user })
@@ -35,7 +38,7 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
 /**
  * PATCH /api/users/me
  *
- * Updates name, phone, or avatarUrl. Avatar upload to Supabase Storage
+ * Updates name, phone, or avatarPath. Avatar upload to Supabase Storage
  * is handled client-side; this endpoint receives the resulting URL.
  */
 export async function updateCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -52,31 +55,36 @@ export async function updateCurrentUser(req: Request, res: Response, next: NextF
 
 /**
  * POST /api/users/me/driver
- *
- * Submits a driver application:
- * 1. Validates licence URL (must already be uploaded to Supabase Storage).
- * 2. Creates or updates the User's Vehicle record.
- * 3. Sets User.role = DRIVER, User.isDriverApproved = false.
- * 4. Admin reviews the application at GET /api/admin/drivers/pending.
+ * Uploads a driver license and creates a pending driver application.
  */
 export async function applyAsDriver(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const body = DriverApplicationSchema.parse(req.body)
+    // Multer keeps the file in req.file
+    if (!req.file) {
+      throw new AppError('MISSING_FILE', 'License file is required', 400)
+    }
 
-    // TODO:
-    // await prisma.$transaction([
-    //   prisma.user.update({
-    //     where: { id: req.user!.id },
-    //     data: { role: 'DRIVER', isDriverApproved: false, licenceUrl: body.licenceUrl },
-    //   }),
-    //   prisma.vehicle.upsert({
-    //     where: { userId: req.user!.id },
-    //     create: { userId: req.user!.id, ...body.vehicle },
-    //     update: { ...body.vehicle },
-    //   }),
-    // ])
+    const body: DriverApplicationInput = DriverApplicationSchema.parse(req.body)
 
-    res.status(201).json({ message: 'TODO: submit driver application', userId: req.user?.id, body })
+    const existingApplication = await prisma.driverProfile.findUnique({
+      where: { userId: req.user!.id },
+    })
+    if (existingApplication) {
+      throw new AppError('DRIVER_APPLICATION_EXISTS', 'You already have a driver application', 409)
+    }
+
+    const licencePath = await uploadLicense(req.user!.id, req.file.buffer, req.file.mimetype)
+
+    const driverProfile = await prisma.driverProfile.create({
+      data: {
+        userId: req.user!.id,
+        licencePath,
+        vehicleInfo: body.vehicle,
+        status: 'PENDING',
+      },
+    })
+
+    res.status(201).json({ data: driverProfile })
   } catch (err) {
     next(err)
   }

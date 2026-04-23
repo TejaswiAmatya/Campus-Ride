@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuthStore } from '@/store/authStore'
@@ -54,7 +55,6 @@ const fetchCurrentUser = async (): Promise<AuthUser | null> => {
  * Only fires the request when an access_token is present in localStorage.
  */
 export function useAuth() {
-
   // Get the access token and user from the auth store so we can conditionally fetch the current user profile.
   const token = useAuthStore((state) => state.accessToken)
   const currentUser = useAuthStore((state) => state.user)
@@ -70,14 +70,17 @@ export function useAuth() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
-  // Keep Zustand synchronized with server user state
-  if (token && data === null && !isLoading && currentUser) {
-    clearSession()
-  }
+  useEffect(() => {
+    if (token && data === null && !isLoading && currentUser) {
+      clearSession()
+    }
+  }, [clearSession, currentUser, data, isLoading, token])
 
-  if (data && data !== currentUser) {
-    setUser(data)
-  }
+  useEffect(() => {
+    if (data && data !== currentUser) {
+      setUser(data)
+    }
+  }, [currentUser, data, setUser])
 
   const user = data ?? currentUser
 
