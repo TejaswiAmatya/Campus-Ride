@@ -7,6 +7,7 @@ import {
 } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
+import { emailQueue } from "../lib/emailQueue";
 
 /**
  * GET /api/admin/stats
@@ -147,6 +148,20 @@ export async function driverDecision(
       include: { vehicle: true },
     });
 
+    //sending email
+    if (body.approved) {
+      await emailQueue.driverApproved(
+        updatedDriver.id,
+        updatedDriver.email,
+        updatedDriver.name,
+      );
+    } else {
+      await emailQueue.driverRejected(
+        updatedDriver.id,
+        updatedDriver.email,
+        updatedDriver.name,
+      );
+    }
     res.json({ data: updatedDriver });
   } catch (err) {
     next(err);
