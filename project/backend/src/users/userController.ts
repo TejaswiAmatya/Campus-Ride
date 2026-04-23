@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express'
 import {
   UpdateProfileSchema,
   DriverApplicationSchema,
+  type DriverApplicationInput,
 } from './schemas'
 import { prisma } from '../lib/prisma'
 import { uploadLicense } from '../lib/supabase'
@@ -63,7 +64,9 @@ export async function applyAsDriver(req: Request, res: Response, next: NextFunct
       throw new AppError('MISSING_FILE', 'License file is required', 400)
     }
 
-    const body = DriverApplicationSchema.parse(req.body)
+    const body: DriverApplicationInput = DriverApplicationSchema.parse({
+      vehicle: parseVehicleField(req.body.vehicle),
+    })
 
     // Guard against already being a driver
     const existingVehicle = await prisma.vehicle.findUnique({
@@ -99,6 +102,18 @@ export async function applyAsDriver(req: Request, res: Response, next: NextFunct
     })
   } catch (err) {
     next(err)
+  }
+}
+
+function parseVehicleField(rawVehicle: unknown): DriverApplicationInput['vehicle'] {
+  if (typeof rawVehicle !== 'string') {
+    throw new AppError('VALIDATION_ERROR', 'vehicle must be a JSON string', 422)
+  }
+
+  try {
+    return JSON.parse(rawVehicle) as DriverApplicationInput['vehicle']
+  } catch {
+    throw new AppError('VALIDATION_ERROR', 'vehicle must be valid JSON', 422)
   }
 }
 
