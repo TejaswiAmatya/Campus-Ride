@@ -29,15 +29,35 @@ export async function uploadLicense(
   const path = `${userId}/license.${ext}`
 
   // Upload the file to Supabase Storage
-  const {error} = await supabaseAdmin.storage.from('license').upload(path, buffer, {
+  const { error } = await supabaseAdmin.storage.from('DriversInfo').upload(path, buffer, {
     contentType: filetype,
     upsert: true,
   })
 
-  if (error){
+  if (error) {
+    console.error('Supabase license upload failed:', {
+      message: error.message,
+      name: error.name,
+      userId,
+      path,
+      filetype,
+    })
     throw new AppError('UPLOAD_FAILED', 'Failed to upload license', 500)
   }
 
-  // Return the path to the file
-  return path
+  const { data, error: signedUrlError } = await supabaseAdmin.storage
+    .from('DriversInfo')
+    .createSignedUrl(path, 60 * 60 * 24 * 365)
+
+  if (signedUrlError || !data?.signedUrl) {
+    console.error('Supabase signed URL creation failed:', {
+      message: signedUrlError?.message,
+      name: signedUrlError?.name,
+      userId,
+      path,
+    })
+    throw new AppError('UPLOAD_FAILED', 'Failed to create license URL', 500)
+  }
+
+  return data.signedUrl
 }
