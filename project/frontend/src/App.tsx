@@ -8,7 +8,7 @@ import { DriverRegistrationPage } from './features/auth/DriverRegistrationPage'
 import { RidesPage } from './features/rides/RidesPage'
 import { PostRidePage } from './features/rides/PostRidePage'
 import { BookingsPage } from './features/bookings/BookingsPage'
-import { ProfilePage } from './features/profile/ProfilePage'
+import { ProfilePage } from './features/user/ProfilePage'
 import { AdminDashboard } from './features/admin/AdminDashboard'
 
 const queryClient = new QueryClient({
