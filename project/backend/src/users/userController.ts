@@ -38,7 +38,7 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
 /**
  * PATCH /api/users/me
  *
- * Updates name, phone, or avatarUrl. Avatar upload to Supabase Storage
+ * Updates name, phone, or avatarPath. Avatar upload to Supabase Storage
  * is handled client-side; this endpoint receives the resulting URL.
  */
 export async function updateCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -73,12 +73,12 @@ export async function applyAsDriver(req: Request, res: Response, next: NextFunct
       throw new AppError('DRIVER_APPLICATION_EXISTS', 'You already have a driver application', 409)
     }
 
-    const licenceUrl = await uploadLicense(req.user!.id, req.file.buffer, req.file.mimetype)
+    const licencePath = await uploadLicense(req.user!.id, req.file.buffer, req.file.mimetype)
 
     const driverProfile = await prisma.driverProfile.create({
       data: {
         userId: req.user!.id,
-        licenceUrl,
+        licencePath,
         vehicleInfo: body.vehicle,
         status: 'PENDING',
       },
