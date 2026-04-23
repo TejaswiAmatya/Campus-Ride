@@ -44,20 +44,5 @@ export async function uploadLicense(
     })
     throw new AppError('UPLOAD_FAILED', 'Failed to upload license', 500)
   }
-
-  const { data, error: signedUrlError } = await supabaseAdmin.storage
-    .from('DriversInfo')
-    .createSignedUrl(path, 60 * 60 * 24 * 365)
-
-  if (signedUrlError || !data?.signedUrl) {
-    console.error('Supabase signed URL creation failed:', {
-      message: signedUrlError?.message,
-      name: signedUrlError?.name,
-      userId,
-      path,
-    })
-    throw new AppError('UPLOAD_FAILED', 'Failed to create license URL', 500)
-  }
-
-  return data.signedUrl
+  return path
 }
