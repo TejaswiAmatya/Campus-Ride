@@ -85,7 +85,7 @@ describe('DriverApplicationSchema', () => {
   it('accepts a valid application', () => {
     expect(
       DriverApplicationSchema.safeParse({
-        vehicle: validVehicle,
+        vehicle: JSON.stringify(validVehicle),
       }).success,
     ).toBe(true)
   })
@@ -99,7 +99,15 @@ describe('DriverApplicationSchema', () => {
   it('rejects a vehicle year before 1990', () => {
     expect(
       DriverApplicationSchema.safeParse({
-        vehicle: { ...validVehicle, year: 1985 },
+        vehicle: JSON.stringify({ ...validVehicle, year: 1985 }),
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects invalid vehicle JSON', () => {
+    expect(
+      DriverApplicationSchema.safeParse({
+        vehicle: '{bad json}',
       }).success,
     ).toBe(false)
   })
