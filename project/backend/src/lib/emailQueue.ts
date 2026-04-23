@@ -9,7 +9,7 @@ export const emailQueueInstance = new Queue("email-notifications", {
   },
 });
 
-async function welcome(userId: string, email: string) {
+async function welcomeEmail(userId: string, email: string) {
   console.log("[emailQueue] welcome queued", { userId, email });
   await emailQueueInstance.add("welcome", { userId, email });
 }
@@ -25,4 +25,4 @@ async function rideStarted(rideId: string) {
 }
 
 // 4. Export as one clean object
-export const emailQueue = { welcome, bookingConfirmed, rideStarted };
+export const emailQueue = { welcomeEmail, bookingConfirmed, rideStarted };
