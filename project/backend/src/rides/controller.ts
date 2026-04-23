@@ -1,14 +1,16 @@
 import type { Request, Response, NextFunction } from 'express'
+import { DriverStatus } from '@prisma/client'
 import { CreateRideSchema, SearchRidesSchema, UpdateRideStatusSchema } from './schemas'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
+import { mapDriverForApi, serializeRideList } from './serialize'
 
 /**
  * POST /api/rides
  *
  * Authenticated driver creates a ride offer.
  * Sets availableSeats = totalSeats initially.
- * Requires user.isDriverApproved = true.
+ * Requires role DRIVER and driverProfile.status = APPROVED.
  */
 export async function createRide(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -21,10 +23,13 @@ export async function createRide(req: Request, res: Response, next: NextFunction
 
     const driver = await prisma.user.findUniqueOrThrow({
       where: { id: driverId },
-      select: { isDriverApproved: true },
+      select: {
+        role: true,
+        driverProfile: { select: { status: true } },
+      },
     })
 
-    if (!driver.isDriverApproved) {
+    if (driver.role !== 'DRIVER' || driver.driverProfile?.status !== DriverStatus.APPROVED) {
       throw new AppError('FORBIDDEN', 'Driver application not yet approved', 403)
     }
 
@@ -44,12 +49,17 @@ export async function createRide(req: Request, res: Response, next: NextFunction
       },
       include: {
         driver: {
-          select: { id: true, name: true, avatarUrl: true },
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
         },
       },
     })
 
-    res.status(201).json({ data: ride })
+    res.status(201).json({ data: serializeRideList(ride) })
   } catch (err) {
     next(err)
   }
@@ -84,11 +94,20 @@ export async function searchRides(req: Request, res: Response, next: NextFunctio
 
     const rides = await prisma.ride.findMany({
       where,
-      include: { driver: { select: { id: true, name: true, avatarUrl: true } } },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+      },
       orderBy: { departureTime: 'asc' },
     })
 
-    res.json({ data: rides })
+    res.json({ data: rides.map(serializeRideList) })
   } catch (err) {
     next(err)
   }
@@ -133,14 +152,30 @@ export async function getRide(req: Request, res: Response, next: NextFunction): 
           select: {
             id: true,
             name: true,
-            avatarUrl: true,
-            vehicle: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
           },
         },
       },
     })
 
-    res.json({ data: ride })
+    res.json({
+      data: {
+        id: ride.id,
+        originAddress: ride.originAddress,
+        originLat: ride.originLat,
+        originLng: ride.originLng,
+        destinationAddress: ride.destinationAddress,
+        destinationLat: ride.destinationLat,
+        destinationLng: ride.destinationLng,
+        departureTime: ride.departureTime.toISOString(),
+        availableSeats: ride.availableSeats,
+        totalSeats: ride.totalSeats,
+        pricePerSeat: ride.pricePerSeat.toString(),
+        status: ride.status,
+        driver: mapDriverForApi(ride.driver),
+      },
+    })
   } catch (err) {
     next(err)
   }
