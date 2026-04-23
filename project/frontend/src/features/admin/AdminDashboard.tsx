@@ -9,16 +9,12 @@ import {
   CheckCircle,
   XCircle,
   TrendingUp,
+  AlertCircle,
 } from "lucide-react";
 import { api } from "@/api/client";
 import { StatsCard } from "./StatsCard";
 import { useAdminStats } from "@/features/admin/useAdminStats";
-
-interface Stats {
-  activeRides: number;
-  bookingsToday: number;
-  totalRevenue: number;
-}
+import { Button } from "@/components/ui/button";
 
 interface PendingDriver {
   id: string;
@@ -34,15 +30,11 @@ export function AdminDashboard() {
   const {
     data: stats,
     isLoading: statsLoading,
-    isError: statsError,
+    isError: hasStatsError,
+    error: statsError,
+    refetch: refetchStats,
+    isFetching: statsFetching,
   } = useAdminStats();
-  // const { data: stats, isLoading: statsLoading } = useQuery({
-  //   queryKey: ["admin", "stats"],
-  //   queryFn: async (): Promise<Stats> => {
-  //     const res = await api.get<{ data: Stats }>("/api/admin/stats");
-  //     return res.data.data;
-  //   },
-  // });
 
   const { data: pendingDrivers } = useQuery({
     queryKey: ["admin", "drivers", "pending"],
@@ -74,6 +66,43 @@ export function AdminDashboard() {
               className="h-24 rounded-lg border animate-pulse bg-muted"
             />
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (hasStatsError) {
+    const statsErrorMessage =
+      statsError instanceof Error
+        ? statsError.message
+        : "Unable to load admin dashboard statistics.";
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <LayoutDashboard className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        </div>
+
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
+            <div className="space-y-3">
+              <div>
+                <p className="font-medium text-destructive">
+                  Failed to load dashboard statistics.
+                </p>
+                <p className="text-destructive/80">{statsErrorMessage}</p>
+              </div>
+              <Button
+                onClick={() => void refetchStats()}
+                disabled={statsFetching}
+                variant="outline"
+              >
+                {statsFetching ? "Retrying…" : "Retry"}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );
