@@ -5,6 +5,8 @@ import {
   DriverApplicationSchema,
 } from './schemas'
 import { prisma } from '../lib/prisma'
+import { uploadLicense } from '../lib/supabase'
+import { AppError } from '../middleware/error'
 
 /**
  * GET /api/users/me
@@ -61,22 +63,45 @@ export async function updateCurrentUser(req: Request, res: Response, next: NextF
  */
 export async function applyAsDriver(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    // Multer keeps the file in req.file
+    if (!req.file) {
+      throw new AppError('MISSING_FILE', 'License file is required', 400)
+    }
+
     const body = DriverApplicationSchema.parse(req.body)
 
-    // TODO:
-    // await prisma.$transaction([
-    //   prisma.user.update({
-    //     where: { id: req.user!.id },
-    //     data: { role: 'DRIVER', isDriverApproved: false, licenceUrl: body.licenceUrl },
-    //   }),
-    //   prisma.vehicle.upsert({
-    //     where: { userId: req.user!.id },
-    //     create: { userId: req.user!.id, ...body.vehicle },
-    //     update: { ...body.vehicle },
-    //   }),
-    // ])
+    // Guard against already being a driver
+    const existingVehicle = await prisma.vehicle.findUnique({
+      where: { userId: req.user!.id },
+    })
+    if (existingVehicle) {
+      throw new AppError('DRIVER_ALREADY_EXISTS', 'You are already a driver', 409)
+    }
 
-    res.status(201).json({ message: 'TODO: submit driver application', userId: req.user?.id, body })
+    // Upload to Supabase, get file path
+    const filePath = await uploadLicense(req.user!.id, req.file.buffer, req.file.mimetype)
+
+    const [updatedUser, vehicle] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id: req.user!.id },
+        data: { role: 'DRIVER', isDriverApproved: false, licensePath: filePath },
+      }),
+      prisma.vehicle.upsert({
+        where: { userId: req.user!.id },
+        create: { userId: req.user!.id, ...body.vehicle },
+        update: { ...body.vehicle },
+      }),
+    ])
+
+    res.status(201).json({
+      message: 'Your application is under review',
+      user: {
+        id: updatedUser.id,
+        role: updatedUser.role,
+        isDriverApproved: updatedUser.isDriverApproved,
+      },
+      vehicle,
+    })
   } catch (err) {
     next(err)
   }
