@@ -9,6 +9,8 @@ import { SearchRidesPage } from './features/rides/SearchRidesPage'
 import { PostRidePage } from './features/rides/PostRidePage'
 import { RideDetailPage } from './features/rides/RideDetailPage'
 import { BookingsPage } from './features/bookings/BookingsPage'
+import { BookingCheckoutPage } from './features/bookings/BookingCheckoutPage'
+import { BookingStatusPage } from './features/bookings/BookingStatusPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { AdminDashboard } from './features/admin/AdminDashboard'
 
@@ -41,7 +43,9 @@ export function App() {
               
                 <Route path="/rides" element={<SearchRidesPage />} />
                 <Route path="/rides/post" element={<PostRidePage />} />
+                <Route path="/rides/:rideId/checkout" element={<BookingCheckoutPage />} />
                 <Route path="/rides/:id" element={<RideDetailPage />} />
+                <Route path="/bookings/:id" element={<BookingStatusPage />} />
                 <Route path="/bookings" element={<BookingsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
