@@ -1,15 +1,15 @@
 import { Redis } from "ioredis";
 
-const redisHost = process.env.REDIS_HOST || "localhost";
-const redisPort = parseInt(process.env.REDIS_PORT || "6379", 10);
-const redisPassword = process.env.REDIS_PASSWORD || undefined;
+const redisUrl = process.env.REDIS_URL;
 
-const redisConnection = new Redis({
-  host: redisHost,
-  port: redisPort,
-  password: redisPassword,
-  maxRetriesPerRequest: null,
-});
+const redisConnection = redisUrl
+  ? new Redis(redisUrl, { maxRetriesPerRequest: null })
+  : new Redis({
+      host: process.env.REDIS_HOST || "localhost",
+      port: parseInt(process.env.REDIS_PORT || "6379", 10),
+      password: process.env.REDIS_PASSWORD || undefined,
+      maxRetriesPerRequest: null,
+    });
 
 redisConnection.on("connect", () => console.log("Redis connected"));
 redisConnection.on("error", (err) => console.error("Redis error:", err));
