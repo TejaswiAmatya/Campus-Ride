@@ -57,12 +57,12 @@ export async function getStats(
       prisma.booking.count({ where: { createdAt: { gte: startOfMonth } } }),
       prisma.ride.count({ where: { status: "COMPLETED" } }),
       prisma.ride.count({ where: { status: "CANCELLED" } }),
-      prisma.user.count({
-        where: { role: "DRIVER", isDriverApproved: false },
+      prisma.driverProfile.count({
+        where: { status: "PENDING" },
       }),
       prisma.report.count({ where: { status: "OPEN" } }),
-      prisma.user.count({
-        where: { role: "DRIVER", isDriverApproved: true },
+      prisma.driverProfile.count({
+        where: { status: "APPROVED" },
       }),
       prisma.user.count({ where: { role: "PASSENGER" } }),
       prisma.booking.aggregate({
@@ -104,8 +104,8 @@ export async function listPendingDrivers(
 ): Promise<void> {
   try {
     const drivers = await prisma.user.findMany({
-      where: { role: "DRIVER", isDriverApproved: false },
-      include: { vehicle: true },
+      where: { role: "DRIVER", driverProfile: { status: "PENDING" } },
+      include: { driverProfile: true },
       orderBy: { createdAt: "asc" },
     });
 
@@ -132,20 +132,33 @@ export async function driverDecision(
     const body = DriverDecisionSchema.parse(req.body);
     const existingDriver = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, role: true, isDriverApproved: true },
+      select: {
+        id: true,
+        role: true,
+        driverProfile: { select: { id: true, status: true } },
+      },
     });
 
-    if (!existingDriver || existingDriver.role !== "DRIVER") {
+    if (
+      !existingDriver ||
+      existingDriver.role !== "DRIVER" ||
+      !existingDriver.driverProfile
+    ) {
       throw new AppError("NOT_FOUND", "Driver application not found", 404);
     }
 
     const updatedDriver = await prisma.user.update({
       where: { id },
       data: {
-        isDriverApproved: body.approved,
         ...(body.approved ? {} : { role: "PASSENGER" }),
+        driverProfile: {
+          update: {
+            status: body.approved ? "APPROVED" : "REJECTED",
+            ...(body.approved ? { approvedAt: new Date() } : {}),
+          },
+        },
       },
-      include: { vehicle: true },
+      include: { driverProfile: true },
     });
 
     //sending email
