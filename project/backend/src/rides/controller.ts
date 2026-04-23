@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express'
 import { CreateRideSchema, SearchRidesSchema, UpdateRideStatusSchema } from './schemas'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
+import { searchRidesByLocation } from './location.service'
 
 /**
  * POST /api/rides
@@ -58,35 +59,14 @@ export async function createRide(req: Request, res: Response, next: NextFunction
 /**
  * GET /api/rides
  *
- * Public search. Filters by date, text address match, available seats.
- * Sprint 2: replace text match with PostGIS bounding-box proximity query.
+ * Public search. Filters by date, seats, and geographic proximity.
  *
- * Query params: origin, destination, date (YYYY-MM-DD), seats, originLat, originLng, radiusKm
+ * Query params: origin, dest, date (YYYY-MM-DD), seats, originLat, originLng, destLat, destLng, radiusKm
  */
 export async function searchRides(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = SearchRidesSchema.parse(req.query)
-    const where = {
-      status: 'OPEN' as const,
-      ...(query.date && {
-        departureTime: {
-          gte: new Date(`${query.date}T00:00:00.000Z`),
-          lt: new Date(`${query.date}T23:59:59.999Z`),
-        },
-      }),
-      ...(query.location && {
-        OR: [
-          { originAddress: { contains: query.location, mode: 'insensitive' as const } },
-          { destinationAddress: { contains: query.location, mode: 'insensitive' as const } },
-        ],
-      }),
-    }
-
-    const rides = await prisma.ride.findMany({
-      where,
-      include: { driver: { select: { id: true, name: true, avatarUrl: true } } },
-      orderBy: { departureTime: 'asc' },
-    })
+    const rides = await searchRidesByLocation(query)
 
     res.json({ data: rides })
   } catch (err) {

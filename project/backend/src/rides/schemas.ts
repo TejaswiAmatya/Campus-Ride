@@ -15,8 +15,36 @@ export const CreateRideSchema = z.object({
 })
 
 export const SearchRidesSchema = z.object({
-  location: z.string().trim().min(1).optional(),
+  origin: z.string().trim().min(1).optional(),
+  dest: z.string().trim().min(1).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
+  seats: z.coerce.number().int().min(1).max(8).optional(),
+  originLat: z.coerce.number().min(-90).max(90).optional(),
+  originLng: z.coerce.number().min(-180).max(180).optional(),
+  destLat: z.coerce.number().min(-90).max(90).optional(),
+  destLng: z.coerce.number().min(-180).max(180).optional(),
+  radiusKm: z.coerce.number().positive().max(100).optional(),
+}).superRefine((value, ctx) => {
+  const hasOriginLat = value.originLat !== undefined
+  const hasOriginLng = value.originLng !== undefined
+  const hasDestLat = value.destLat !== undefined
+  const hasDestLng = value.destLng !== undefined
+
+  if (hasOriginLat !== hasOriginLng) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'originLat and originLng must be provided together',
+      path: hasOriginLat ? ['originLng'] : ['originLat'],
+    })
+  }
+
+  if (hasDestLat !== hasDestLng) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'destLat and destLng must be provided together',
+      path: hasDestLat ? ['destLng'] : ['destLat'],
+    })
+  }
 })
 
 export const UpdateRideStatusSchema = z.object({

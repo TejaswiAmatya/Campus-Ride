@@ -46,6 +46,13 @@ type RideRecord = {
   status: 'OPEN' | 'FULL' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 }
 
+type RideSearchWhere = {
+  status?: string
+  availableSeats?: { gte: number }
+  departureTime?: { gte: Date; lt: Date }
+  id?: { in: string[] }
+}
+
 const testState: { users: UserRecord[]; rides: RideRecord[] } = {
   users: [],
   rides: [],
@@ -89,6 +96,11 @@ vi.mock('../lib/prisma', () => ({
         return { isDriverApproved: user.isDriverApproved }
       }),
     },
+    $queryRaw: vi.fn(async () => {
+      return testState.rides
+        .filter((ride) => ride.status === 'OPEN')
+        .map((ride) => ({ id: ride.id, sortDistanceMeters: 0 }))
+    }),
     ride: {
       create: vi.fn(
         async ({
@@ -113,10 +125,14 @@ vi.mock('../lib/prisma', () => ({
           }
         },
       ),
-      findMany: vi.fn(async ({ where }: { where: { status?: string; departureTime?: { gte: Date; lt: Date }; OR?: Array<{ originAddress?: { contains: string }; destinationAddress?: { contains: string } }> } }) => {
+      findMany: vi.fn(async ({ where }: { where: RideSearchWhere }) => {
         return testState.rides
           .filter((ride) => {
             if (where.status && ride.status !== where.status) {
+              return false
+            }
+
+            if (where.availableSeats && ride.availableSeats < where.availableSeats.gte) {
               return false
             }
 
@@ -130,24 +146,8 @@ vi.mock('../lib/prisma', () => ({
               }
             }
 
-            if (where.OR?.length) {
-              const matches = where.OR.some((clause) => {
-                if (clause.originAddress) {
-                  return ride.originAddress.toLowerCase().includes(clause.originAddress.contains.toLowerCase())
-                }
-
-                if (clause.destinationAddress) {
-                  return ride.destinationAddress
-                    .toLowerCase()
-                    .includes(clause.destinationAddress.contains.toLowerCase())
-                }
-
-                return false
-              })
-
-              if (!matches) {
-                return false
-              }
+            if (where.id?.in && !where.id.in.includes(ride.id)) {
+              return false
             }
 
             return true
@@ -237,9 +237,24 @@ describe('SearchRidesSchema', () => {
   })
 
   it('accepts a location query', () => {
-    const result = SearchRidesSchema.safeParse({ location: 'Central Station' })
+    const result = SearchRidesSchema.safeParse({
+      originLat: '58.9',
+      originLng: '5.7',
+      destLat: '58.97',
+      destLng: '5.73',
+      seats: '2',
+      radiusKm: '8',
+    })
     expect(result.success).toBe(true)
-    if (result.success) expect(result.data.location).toBe('Central Station')
+    if (result.success) {
+      expect(result.data.originLat).toBe(58.9)
+      expect(result.data.seats).toBe(2)
+      expect(result.data.radiusKm).toBe(8)
+    }
+  })
+
+  it('rejects incomplete origin coordinates', () => {
+    expect(SearchRidesSchema.safeParse({ originLat: '58.9' }).success).toBe(false)
   })
 })
 
@@ -272,22 +287,30 @@ describe('rides API integration', () => {
       },
     )
 
+    const createdRide = createResponse.body.data as RideRecord
+
     expect(createResponse.statusCode).toBe(201)
-    expect(createResponse.body.data.availableSeats).toBe(3)
-    expect(createResponse.body.data.totalSeats).toBe(3)
+    expect(createdRide.availableSeats).toBe(3)
+    expect(createdRide.totalSeats).toBe(3)
 
     const searchResponse = await runHandlers([searchRides], {
       method: 'GET',
       query: {
         date: validRide.departureTime.slice(0, 10),
-        location: 'central',
+        originLat: String(validRide.origin.lat),
+        originLng: String(validRide.origin.lng),
+        destLat: String(validRide.destination.lat),
+        destLng: String(validRide.destination.lng),
+        seats: '2',
       },
     })
 
+    const foundRides = searchResponse.body.data as RideRecord[]
+
     expect(searchResponse.statusCode).toBe(200)
-    expect(searchResponse.body.data).toHaveLength(1)
-    expect(searchResponse.body.data[0]).toMatchObject({
-      id: createResponse.body.data.id,
+    expect(foundRides).toHaveLength(1)
+    expect(foundRides[0]).toMatchObject({
+      id: createdRide.id,
       availableSeats: 3,
       totalSeats: 3,
       originAddress: validRide.origin.address,
@@ -306,7 +329,7 @@ describe('rides API integration', () => {
     )
 
     expect(response.statusCode).toBe(403)
-    expect(response.body.error.code).toBe('FORBIDDEN')
+    expect((response.body.error as { code: string }).code).toBe('FORBIDDEN')
   })
 })
 
