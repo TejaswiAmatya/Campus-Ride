@@ -105,7 +105,7 @@ async function main() {
       {
         id: IDS.driverProfile1,
         userId: IDS.dave,
-        licenceUrl: 'https://placehold.co/licence-dave.jpg',
+        licencePath: 'https://placehold.co/licence-dave.jpg',
         vehicleInfo: {
           make: 'Toyota',
           model: 'Prius',
@@ -119,7 +119,7 @@ async function main() {
       {
         id: IDS.driverProfile2,
         userId: IDS.eve,
-        licenceUrl: 'https://placehold.co/licence-eve.jpg',
+        licencePath: 'https://placehold.co/licence-eve.jpg',
         vehicleInfo: {
           make: 'Volkswagen',
           model: 'Golf',
