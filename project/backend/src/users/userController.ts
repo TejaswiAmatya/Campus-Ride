@@ -13,7 +13,7 @@ import { AppError } from '../middleware/error'
  * GET /api/users/me
  *
  * Returns the full profile of the currently authenticated user,
- * including their vehicle info if they are a driver.
+ * including their driver application profile if present.
  */
 export async function getCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -26,7 +26,7 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
 
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: req.user.id },
-      include: { vehicle: true },
+      include: { driverProfile: true },
     })
 
     res.json({ data: user })
@@ -55,7 +55,7 @@ export async function updateCurrentUser(req: Request, res: Response, next: NextF
 
 /**
  * POST /api/users/me/driver
- * Uploads a driver license and creates or updates the User's Vehicle record.
+ * Uploads a driver license and creates a pending driver application.
  */
 export async function applyAsDriver(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -64,56 +64,29 @@ export async function applyAsDriver(req: Request, res: Response, next: NextFunct
       throw new AppError('MISSING_FILE', 'License file is required', 400)
     }
 
-    const body: DriverApplicationInput = DriverApplicationSchema.parse({
-      vehicle: parseVehicleField(req.body.vehicle),
-    })
+    const body: DriverApplicationInput = DriverApplicationSchema.parse(req.body)
 
-    // Guard against already being a driver
-    const existingVehicle = await prisma.vehicle.findUnique({
+    const existingApplication = await prisma.driverProfile.findUnique({
       where: { userId: req.user!.id },
     })
-    if (existingVehicle) {
-      throw new AppError('DRIVER_ALREADY_EXISTS', 'You are already a driver', 409)
+    if (existingApplication) {
+      throw new AppError('DRIVER_APPLICATION_EXISTS', 'You already have a driver application', 409)
     }
 
-    // Upload to Supabase, get file path
-    const filePath = await uploadLicense(req.user!.id, req.file.buffer, req.file.mimetype)
+    const licenceUrl = await uploadLicense(req.user!.id, req.file.buffer, req.file.mimetype)
 
-    const [updatedUser, vehicle] = await prisma.$transaction([
-      prisma.user.update({
-        where: { id: req.user!.id },
-        data: { role: 'DRIVER', isDriverApproved: false, licensePath: filePath },
-      }),
-      prisma.vehicle.upsert({
-        where: { userId: req.user!.id },
-        create: { userId: req.user!.id, ...body.vehicle },
-        update: { ...body.vehicle },
-      }),
-    ])
-
-    res.status(201).json({
-      message: 'Your application is under review',
-      user: {
-        id: updatedUser.id,
-        role: updatedUser.role,
-        isDriverApproved: updatedUser.isDriverApproved,
+    const driverProfile = await prisma.driverProfile.create({
+      data: {
+        userId: req.user!.id,
+        licenceUrl,
+        vehicleInfo: body.vehicle,
+        status: 'PENDING',
       },
-      vehicle,
     })
+
+    res.status(201).json({ data: driverProfile })
   } catch (err) {
     next(err)
-  }
-}
-
-function parseVehicleField(rawVehicle: unknown): DriverApplicationInput['vehicle'] {
-  if (typeof rawVehicle !== 'string') {
-    throw new AppError('VALIDATION_ERROR', 'vehicle must be a JSON string', 422)
-  }
-
-  try {
-    return JSON.parse(rawVehicle) as DriverApplicationInput['vehicle']
-  } catch {
-    throw new AppError('VALIDATION_ERROR', 'vehicle must be valid JSON', 422)
   }
 }
 
