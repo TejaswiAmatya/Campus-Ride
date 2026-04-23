@@ -54,8 +54,8 @@ export async function getStats(
       prisma.booking.count({ where: { createdAt: { gte: startOfDay } } }),
       prisma.booking.count({ where: { createdAt: { gte: startOfWeek } } }),
       prisma.booking.count({ where: { createdAt: { gte: startOfMonth } } }),
-      prisma.booking.count({ where: { status: "COMPLETED" } }),
-      prisma.booking.count({ where: { status: "CANCELLED" } }),
+      prisma.ride.count({ where: { status: "COMPLETED" } }),
+      prisma.ride.count({ where: { status: "CANCELLED" } }),
       prisma.user.count({
         where: { role: "DRIVER", isDriverApproved: false },
       }),
