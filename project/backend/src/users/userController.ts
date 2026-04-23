@@ -44,10 +44,19 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
 export async function updateCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = UpdateProfileSchema.parse(req.body)
+    const user = await prisma.user.update({ 
+      where: { id: req.user!.id }, 
+      data: body,
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        role: true,
+        avatarPath: true,
+      },
+     })
 
-    // TODO: prisma.user.update({ where: { id: req.user!.id }, data: body })
-
-    res.json({ message: 'TODO: update profile', updates: body })
+    res.json({ data: user })
   } catch (err) {
     next(err)
   }
