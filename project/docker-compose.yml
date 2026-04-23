@@ -40,6 +40,8 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
+    networks:
+      - campus-ride
 
 networks:
   campus-ride:
