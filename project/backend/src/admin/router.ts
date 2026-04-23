@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../middleware/auth";
 import * as controller from "./controller";
-import { getStats } from "./controller";
 
 export const adminRouter = Router();
 
@@ -20,5 +19,3 @@ adminRouter.patch("/drivers/:id/decision", controller.driverDecision);
 adminRouter.get("/reports", controller.listReports);
 adminRouter.patch("/reports/:id", controller.resolveReport);
 adminRouter.patch("/config", controller.updateConfig);
-
-adminRouter.get("/stats", getStats);

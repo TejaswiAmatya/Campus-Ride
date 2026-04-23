@@ -5,8 +5,9 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './features/auth/LoginPage'
 import { RegisterPage } from './features/auth/RegisterPage'
 import { DriverRegistrationPage } from './features/auth/DriverRegistrationPage'
-import { RidesPage } from './features/rides/RidesPage'
+import { SearchRidesPage } from './features/rides/SearchRidesPage'
 import { PostRidePage } from './features/rides/PostRidePage'
+import { RideDetailPage } from './features/rides/RideDetailPage'
 import { BookingsPage } from './features/bookings/BookingsPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { AdminDashboard } from './features/admin/AdminDashboard'
@@ -37,8 +38,10 @@ export function App() {
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Navigate to="/rides" replace />} />
                 <Route path="/driver/register" element={<DriverRegistrationPage />} />
-                <Route path="/rides" element={<RidesPage />} />
+              
+                <Route path="/rides" element={<SearchRidesPage />} />
                 <Route path="/rides/post" element={<PostRidePage />} />
+                <Route path="/rides/:id" element={<RideDetailPage />} />
                 <Route path="/bookings" element={<BookingsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>

@@ -8,12 +8,12 @@
  * create matching Supabase Auth users. See the commented-out block at the bottom.
  */
 
-import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg(process.env.DATABASE_URL!),
-})
+});
 
 // ── Fixed IDs (stable across re-seeds) ───────────────────────────────────────
 const IDS = {
@@ -35,7 +35,7 @@ const IDS = {
 }
 
 async function main() {
-  console.log('[seed] Clearing existing data…')
+  console.log("[seed] Clearing existing data…");
 
   // Delete in reverse dependency order
   await prisma.review.deleteMany()
@@ -47,10 +47,10 @@ async function main() {
   await prisma.config.deleteMany()
   await prisma.user.deleteMany()
 
-  console.log('[seed] Creating users…')
+  console.log("[seed] Creating users…");
 
-  const now = new Date()
-  const daysFromNow = (d: number) => new Date(now.getTime() + d * 86_400_000)
+  const now = new Date();
+  const daysFromNow = (d: number) => new Date(now.getTime() + d * 86_400_000);
 
   await prisma.user.createMany({
     data: [
@@ -62,24 +62,24 @@ async function main() {
       },
       {
         id: IDS.alice,
-        email: 'alice@university.edu',
-        name: 'Alice Andersen',
-        phone: '+4791000001',
-        role: 'PASSENGER',
+        email: "alice@university.edu",
+        name: "Alice Andersen",
+        phone: "+4791000001",
+        role: "PASSENGER",
       },
       {
         id: IDS.bob,
-        email: 'bob@university.edu',
-        name: 'Bob Bakke',
-        phone: '+4791000002',
-        role: 'PASSENGER',
+        email: "bob@university.edu",
+        name: "Bob Bakke",
+        phone: "+4791000002",
+        role: "PASSENGER",
       },
       {
         id: IDS.carol,
-        email: 'carol@university.edu',
-        name: 'Carol Christensen',
-        phone: '+4791000003',
-        role: 'PASSENGER',
+        email: "carol@university.edu",
+        name: "Carol Christensen",
+        phone: "+4791000003",
+        role: "PASSENGER",
       },
       {
         id: IDS.dave,
@@ -96,7 +96,7 @@ async function main() {
         role: 'PASSENGER',
       },
     ],
-  })
+  });
 
   console.log('[seed] Creating driver profiles…')
 
@@ -130,9 +130,9 @@ async function main() {
         status: 'PENDING',
       },
     ],
-  })
+  });
 
-  console.log('[seed] Creating rides…')
+  console.log("[seed] Creating rides…");
 
   await prisma.ride.createMany({
     data: [
@@ -140,54 +140,54 @@ async function main() {
         // Ride 1 — OPEN, upcoming, seats available
         id: IDS.ride1,
         driverId: IDS.dave,
-        originAddress: 'University of Stavanger, Stavanger',
+        originAddress: "University of Stavanger, Stavanger",
         originLat: 58.9,
         originLng: 5.71,
-        destinationAddress: 'Stavanger Central Station',
+        destinationAddress: "Stavanger Central Station",
         destinationLat: 58.974,
         destinationLng: 5.732,
         departureTime: daysFromNow(2),
         totalSeats: 3,
         availableSeats: 1, // 2 already booked
         pricePerSeat: 80,
-        status: 'OPEN',
+        status: "OPEN",
       },
       {
         // Ride 2 — COMPLETED, past
         id: IDS.ride2,
         driverId: IDS.dave,
-        originAddress: 'Stavanger Central Station',
+        originAddress: "Stavanger Central Station",
         originLat: 58.974,
         originLng: 5.732,
-        destinationAddress: 'University of Stavanger, Stavanger',
+        destinationAddress: "University of Stavanger, Stavanger",
         destinationLat: 58.9,
         destinationLng: 5.71,
         departureTime: daysFromNow(-5),
         totalSeats: 4,
         availableSeats: 3,
         pricePerSeat: 60,
-        status: 'COMPLETED',
+        status: "COMPLETED",
       },
       {
         // Ride 3 — IN_PROGRESS, started today
         id: IDS.ride3,
         driverId: IDS.dave,
-        originAddress: 'Stavanger Airport Sola',
+        originAddress: "Stavanger Airport Sola",
         originLat: 58.877,
         originLng: 5.636,
-        destinationAddress: 'University of Stavanger, Stavanger',
+        destinationAddress: "University of Stavanger, Stavanger",
         destinationLat: 58.9,
         destinationLng: 5.71,
         departureTime: new Date(now.getTime() - 30 * 60 * 1000), // 30 min ago
         totalSeats: 3,
         availableSeats: 2,
         pricePerSeat: 100,
-        status: 'IN_PROGRESS',
+        status: "IN_PROGRESS",
       },
     ],
-  })
+  });
 
-  console.log('[seed] Creating bookings…')
+  console.log("[seed] Creating bookings…");
 
   await prisma.booking.createMany({
     data: [
@@ -200,8 +200,8 @@ async function main() {
         totalFare: 80,
         platformFee: 8,
         driverEarnings: 72,
-        status: 'CONFIRMED',
-        paymentStatus: 'PAID',
+        status: "CONFIRMED",
+        paymentStatus: "PAID",
       },
       {
         // Booking 2 — PENDING on ride1, Bob waiting for driver
@@ -212,8 +212,8 @@ async function main() {
         totalFare: 80,
         platformFee: 8,
         driverEarnings: 72,
-        status: 'PENDING',
-        paymentStatus: 'UNPAID',
+        status: "PENDING",
+        paymentStatus: "UNPAID",
       },
       {
         // Booking 3 — COMPLETED on ride2, Alice rode
@@ -224,8 +224,8 @@ async function main() {
         totalFare: 60,
         platformFee: 6,
         driverEarnings: 54,
-        status: 'COMPLETED',
-        paymentStatus: 'PAID',
+        status: "COMPLETED",
+        paymentStatus: "PAID",
       },
       {
         // Booking 4 — CANCELLED on ride1, Carol cancelled
@@ -236,13 +236,13 @@ async function main() {
         totalFare: 80,
         platformFee: 8,
         driverEarnings: 72,
-        status: 'CANCELLED',
-        paymentStatus: 'REFUNDED',
+        status: "CANCELLED",
+        paymentStatus: "REFUNDED",
       },
     ],
-  })
+  });
 
-  console.log('[seed] Creating reviews…')
+  console.log("[seed] Creating reviews…");
 
   // Alice reviews Dave after their completed ride
   await prisma.review.create({
@@ -251,61 +251,61 @@ async function main() {
       reviewerId: IDS.alice,
       revieweeId: IDS.dave,
       rating: 5,
-      comment: 'Great driver, very punctual and friendly. Highly recommend!',
+      comment: "Great driver, very punctual and friendly. Highly recommend!",
     },
-  })
+  });
 
-  console.log('[seed] Creating config…')
+  console.log("[seed] Creating config…");
 
   await prisma.config.createMany({
     data: [
-      { key: 'platformFeePercent', value: '10' },
-      { key: 'allowedEmailDomains', value: 'university.edu,ac.uk' },
-      { key: 'maxSeatsPerRide', value: '8' },
+      { key: "platformFeePercent", value: "10" },
+      { key: "allowedEmailDomains", value: "university.edu,ac.uk" },
+      { key: "maxSeatsPerRide", value: "8" },
     ],
-  })
+  });
 
-  console.log('[seed] Creating sample email jobs…')
+  console.log("[seed] Creating sample email jobs…");
 
   await prisma.emailJob.createMany({
     data: [
       {
-        type: 'welcome',
-        recipientEmail: 'alice@university.edu',
-        payload: { name: 'Alice Andersen' },
+        type: "welcome",
+        recipientEmail: "alice@university.edu",
+        payload: { name: "Alice Andersen" },
         sentAt: daysFromNow(-10),
       },
       {
-        type: 'booking-confirmed',
-        recipientEmail: 'alice@university.edu',
-        payload: { bookingId: IDS.booking1, rideName: 'UiS → Central Station' },
+        type: "booking-confirmed",
+        recipientEmail: "alice@university.edu",
+        payload: { bookingId: IDS.booking1, rideName: "UiS → Central Station" },
         sentAt: daysFromNow(-1),
       },
       {
-        type: 'driver-approved',
-        recipientEmail: 'dave@university.edu',
-        payload: { name: 'Dave Dahl' },
+        type: "driver-approved",
+        recipientEmail: "dave@university.edu",
+        payload: { name: "Dave Dahl" },
         sentAt: daysFromNow(-7),
       },
     ],
-  })
+  });
 
-  console.log('[seed] Done! Seeded:')
-  console.log('  6 users (1 admin, 3 passengers, 2 drivers)')
-  console.log('  2 vehicles')
-  console.log('  3 rides (OPEN, COMPLETED, IN_PROGRESS)')
-  console.log('  4 bookings (CONFIRMED, PENDING, COMPLETED, CANCELLED)')
-  console.log('  1 review')
-  console.log('  3 config entries')
-  console.log('  3 email job log entries')
+  console.log("[seed] Done! Seeded:");
+  console.log("  6 users (1 admin, 3 passengers, 2 drivers)");
+  console.log("  2 vehicles");
+  console.log("  3 rides (OPEN, COMPLETED, IN_PROGRESS)");
+  console.log("  4 bookings (CONFIRMED, PENDING, COMPLETED, CANCELLED)");
+  console.log("  1 review");
+  console.log("  3 config entries");
+  console.log("  3 email job log entries");
 }
 
 main()
   .catch((err) => {
-    console.error('[seed] Failed:', err)
-    process.exit(1)
+    console.error("[seed] Failed:", err);
+    process.exit(1);
   })
-  .finally(() => prisma.$disconnect())
+  .finally(() => prisma.$disconnect());
 
 /*
  * ─── Creating matching Supabase Auth users ────────────────────────────────────
