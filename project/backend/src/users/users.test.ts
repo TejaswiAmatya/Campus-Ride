@@ -85,22 +85,20 @@ describe('DriverApplicationSchema', () => {
   it('accepts a valid application', () => {
     expect(
       DriverApplicationSchema.safeParse({
-        licenceUrl: 'https://storage.supabase.co/licence.jpg',
         vehicle: validVehicle,
       }).success,
     ).toBe(true)
   })
 
-  it('rejects a non-URL licence value', () => {
+  it('rejects a missing vehicle payload', () => {
     expect(
-      DriverApplicationSchema.safeParse({ licenceUrl: 'not-a-url', vehicle: validVehicle }).success,
+      DriverApplicationSchema.safeParse({}).success,
     ).toBe(false)
   })
 
   it('rejects a vehicle year before 1990', () => {
     expect(
       DriverApplicationSchema.safeParse({
-        licenceUrl: 'https://example.com/licence.jpg',
         vehicle: { ...validVehicle, year: 1985 },
       }).success,
     ).toBe(false)
