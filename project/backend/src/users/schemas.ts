@@ -29,19 +29,28 @@ export const UpdateProfileSchema = z
     message: 'At least one field must be provided',
   })
 
+const VehicleInfoSchema = z.object({
+  make: z.string().min(1),
+  model: z.string().min(1),
+  year: z
+    .number()
+    .int()
+    .min(1990)
+    .max(new Date().getFullYear() + 1),
+  colour: z.string().min(1),
+  plateNumber: z.string().min(1),
+})
+
 export const DriverApplicationSchema = z.object({
-  licenceUrl: z.string().url('Licence URL must be a valid URL (upload to Supabase Storage first)'),
-  vehicle: z.object({
-    make: z.string().min(1),
-    model: z.string().min(1),
-    year: z
-      .number()
-      .int()
-      .min(1990)
-      .max(new Date().getFullYear() + 1),
-    colour: z.string().min(1),
-    plateNumber: z.string().min(1),
-  }),
+  vehicle: z.preprocess((value) => {
+    if (typeof value !== 'string') return value
+
+    try {
+      return JSON.parse(value)
+    } catch {
+      return value
+    }
+  }, VehicleInfoSchema),
 })
 
 export type RegisterInput = z.infer<typeof RegisterSchema>
