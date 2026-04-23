@@ -68,8 +68,8 @@ describe('UpdateProfileSchema', () => {
     expect(UpdateProfileSchema.safeParse({}).success).toBe(false)
   })
 
-  it('rejects an invalid avatar URL', () => {
-    expect(UpdateProfileSchema.safeParse({ avatarUrl: 'not-a-url' }).success).toBe(false)
+  it('rejects an invalid avatar path URL', () => {
+    expect(UpdateProfileSchema.safeParse({ avatarPath: 'not-a-url' }).success).toBe(false)
   })
 })
 
