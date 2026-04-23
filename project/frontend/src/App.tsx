@@ -11,6 +11,7 @@ import { RideDetailPage } from './features/rides/RideDetailPage'
 import { BookingsPage } from './features/bookings/BookingsPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { AdminDashboard } from './features/admin/AdminDashboard'
+import { DriverApprovalPage } from './features/admin/DriverApprovalPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,6 +50,7 @@ export function App() {
               {/* Admin only */}
               <Route element={<ProtectedRoute requiredRole="ADMIN" />}>
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/drivers" element={<DriverApprovalPage />} />
               </Route>
 
               {/* Fallback */}
