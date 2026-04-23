@@ -38,8 +38,8 @@ model User {
   phone            String?
   role             Role     @default(PASSENGER)
   isDriverApproved Boolean  @default(false)
-  licenceUrl       String?  // Supabase Storage URL for uploaded driving licence
-  avatarUrl        String?  // Supabase Storage URL for profile picture
+  licensePath      String?  // Supabase Storage URL for uploaded driving licence
+  avatarPath        String?  // Supabase Storage URL for profile picture
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
