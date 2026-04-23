@@ -59,7 +59,7 @@ model DriverProfile {
   id          String       @id @default(cuid())
   userId      String       @unique
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  licenceUrl  String
+  licencePath String
   vehicleInfo Json
   status      DriverStatus @default(PENDING)
   approvedAt  DateTime?
