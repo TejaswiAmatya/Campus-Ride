@@ -1,9 +1,13 @@
-import type { Request, Response, NextFunction } from 'express'
-import { CreateBookingSchema, UpdateBookingStatusSchema, CreateReviewSchema } from './schemas'
-import { prisma } from '../lib/prisma'
-import { AppError } from '../middleware/error'
-
-const PLATFORM_FEE_PERCENT = 0.10 // 10% — move to Config table in Sprint 2
+import type { Request, Response, NextFunction } from "express";
+import {
+  CreateBookingSchema,
+  UpdateBookingStatusSchema,
+  CreateReviewSchema,
+} from "./schemas";
+import { prisma } from "../lib/prisma";
+import { AppError } from "../middleware/error";
+import { bookingNew, bookingStatus, rideStatus } from "../lib/notify";
+const PLATFORM_FEE_PERCENT = 0.1; // 10% — move to Config table in Sprint 2
 
 /**
  * POST /api/bookings
@@ -17,9 +21,13 @@ const PLATFORM_FEE_PERCENT = 0.10 // 10% — move to Config table in Sprint 2
  *   6. Emit booking:new Socket.io event to the driver.
  *   7. Enqueue booking-confirmed email (after driver accepts).
  */
-export async function createBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createBooking(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const body = CreateBookingSchema.parse(req.body)
+    const body = CreateBookingSchema.parse(req.body);
 
     // TODO — serializable transaction prevents double-booking:
     // const booking = await prisma.$transaction(async (tx) => {
@@ -57,12 +65,12 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
     // res.status(201).json({ data: booking })
 
     // TODO: add notifications later
-    void prisma
-    void AppError
-    void PLATFORM_FEE_PERCENT
-    res.status(201).json({ message: 'TODO: create booking', body })
+    void prisma;
+    void AppError;
+    void PLATFORM_FEE_PERCENT;
+    res.status(201).json({ message: "TODO: create booking", body });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -72,7 +80,11 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
  * Passenger: returns their booking history.
  * Driver: returns booking requests for their rides (pass ?asDriver=true).
  */
-export async function listBookings(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listBookings(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     // TODO:
     // const asDriver = req.query.asDriver === 'true'
@@ -93,9 +105,9 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
     //   res.json({ data: bookings })
     // }
 
-    res.json({ message: 'TODO: list bookings', userId: req.user?.id })
+    res.json({ message: "TODO: list bookings", userId: req.user?.id });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -104,14 +116,18 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
  *
  * Returns full booking detail. Accessible by the passenger or the ride driver.
  */
-export async function getBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function getBooking(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
     // TODO: fetch + authorise (passenger or driver)
-    res.json({ message: 'TODO: get booking', bookingId: id })
+    res.json({ message: "TODO: get booking", bookingId: id });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -122,17 +138,21 @@ export async function getBooking(req: Request, res: Response, next: NextFunction
  * Emits booking:status event to the passenger.
  * Enqueues a booking-confirmed email.
  */
-export async function confirmBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function confirmBooking(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
     // TODO: verify req.user is the ride's driver, set status = CONFIRMED
     // notify.bookingStatus(booking.passengerId, { bookingId: id, status: 'CONFIRMED' })
     // await emailQueue.add('booking-confirmed', { recipientEmail: passenger.email, payload: { bookingId: id } })
 
-    res.json({ message: 'TODO: confirm booking', bookingId: id })
+    res.json({ message: "TODO: confirm booking", bookingId: id });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -142,15 +162,19 @@ export async function confirmBooking(req: Request, res: Response, next: NextFunc
  * Driver declines a pending booking.
  * Restores Ride.availableSeats and emits booking:status to the passenger.
  */
-export async function declineBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function declineBooking(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
     // TODO: verify driver, set status = CANCELLED, restore seats
 
-    res.json({ message: 'TODO: decline booking', bookingId: id })
+    res.json({ message: "TODO: decline booking", bookingId: id });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -161,15 +185,19 @@ export async function declineBooking(req: Request, res: Response, next: NextFunc
  * Restores seats on the ride.
  * Sprint 3: trigger Stripe refund if payment was completed.
  */
-export async function cancelBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function cancelBooking(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
     // TODO: verify passenger, check cancellation window, restore seats, optionally refund
 
-    res.json({ message: 'TODO: cancel booking', bookingId: id })
+    res.json({ message: "TODO: cancel booking", bookingId: id });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -178,7 +206,11 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
  *
  * Driver earnings history: sum of driverEarnings grouped by month/ride.
  */
-export async function getEarnings(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function getEarnings(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     // TODO:
     // const earnings = await prisma.booking.aggregate({
@@ -188,9 +220,9 @@ export async function getEarnings(req: Request, res: Response, next: NextFunctio
     // })
     // res.json({ data: earnings })
 
-    res.json({ message: 'TODO: get earnings', driverId: req.user?.id })
+    res.json({ message: "TODO: get earnings", driverId: req.user?.id });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -200,15 +232,21 @@ export async function getEarnings(req: Request, res: Response, next: NextFunctio
  * Passenger reviews the driver after a COMPLETED booking.
  * One review per booking (enforced by DB unique constraint on Review.bookingId).
  */
-export async function createReview(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createReview(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const body = CreateReviewSchema.parse(req.body)
-    const { id } = req.params
+    const body = CreateReviewSchema.parse(req.body);
+    const { id } = req.params;
 
     // TODO: verify booking is COMPLETED and belongs to req.user, create review
 
-    res.status(201).json({ message: 'TODO: create review', bookingId: id, body })
+    res
+      .status(201)
+      .json({ message: "TODO: create review", bookingId: id, body });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
