@@ -1,11 +1,13 @@
 import { Link, useParams } from 'react-router-dom'
 import { Clock, MapPin, Users } from 'lucide-react'
 import { MapView } from '@/components/MapView'
-import { useRide } from './hooks'
+import { DriverLocationLayer } from './components/DriverLocationLayer'
+import { useDriverLocation, useRide } from './hooks'
 
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: ride, isLoading, isError } = useRide(id)
+  const driverLocation = useDriverLocation(ride?.status === 'IN_PROGRESS' ? ride.id : undefined)
 
   if (isLoading) {
     return (
@@ -54,7 +56,9 @@ export function RideDetailPage() {
             type: 'destination',
           },
         ]}
-      />
+      >
+        <DriverLocationLayer location={driverLocation} />
+      </MapView>
 
       <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-3">
         <div className="space-y-1">
