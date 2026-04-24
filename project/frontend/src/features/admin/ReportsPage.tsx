@@ -1,15 +1,23 @@
-import { AlertCircle, FileWarning } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { AlertCircle, FileWarning } from "lucide-react";
+import { Link } from "react-router-dom";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 
-import { ReportsTable } from './ReportsTable'
-import { useReports } from './useReports'
+import { ReportsTable } from "./ReportsTable";
+import { useReports } from "./useReports";
 
 export function ReportsPage() {
-  const { data: reports = [], isLoading, isError, error, refetch, isFetching } = useReports()
+  const {
+    data: reports = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useReports();
 
-  const errorMessage = error instanceof Error ? error.message : 'Unable to load reports.'
+  const errorMessage =
+    error instanceof Error ? error.message : "Unable to load reports.";
 
   return (
     <div className="space-y-6">
@@ -33,7 +41,10 @@ export function ReportsPage() {
         <div className="rounded-lg border bg-card p-6 shadow-sm">
           <div className="space-y-3">
             {[1, 2, 3].map((item) => (
-              <div key={item} className="h-16 animate-pulse rounded-md bg-muted" />
+              <div
+                key={item}
+                className="h-16 animate-pulse rounded-md bg-muted"
+              />
             ))}
           </div>
         </div>
@@ -43,11 +54,17 @@ export function ReportsPage() {
             <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
             <div className="space-y-3">
               <div>
-                <p className="font-medium text-destructive">Failed to load reports.</p>
+                <p className="font-medium text-destructive">
+                  Failed to load reports.
+                </p>
                 <p className="text-destructive/80">{errorMessage}</p>
               </div>
-              <Button onClick={() => void refetch()} disabled={isFetching} variant="outline">
-                {isFetching ? 'Retrying…' : 'Retry'}
+              <Button
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                variant="outline"
+              >
+                {isFetching ? "Retrying…" : "Retry"}
               </Button>
             </div>
           </div>
@@ -56,5 +73,5 @@ export function ReportsPage() {
         <ReportsTable reports={reports} />
       )}
     </div>
-  )
+  );
 }
