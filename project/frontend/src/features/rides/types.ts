@@ -25,6 +25,12 @@ export interface RideDriver {
   } | null
 }
 
+export interface RideParticipant {
+  id: string
+  name: string
+  avatarUrl?: string | null
+}
+
 export interface Ride {
   id: string
   originAddress: string
@@ -39,6 +45,7 @@ export interface Ride {
   pricePerSeat: string
   status: string
   driver: RideDriver
+  participants?: RideParticipant[]
 }
 
 export interface SearchRidesParams {

@@ -218,6 +218,7 @@ export async function listReports(
         reporter: report.reporter,
         targetUserId: report.targetUserId,
         targetRideId: report.targetRideId,
+        targetUserRole: report.targetUserRole,
         reason: report.reason,
         status: report.status,
         note: report.note,
@@ -322,13 +323,25 @@ export async function createReport(
   try {
     const body = CreateReportSchema.parse(req.body);
 
-    // TODO:
-    // const report = await prisma.report.create({
-    //   data: { ...body, reporterId: req.user!.id },
-    // })
-    // res.status(201).json({ data: report })
+    const targetUser = await prisma.user.findUnique({
+      where: { id: body.targetUserId },
+    });
 
-    res.status(201).json({ message: "TODO: create report", body });
+    if (!targetUser) {
+      throw new AppError("NOT_FOUND", "Target user not found", 404);
+    }
+
+    const report = await prisma.report.create({
+      data: {
+        reporterId: req.user!.id,
+        targetUserId: body.targetUserId,
+        targetRideId: body.targetRideId,
+        targetUserRole: targetUser.role,
+        reason: body.reason,
+      },
+    });
+
+    res.status(201).json({ data: report });
   } catch (err) {
     next(err);
   }

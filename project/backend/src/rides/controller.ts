@@ -164,12 +164,34 @@ export async function getRide(
             },
           },
         },
+        bookings: {
+          where: { status: "CONFIRMED" },
+          select: {
+            passenger: {
+              select: { id: true, name: true, avatarPath: true },
+            },
+          },
+        },
       },
     });
+
+    const participants = [
+      {
+        id: ride.driver.id,
+        name: ride.driver.name,
+        avatarUrl: ride.driver.avatarPath,
+      },
+      ...ride.bookings.map((booking) => ({
+        id: booking.passenger.id,
+        name: booking.passenger.name,
+        avatarUrl: booking.passenger.avatarPath,
+      })),
+    ];
 
     res.json({
       data: {
         ...ride,
+        participants,
         driver: {
           id: ride.driver.id,
           name: ride.driver.name,
