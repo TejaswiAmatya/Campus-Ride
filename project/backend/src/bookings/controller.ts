@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { CreateBookingSchema, CreateReviewSchema } from './schemas'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
+import { emailQueue } from '../lib/emailQueue'
 
 const PLATFORM_FEE_PERCENT = 0.1
 
@@ -448,6 +449,15 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
         passenger: { select: { id: true, name: true } },
       },
     })
+
+    try {
+      await emailQueue.bookingCancelled(updated.id)
+    } catch (queueErr) {
+      console.error('[bookings/cancel] bookingCancelled queue failed', {
+        bookingId: updated.id,
+        error: queueErr,
+      })
+    }
 
     res.json({ data: serializeBookingList(updated) })
   } catch (err) {

@@ -192,4 +192,59 @@ describe.sequential('Bookings integration (book → confirm / decline)', () => {
 
     expect((await prisma.ride.findUniqueOrThrow({ where: { id: rideId } })).availableSeats).toBe(4)
   })
+
+  it('passenger PATCH cancel → CANCELLED and seats restored', async () => {
+    const dEmail = `${prefix}d3@university.edu`
+    const pEmail = `${prefix}p3@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Three',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const regP = await request(app).post('/api/auth/register').send({
+      email: pEmail,
+      name: 'Pass Three',
+      password,
+    })
+    const passengerId = (regP.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!passengerId) throw new Error('missing passenger id')
+
+    await promoteToApprovedDriver(driverId)
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    const createRide = await request(app)
+      .post('/api/rides')
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send(ridePayload())
+    const rideId = (createRide.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!rideId) throw new Error('missing ride')
+
+    const loginP = await request(app).post('/api/auth/login').send({ email: pEmail, password })
+    const passengerToken = (loginP.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!passengerToken) throw new Error('missing passenger token')
+
+    const bookRes = await request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ rideId, seatsBooked: 2 })
+    const bookingId = (bookRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!bookingId) throw new Error('missing booking')
+
+    expect((await prisma.ride.findUniqueOrThrow({ where: { id: rideId } })).availableSeats).toBe(2)
+
+    const cancelRes = await request(app)
+      .patch(`/api/bookings/${bookingId}/cancel`)
+      .set('Authorization', `Bearer ${passengerToken}`)
+    expect(cancelRes.status).toBe(200)
+    expect((cancelRes.body as ApiEnvelope<{ status: string }>).data?.status).toBe('CANCELLED')
+
+    expect((await prisma.ride.findUniqueOrThrow({ where: { id: rideId } })).availableSeats).toBe(4)
+  })
 })

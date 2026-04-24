@@ -45,3 +45,21 @@ export function useBookRide() {
     },
   })
 }
+
+export function useCancelBooking() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await api.patch<{ data: BookingListItem }>(`/api/bookings/${bookingId}/cancel`)
+      return res.data.data
+    },
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      void queryClient.invalidateQueries({ queryKey: ['rides'] })
+      void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', data.id] })
+      navigate(`/bookings/${data.id}`)
+    },
+  })
+}

@@ -1,14 +1,15 @@
 import { Link, useParams } from 'react-router-dom'
-import { CalendarCheck, MapPin } from 'lucide-react'
+import { CalendarCheck, MapPin, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MapView } from '@/components/MapView'
-import { useBooking } from './hooks'
+import { useBooking, useCancelBooking } from './hooks'
 import { StatusBadge } from './StatusBadge'
 
 export function BookingStatusPage() {
   const { id } = useParams<{ id: string }>()
   const { data: booking, isLoading, isError } = useBooking(id)
+  const cancelMutation = useCancelBooking()
 
   if (isLoading) {
     return (
@@ -27,6 +28,17 @@ export function BookingStatusPage() {
         </Button>
       </div>
     )
+  }
+
+  const canCancel = booking.status === 'PENDING' || booking.status === 'CONFIRMED'
+
+  const handleCancel = () => {
+    if (!booking.id || !canCancel || cancelMutation.isPending) return
+    const confirmed = window.confirm(
+      'Cancel this booking? The reserved seat(s) will be released back to the ride.',
+    )
+    if (!confirmed) return
+    cancelMutation.mutate(booking.id)
   }
 
   return (
@@ -78,6 +90,17 @@ export function BookingStatusPage() {
       />
 
       <div className="flex gap-2">
+        {canCancel && (
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={cancelMutation.isPending}
+            onClick={handleCancel}
+          >
+            <AlertCircle className="mr-1.5 h-4 w-4" />
+            {cancelMutation.isPending ? 'Cancelling…' : 'Cancel Booking'}
+          </Button>
+        )}
         <Button asChild variant="outline">
           <Link to="/rides">Find more rides</Link>
         </Button>
@@ -85,6 +108,11 @@ export function BookingStatusPage() {
           <Link to="/bookings">All bookings</Link>
         </Button>
       </div>
+      {cancelMutation.isError && (
+        <p className="text-sm text-destructive">
+          Could not cancel this booking. It may have been updated already.
+        </p>
+      )}
     </div>
   )
 }
