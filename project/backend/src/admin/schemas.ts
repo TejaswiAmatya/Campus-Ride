@@ -16,13 +16,10 @@ export const ResolveReportSchema = z.object({
 })
 
 export const CreateReportSchema = z.object({
-  targetUserId: z.string().uuid().optional(),
-  targetRideId: z.string().uuid().optional(),
+  targetUserId: z.string().uuid(),
+  targetRideId: z.string().uuid(),
   reason: z.string().min(10).max(2000),
-}).refine(
-  (data) => data.targetUserId !== undefined || data.targetRideId !== undefined,
-  { message: 'Must provide either targetUserId or targetRideId' },
-)
+})
 
 export type DriverDecisionInput = z.infer<typeof DriverDecisionSchema>
 export type UpdateConfigInput = z.infer<typeof UpdateConfigSchema>
