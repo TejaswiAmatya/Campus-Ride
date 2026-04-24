@@ -147,7 +147,7 @@ model Report {
   reporterId     String
   targetUserId   String
   targetRideId   String
-  targetUserRole String // "DRIVER" | "PASSENGER" | null
+  targetUserRole Role // "DRIVER" | "PASSENGER" 
   reason         String
   status         String   @default("OPEN") // OPEN | RESOLVED | DISMISSED
   note           String? // admin resolution note
