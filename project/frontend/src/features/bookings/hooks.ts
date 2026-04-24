@@ -48,7 +48,6 @@ export function useBookRide() {
 
 export function useCancelBooking() {
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
 
   return useMutation({
     mutationFn: async (bookingId: string) => {
@@ -59,7 +58,7 @@ export function useCancelBooking() {
       void queryClient.invalidateQueries({ queryKey: ['bookings'] })
       void queryClient.invalidateQueries({ queryKey: ['rides'] })
       void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', data.id] })
-      navigate(`/bookings/${data.id}`)
+      // Query invalidation will trigger a refetch and update the UI automatically
     },
   })
 }

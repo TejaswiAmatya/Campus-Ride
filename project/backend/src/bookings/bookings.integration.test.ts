@@ -247,4 +247,156 @@ describe.sequential('Bookings integration (book → confirm / decline)', () => {
 
     expect((await prisma.ride.findUniqueOrThrow({ where: { id: rideId } })).availableSeats).toBe(4)
   })
+
+    it('non-passenger cannot cancel booking (authorization check)', async () => {
+    const dEmail = `${prefix}d4@university.edu`
+    const pEmail = `${prefix}p4@university.edu`
+    const otherEmail = `${prefix}other4@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Four',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const regP = await request(app).post('/api/auth/register').send({
+      email: pEmail,
+      name: 'Pass Four',
+      password,
+    })
+    const passengerId = (regP.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!passengerId) throw new Error('missing passenger id')
+
+    const regOther = await request(app).post('/api/auth/register').send({
+      email: otherEmail,
+      name: 'Other User',
+      password,
+    })
+    const otherUserId = (regOther.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!otherUserId) throw new Error('missing other user id')
+
+    await promoteToApprovedDriver(driverId)
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    const createRide = await request(app)
+      .post('/api/rides')
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send(ridePayload())
+    const rideId = (createRide.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!rideId) throw new Error('missing ride')
+
+    const loginP = await request(app).post('/api/auth/login').send({ email: pEmail, password })
+    const passengerToken = (loginP.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!passengerToken) throw new Error('missing passenger token')
+
+    const bookRes = await request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ rideId, seatsBooked: 1 })
+    const bookingId = (bookRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!bookingId) throw new Error('missing booking')
+
+    const loginOther = await request(app).post('/api/auth/login').send({ email: otherEmail, password })
+    const otherToken = (loginOther.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!otherToken) throw new Error('missing other token')
+
+    // Other user tries to cancel passenger's booking
+    const cancelRes = await request(app)
+      .patch(`/api/bookings/${bookingId}/cancel`)
+      .set('Authorization', `Bearer ${otherToken}`)
+    expect(cancelRes.status).toBe(403)
+    expect((cancelRes.body as ApiEnvelope<{ error: { code: string } }>).error?.code).toBe('FORBIDDEN')
+  })
+
+  it('cannot cancel already-cancelled booking (idempotency check)', async () => {
+    const dEmail = `${prefix}d5@university.edu`
+    const pEmail = `${prefix}p5@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Five',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const regP = await request(app).post('/api/auth/register').send({
+      email: pEmail,
+      name: 'Pass Five',
+      password,
+    })
+    const passengerId = (regP.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!passengerId) throw new Error('missing passenger id')
+
+    await promoteToApprovedDriver(driverId)
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    const createRide = await request(app)
+      .post('/api/rides')
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send(ridePayload())
+    const rideId = (createRide.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!rideId) throw new Error('missing ride')
+
+    const loginP = await request(app).post('/api/auth/login').send({ email: pEmail, password })
+    const passengerToken = (loginP.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!passengerToken) throw new Error('missing passenger token')
+
+    const bookRes = await request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ rideId, seatsBooked: 1 })
+    const bookingId = (bookRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!bookingId) throw new Error('missing booking')
+
+    // Cancel booking first time
+    const cancelRes1 = await request(app)
+      .patch(`/api/bookings/${bookingId}/cancel`)
+      .set('Authorization', `Bearer ${passengerToken}`)
+    expect(cancelRes1.status).toBe(200)
+
+    // Try to cancel the same booking again
+    const cancelRes2 = await request(app)
+      .patch(`/api/bookings/${bookingId}/cancel`)
+      .set('Authorization', `Bearer ${passengerToken}`)
+    expect(cancelRes2.status).toBe(409)
+    expect((cancelRes2.body as ApiEnvelope<{ error: { code: string } }>).error?.code).toBe('INVALID_STATE')
+  })
+
+  it('unauthenticated user cannot cancel booking', async () => {
+    const bookingId = 'fake-id'
+    const cancelRes = await request(app).patch(`/api/bookings/${bookingId}/cancel`)
+    expect(cancelRes.status).toBe(401)
+    expect((cancelRes.body as ApiEnvelope<{ error: { code: string } }>).error?.code).toBe('UNAUTHORIZED')
+  })
+
+  it('cannot cancel non-existent booking', async () => {
+    const dEmail = `${prefix}d6@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Six',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    const cancelRes = await request(app)
+      .patch('/api/bookings/nonexistent-booking-id/cancel')
+      .set('Authorization', `Bearer ${driverToken}`)
+    expect(cancelRes.status).toBe(404)
+    expect((cancelRes.body as ApiEnvelope<{ error: { code: string } }>).error?.code).toBe('NOT_FOUND')
+  })
 })
