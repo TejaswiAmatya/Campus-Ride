@@ -32,7 +32,7 @@ interface UpdateProfileInput {
   avatarPath?: string;
 }
 
-export const meQueryKey = ["auth", "currentUser"] as const;
+export const meQueryKey = ["me"] as const;
 
 export const fetchMe = async (): Promise<ProfileUser> => {
   const res = await api.get<MeApiResponse | MeResponse>("/api/users/me");
