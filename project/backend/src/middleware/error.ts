@@ -55,6 +55,14 @@ export function errorHandler(
     return
   }
 
+  // Prisma: transaction conflict (e.g. serializable retry)
+  if (isPrismaError(err, 'P2034')) {
+    res.status(409).json({
+      error: { code: 'TRANSACTION_CONFLICT', message: 'Please try again' },
+    })
+    return
+  }
+
   // Fallback
   console.error('[errorHandler] Unhandled error:', err)
   res.status(500).json({

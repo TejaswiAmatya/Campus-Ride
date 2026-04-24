@@ -6,6 +6,9 @@ import {
   CreateReportSchema,
 } from "./schemas";
 import { prisma } from "../lib/prisma";
+import { AppError } from "../middleware/error";
+import { emailQueue } from "../lib/emailQueue";
+import { supabaseAdmin } from "../lib/supabase";
 
 /**
  * GET /api/admin/stats
@@ -24,21 +27,65 @@ export async function getStats(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const startOfDay = new Date();
+    const now = new Date();
+
+    const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
-    const [activeRides, bookingsToday, revenueResult] =
-      await prisma.$transaction([
-        prisma.ride.count({ where: { status: "IN_PROGRESS" } }),
-        prisma.booking.count({ where: { createdAt: { gte: startOfDay } } }),
-        prisma.booking.aggregate({
-          _sum: { price: true },
-          where: { status: "CONFIRMED" },
-        }),
-      ]);
+
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [
+      activeRides,
+      bookingsToday,
+      bookingsThisWeek,
+      bookingsThisMonth,
+      ridesCompleted,
+      ridesCancelled,
+      pendingDrivers,
+      openReports,
+      totalDrivers,
+      totalPassengers,
+      revenueResult,
+      newUsersThisMonth,
+    ] = await prisma.$transaction([
+      prisma.ride.count({ where: { status: "IN_PROGRESS" } }),
+      prisma.booking.count({ where: { createdAt: { gte: startOfDay } } }),
+      prisma.booking.count({ where: { createdAt: { gte: startOfWeek } } }),
+      prisma.booking.count({ where: { createdAt: { gte: startOfMonth } } }),
+      prisma.ride.count({ where: { status: "COMPLETED" } }),
+      prisma.ride.count({ where: { status: "CANCELLED" } }),
+      prisma.driverProfile.count({
+        where: { status: "PENDING" },
+      }),
+      prisma.report.count({ where: { status: "OPEN" } }),
+      prisma.driverProfile.count({
+        where: { status: "APPROVED" },
+      }),
+      prisma.user.count({ where: { role: "PASSENGER" } }),
+      prisma.booking.aggregate({
+        _sum: { platformFee: true },
+        where: { status: "COMPLETED" },
+      }),
+      prisma.user.count({ where: { createdAt: { gte: startOfMonth } } }),
+    ]);
+
     res.json({
       activeRides,
       bookingsToday,
-      totalRevenue: revenueResult._sum.price ?? 0,
+      bookingsThisWeek,
+      bookingsThisMonth,
+      ridesCompleted,
+      ridesCancelled,
+      pendingDrivers,
+      openReports,
+      totalDrivers,
+      totalPassengers,
+      totalRevenue: revenueResult._sum?.platformFee ?? 0,
+      newUsersThisMonth,
     });
   } catch (err) {
     next(err);
@@ -48,7 +95,7 @@ export async function getStats(
 /**
  * GET /api/admin/drivers/pending
  *
- * Lists all users with role=DRIVER and isDriverApproved=false,
+ * Lists all users with a pending driver application,
  * including their uploaded licence URL and vehicle info.
  */
 export async function listPendingDrivers(
@@ -57,15 +104,47 @@ export async function listPendingDrivers(
   next: NextFunction,
 ): Promise<void> {
   try {
-    // TODO:
-    // const drivers = await prisma.user.findMany({
-    //   where: { role: 'DRIVER', isDriverApproved: false },
-    //   include: { vehicle: true },
-    //   orderBy: { createdAt: 'asc' },
-    // })
-    // res.json({ data: drivers })
+    const drivers = await prisma.user.findMany({
+      where: { driverProfile: { status: "PENDING" } },
+      include: { driverProfile: true },
+      orderBy: { createdAt: "asc" },
+    });
 
-    res.json({ message: "TODO: list pending drivers" });
+    const signedUrlExpirySeconds = 60 * 60;
+
+    const mappedDrivers = await Promise.all(
+      drivers.map(async (driver) => {
+        const licencePath = driver.driverProfile?.licencePath ?? null;
+        let licenceUrl: string | null = null;
+
+        if (licencePath) {
+          const { data, error } = await supabaseAdmin.storage
+            .from("DriversInfo")
+            .createSignedUrl(licencePath, signedUrlExpirySeconds);
+
+          if (!error) {
+            licenceUrl = data.signedUrl;
+          }
+        }
+
+        return {
+          id: driver.id,
+          name: driver.name,
+          email: driver.email,
+          licenceUrl,
+          vehicle:
+            (driver.driverProfile?.vehicleInfo as {
+              make: string;
+              model: string;
+              year: number;
+              plateNumber: string;
+            } | null) ?? null,
+          createdAt: driver.createdAt,
+        };
+      }),
+    );
+
+    res.json({ data: mappedDrivers });
   } catch (err) {
     next(err);
   }
@@ -86,20 +165,52 @@ export async function driverDecision(
   try {
     const { id } = req.params;
     const body = DriverDecisionSchema.parse(req.body);
-
-    // TODO:
-    // if (body.approved) {
-    //   await prisma.user.update({ where: { id }, data: { isDriverApproved: true } })
-    //   await emailQueue.add('driver-approved', { recipientEmail: driver.email, payload: {} })
-    // } else {
-    //   await prisma.user.update({ where: { id }, data: { role: 'PASSENGER', isDriverApproved: false } })
-    //   await emailQueue.add('driver-rejected', { recipientEmail: driver.email, payload: { reason: body.reason } })
-    // }
-
-    res.json({
-      message: `TODO: ${body.approved ? "approve" : "reject"} driver`,
-      driverId: id,
+    const existingDriver = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        role: true,
+        driverProfile: { select: { id: true, status: true } },
+      },
     });
+
+    if (
+      !existingDriver ||
+      !existingDriver.driverProfile ||
+      existingDriver.driverProfile.status !== "PENDING"
+    ) {
+      throw new AppError("NOT_FOUND", "Driver application not found", 404);
+    }
+
+    const updatedDriver = await prisma.user.update({
+      where: { id },
+      data: {
+        ...(body.approved ? { role: "DRIVER" } : {}),
+        driverProfile: {
+          update: {
+            status: body.approved ? "APPROVED" : "REJECTED",
+            ...(body.approved ? { approvedAt: new Date() } : {}),
+          },
+        },
+      },
+      include: { driverProfile: true },
+    });
+
+    //sending email
+    if (body.approved) {
+      await emailQueue.driverApproved(
+        updatedDriver.id,
+        updatedDriver.email,
+        updatedDriver.name,
+      );
+    } else {
+      await emailQueue.driverRejected(
+        updatedDriver.id,
+        updatedDriver.email,
+        updatedDriver.name,
+      );
+    }
+    res.json({ data: updatedDriver });
   } catch (err) {
     next(err);
   }

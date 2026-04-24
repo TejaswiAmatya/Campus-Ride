@@ -6,7 +6,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
   throw new Error(
-    'Missing required environment variables: SUPABASE_URL and/or SUPABASE_ANON_KEY and/or SUPABASE_SERVICE_ROLE_KEY',
+    'Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY and/or SUPABASE_SERVICE_ROLE_KEY',
   )
 }
 
@@ -21,8 +21,7 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
 })
 
 /**
- * Supabase auth client — uses anon key for user sign-in flows.
- * Keep this separate from service-role client so user sessions never leak into admin/storage operations.
+ * Supabase auth client — uses the anon key for user-facing auth flows.
  */
 export const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -30,6 +29,18 @@ export const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: false,
   },
 })
+
+export async function createAuthUser(email: string, password: string) {
+  return supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  })
+}
+
+export async function deleteAuthUser(userId: string) {
+  return supabaseAdmin.auth.admin.deleteUser(userId)
+}
 
 export async function uploadLicense(
   userId: string,
