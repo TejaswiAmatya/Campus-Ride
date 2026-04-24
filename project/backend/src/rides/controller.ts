@@ -3,9 +3,11 @@ import { DriverStatus } from '@prisma/client'
 import { CreateRideSchema, SearchRidesSchema, UpdateRideStatusSchema } from './schemas'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
+
 import { mapDriverForApi, serializeMyRide, serializeRideList } from './serialize'
 import { searchRidesByLocation } from './location.service'
 import { notify } from '../lib/notify'
+
 
 const rideStatusTransitions = {
   OPEN: ['ACTIVE', 'CANCELLED'],
@@ -49,15 +51,9 @@ export async function createRide(
         role: true,
         driverProfile: { select: { status: true } },
       },
-    } as never)
+    });
 
-    const role = (driver as { role?: string }).role ?? 'DRIVER'
-    const isApproved =
-      (driver as { isDriverApproved?: boolean }).isDriverApproved === true ||
-      (driver as { driverProfile?: { status?: DriverStatus | null } | null }).driverProfile?.status ===
-        DriverStatus.APPROVED
-
-    if (role !== 'DRIVER' || !isApproved) {
+    if (driver.role !== "DRIVER" || driver.driverProfile?.status !== DriverStatus.APPROVED) {
       throw new AppError(
         'FORBIDDEN',
         'Driver application not yet approved',
