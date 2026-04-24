@@ -1,20 +1,13 @@
 import { useEffect, useId, useState } from "react";
 import { Loader2, Upload, User } from "lucide-react";
 
+import { api } from "@/api/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateProfile } from "@/hooks/useProfile";
-import { supabase } from "@/lib/supabase";
-
-const AVATAR_BUCKET = "avatars";
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 interface AvatarUploadProps {
   onSaved?: (url: string) => void;
-}
-
-function getAvatarPath(userId: string, file: File): string {
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  return `${userId}/avatar-${Date.now()}.${ext}`;
 }
 
 export function AvatarUpload({ onSaved }: AvatarUploadProps) {
@@ -83,26 +76,22 @@ export function AvatarUpload({ onSaved }: AvatarUploadProps) {
     setError(null);
     setIsUploading(true);
 
-    const objectPath = getAvatarPath(user.id, selectedFile);
-
     try {
-      const { error: uploadError } = await supabase.storage
-        .from(AVATAR_BUCKET)
-        .upload(objectPath, selectedFile, {
-          cacheControl: "3600",
-          contentType: selectedFile.type,
-          upsert: true,
-        });
+      const formData = new FormData();
+      formData.append("avatar", selectedFile);
+      const res = await api.post<{ data: { avatarPath?: string } }>(
+        "/api/users/me/avatar",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
 
-      if (uploadError) {
-        throw uploadError;
+      const avatarPath = res.data.data.avatarPath;
+      if (!avatarPath) {
+        throw new Error("Avatar upload succeeded but no URL was returned.");
       }
 
-      const { data } = supabase.storage
-        .from(AVATAR_BUCKET)
-        .getPublicUrl(objectPath);
-      await updateProfile.mutateAsync({ avatarPath: data.publicUrl });
-      onSaved?.(data.publicUrl);
+      await updateProfile.mutateAsync({ avatarPath });
+      onSaved?.(avatarPath);
       setSelectedFile(null);
     } catch (err) {
       const message =
