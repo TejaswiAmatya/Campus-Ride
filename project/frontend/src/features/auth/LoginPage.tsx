@@ -1,19 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Car } from "lucide-react";
-import { useLogin } from "@/hooks/useAuth";
+import { getDefaultRoute } from "@/auth/routing";
+import { useAuth, useLogin } from "@/hooks/useAuth";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const loginMutation = useLogin();
 
   useEffect(() => {
-    if (loginMutation.isSuccess) {
-      navigate("/rides");
+    if (!isLoading && user) {
+      navigate(getDefaultRoute(user), { replace: true });
     }
-  }, [loginMutation.isSuccess, navigate]);
+  }, [isLoading, navigate, user]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
