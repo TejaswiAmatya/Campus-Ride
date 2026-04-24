@@ -4,6 +4,14 @@ import { useAuth } from '@/hooks/useAuth'
 interface ProtectedRouteProps {
   /** If provided, the user must have exactly this role to access the route. */
   requiredRole?: 'PASSENGER' | 'DRIVER' | 'ADMIN'
+  /** If provided, the user is redirected away when they have this role. */
+  blockedRole?: 'PASSENGER' | 'DRIVER' | 'ADMIN'
+}
+
+export function getDefaultAuthenticatedPath(
+  role?: 'PASSENGER' | 'DRIVER' | 'ADMIN',
+) {
+  return role === 'ADMIN' ? '/admin' : '/rides'
 }
 
 /**
@@ -18,7 +26,10 @@ interface ProtectedRouteProps {
  *     <Route path="/admin" element={<AdminDashboard />} />
  *   </Route>
  */
-export function ProtectedRoute({ requiredRole }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  requiredRole,
+  blockedRole,
+}: ProtectedRouteProps) {
   const { user, isLoading } = useAuth()
 
   if (isLoading) {
@@ -34,7 +45,11 @@ export function ProtectedRoute({ requiredRole }: ProtectedRouteProps) {
   }
 
   if (requiredRole && user.role !== requiredRole) {
-    return <Navigate to="/" replace />
+    return <Navigate to={getDefaultAuthenticatedPath(user.role)} replace />
+  }
+
+  if (blockedRole && user.role === blockedRole) {
+    return <Navigate to={getDefaultAuthenticatedPath(user.role)} replace />
   }
 
   return <Outlet />

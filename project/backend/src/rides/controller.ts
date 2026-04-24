@@ -8,12 +8,20 @@ import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { searchRidesByLocation } from "./location.service";
 
+type VehicleInfo = {
+  make: string;
+  model: string;
+  year: number;
+  colour: string;
+  plateNumber: string;
+};
+
 /**
  * POST /api/rides
  *
  * Authenticated driver creates a ride offer.
  * Sets availableSeats = totalSeats initially.
- * Requires user.isDriverApproved = true.
+ * Requires the authenticated user to have an approved driver profile.
  */
 export async function createRide(
   req: Request,
@@ -30,10 +38,14 @@ export async function createRide(
 
     const driver = await prisma.user.findUniqueOrThrow({
       where: { id: driverId },
-      select: { isDriverApproved: true },
+      select: {
+        driverProfile: {
+          select: { status: true },
+        },
+      },
     });
 
-    if (!driver.isDriverApproved) {
+    if (driver.driverProfile?.status !== "APPROVED") {
       throw new AppError(
         "FORBIDDEN",
         "Driver application not yet approved",
@@ -57,12 +69,21 @@ export async function createRide(
       },
       include: {
         driver: {
-          select: { id: true, name: true, avatarUrl: true },
+          select: { id: true, name: true, avatarPath: true },
         },
       },
     });
 
-    res.status(201).json({ data: ride });
+    res.status(201).json({
+      data: {
+        ...ride,
+        driver: {
+          id: ride.driver.id,
+          name: ride.driver.name,
+          avatarUrl: ride.driver.avatarPath,
+        },
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -137,14 +158,26 @@ export async function getRide(
           select: {
             id: true,
             name: true,
-            avatarUrl: true,
-            vehicle: true,
+            avatarPath: true,
+            driverProfile: {
+              select: { vehicleInfo: true },
+            },
           },
         },
       },
     });
 
-    res.json({ data: ride });
+    res.json({
+      data: {
+        ...ride,
+        driver: {
+          id: ride.driver.id,
+          name: ride.driver.name,
+          avatarUrl: ride.driver.avatarPath,
+          vehicle: (ride.driver.driverProfile?.vehicleInfo as VehicleInfo | null) ?? null,
+        },
+      },
+    });
   } catch (err) {
     next(err);
   }
