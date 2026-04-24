@@ -14,6 +14,12 @@ const worker = new Worker(
         `[emailWorker] bookingConfirmed email → bookingId: ${bookingId}`,
       );
       // Later: look up booking details and send email
+    } else if (job.name === "bookingCancelled") {
+      const { bookingId } = job.data;
+      console.log(
+        `[emailWorker] bookingCancelled email → bookingId: ${bookingId}`,
+      );
+      // Later: look up booking details and send cancellation email
     } else if (job.name === "rideStarted") {
       const { rideId } = job.data;
       console.log(`[emailWorker] rideStarted email → rideId: ${rideId}`);
