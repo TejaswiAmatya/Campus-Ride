@@ -69,3 +69,31 @@ export async function uploadLicense(
   }
   return path
 }
+
+export async function uploadAvatar(
+  userId: string,
+  buffer: Buffer,
+  filetype: string
+): Promise<string> {
+  const ext = filetype.split('/')[1] ?? 'jpg'
+  const path = `${userId}/avatar-${Date.now()}.${ext}`
+
+  const { error } = await supabaseAdmin.storage.from('avatars').upload(path, buffer, {
+    contentType: filetype,
+    upsert: false,
+  })
+
+  if (error) {
+    console.error('Supabase avatar upload failed:', {
+      message: error.message,
+      name: error.name,
+      userId,
+      path,
+      filetype,
+    })
+    throw new AppError('UPLOAD_FAILED', 'Failed to upload avatar', 500)
+  }
+
+  const { data } = supabaseAdmin.storage.from('avatars').getPublicUrl(path)
+  return data.publicUrl
+}
