@@ -1,9 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { RegisterSchema, LoginSchema } from "./schemas";
 import { prisma } from "../lib/prisma";
-import { supabaseAdmin } from "../lib/supabase";
+import { createAuthUser, deleteAuthUser, supabaseAuth } from "../lib/supabase";
 import { AppError } from "../middleware/error";
-import { emailQueue } from "../lib/emailQueue";
 
 // POST /api/auth/register
 export async function register(
@@ -24,11 +23,7 @@ export async function register(
     }
 
     // create Supabase auth user
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: body.password,
-      email_confirm: true,
-    });
+    const { data, error } = await createAuthUser(email, body.password);
     if (error || !data?.user) {
       throw new AppError(
         "AUTH_PROVIDER_ERROR",
@@ -45,8 +40,7 @@ export async function register(
       });
     } catch (prismaErr) {
       // Compensate Supabase user creation to avoid orphaned auth users.
-      const { error: rollbackError } =
-        await supabaseAdmin.auth.admin.deleteUser(data.user.id);
+      const { error: rollbackError } = await deleteAuthUser(data.user.id);
       if (rollbackError) {
         console.error(
           "[auth/register] Failed to rollback Supabase user after Prisma failure",
@@ -83,9 +77,10 @@ export async function login(
   try {
     // validate the request body
     const body = LoginSchema.parse(req.body);
+    const email = body.email.toLowerCase();
 
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-      email: body.email,
+    const { data, error } = await supabaseAuth.auth.signInWithPassword({
+      email,
       password: body.password,
     });
 

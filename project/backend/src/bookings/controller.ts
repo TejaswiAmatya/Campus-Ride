@@ -1,66 +1,198 @@
 import type { Request, Response, NextFunction } from 'express'
-import { CreateBookingSchema, UpdateBookingStatusSchema, CreateReviewSchema } from './schemas'
+import { Prisma } from '@prisma/client'
+import { CreateBookingSchema, CreateReviewSchema } from './schemas'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
+import { emailQueue } from '../lib/emailQueue'
 
-const PLATFORM_FEE_PERCENT = 0.10 // 10% — move to Config table in Sprint 2
+const PLATFORM_FEE_PERCENT = 0.1
+
+function isSerializationFailure(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === 'P2034'
+}
+
+function sumDecimal(values: Array<Prisma.Decimal | string | number>): Prisma.Decimal {
+  return values.reduce<Prisma.Decimal>(
+    (total, value) => total.add(new Prisma.Decimal(value.toString())) as Prisma.Decimal,
+    new Prisma.Decimal(0),
+  )
+}
+
+function getStartOfWeek(date: Date): Date {
+  const start = new Date(date)
+  const day = start.getDay()
+  const diff = (day + 6) % 7
+  start.setDate(start.getDate() - diff)
+  start.setHours(0, 0, 0, 0)
+  return start
+}
+
+function serializeBookingList(
+  b: Prisma.BookingGetPayload<{
+    include: {
+      ride: { include: { driver: { select: { id: true; name: true } } } }
+      passenger: { select: { id: true; name: true } }
+    }
+  }>,
+) {
+  return {
+    id: b.id,
+    status: b.status,
+    seatsBooked: b.seatsBooked,
+    totalFare: b.totalFare.toString(),
+    createdAt: b.createdAt.toISOString(),
+    passenger: b.passenger,
+    ride: {
+      id: b.ride.id,
+      originAddress: b.ride.originAddress,
+      destinationAddress: b.ride.destinationAddress,
+      departureTime: b.ride.departureTime.toISOString(),
+      driver: { id: b.ride.driver.id, name: b.ride.driver.name },
+    },
+  }
+}
+
+function serializeBookingDetail(
+  b: Prisma.BookingGetPayload<{
+    include: {
+      ride: { include: { driver: { select: { id: true; name: true; avatarPath: true } } } }
+      passenger: { select: { id: true; name: true; avatarPath: true } }
+    }
+  }>,
+) {
+  return {
+    id: b.id,
+    status: b.status,
+    seatsBooked: b.seatsBooked,
+    totalFare: b.totalFare.toString(),
+    platformFee: b.platformFee.toString(),
+    driverEarnings: b.driverEarnings.toString(),
+    paymentStatus: b.paymentStatus,
+    createdAt: b.createdAt.toISOString(),
+    updatedAt: b.updatedAt.toISOString(),
+    passenger: {
+      id: b.passenger.id,
+      name: b.passenger.name,
+      avatarUrl: b.passenger.avatarPath ?? null,
+    },
+    ride: {
+      id: b.ride.id,
+      originAddress: b.ride.originAddress,
+      originLat: b.ride.originLat,
+      originLng: b.ride.originLng,
+      destinationAddress: b.ride.destinationAddress,
+      destinationLat: b.ride.destinationLat,
+      destinationLng: b.ride.destinationLng,
+      departureTime: b.ride.departureTime.toISOString(),
+      availableSeats: b.ride.availableSeats,
+      totalSeats: b.ride.totalSeats,
+      pricePerSeat: b.ride.pricePerSeat.toString(),
+      status: b.ride.status,
+      driver: {
+        id: b.ride.driver.id,
+        name: b.ride.driver.name,
+        avatarUrl: b.ride.driver.avatarPath ?? null,
+      },
+    },
+  }
+}
 
 /**
  * POST /api/bookings
  *
- * Atomically:
- *   1. Re-read Ride.availableSeats inside a serializable transaction.
- *   2. Reject if not enough seats.
- *   3. Create the Booking record with fare split computed here.
- *   4. Decrement Ride.availableSeats.
- *   5. If seats reach 0, set Ride.status = FULL.
- *   6. Emit booking:new Socket.io event to the driver.
- *   7. Enqueue booking-confirmed email (after driver accepts).
+ * Serializable transaction: re-check seats, create booking, decrement seats.
  */
 export async function createBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = CreateBookingSchema.parse(req.body)
+    const passengerId = req.user?.id
+    if (!passengerId) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    // TODO — serializable transaction prevents double-booking:
-    // const booking = await prisma.$transaction(async (tx) => {
-    //   const ride = await tx.ride.findUniqueOrThrow({ where: { id: body.rideId } })
-    //   if (ride.status !== 'OPEN') throw new AppError('RIDE_NOT_OPEN', 'Ride is no longer accepting bookings', 409)
-    //   if (ride.availableSeats < body.seatsBooked) throw new AppError('SEATS_UNAVAILABLE', 'Not enough seats available', 409)
-    //
-    //   const totalFare    = Number(ride.pricePerSeat) * body.seatsBooked
-    //   const platformFee  = totalFare * PLATFORM_FEE_PERCENT
-    //   const driverEarnings = totalFare - platformFee
-    //
-    //   const booking = await tx.booking.create({
-    //     data: {
-    //       rideId: body.rideId,
-    //       passengerId: req.user!.id,
-    //       seatsBooked: body.seatsBooked,
-    //       totalFare,
-    //       platformFee,
-    //       driverEarnings,
-    //     },
-    //   })
-    //
-    //   const newSeats = ride.availableSeats - body.seatsBooked
-    //   await tx.ride.update({
-    //     where: { id: body.rideId },
-    //     data: {
-    //       availableSeats: newSeats,
-    //       status: newSeats === 0 ? 'FULL' : 'OPEN',
-    //     },
-    //   })
-    //   return booking
-    // }, { isolationLevel: 'Serializable' })
-    //
-    // notify.bookingNew(ride.driverId, { bookingId: booking.id, rideId: body.rideId, passengerName: ... })
-    // res.status(201).json({ data: booking })
+    const maxAttempts = 5
 
-    // TODO: add notifications later
-    void prisma
-    void AppError
-    void PLATFORM_FEE_PERCENT
-    res.status(201).json({ message: 'TODO: create booking', body })
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const booking = await prisma.$transaction(
+          async (tx) => {
+            const ride = await tx.ride.findUnique({
+              where: { id: body.rideId },
+              select: {
+                id: true,
+                driverId: true,
+                status: true,
+                availableSeats: true,
+                pricePerSeat: true,
+              },
+            })
+
+            if (!ride) {
+              throw new AppError('NOT_FOUND', 'Ride not found', 404)
+            }
+            if (ride.driverId === passengerId) {
+              throw new AppError('FORBIDDEN', 'You cannot book your own ride', 403)
+            }
+            if (ride.status !== 'OPEN') {
+              throw new AppError('RIDE_NOT_OPEN', 'This ride is not accepting bookings', 409)
+            }
+            if (ride.availableSeats < body.seatsBooked) {
+              throw new AppError('SEATS_UNAVAILABLE', 'Not enough seats available', 409)
+            }
+
+            const pricePerSeat = new Prisma.Decimal(ride.pricePerSeat.toString())
+            const totalFare = pricePerSeat.mul(body.seatsBooked)
+            const platformFee = totalFare.mul(new Prisma.Decimal(PLATFORM_FEE_PERCENT.toString()))
+            const driverEarnings = totalFare.sub(platformFee)
+
+            const created = await tx.booking.create({
+              data: {
+                rideId: ride.id,
+                passengerId,
+                seatsBooked: body.seatsBooked,
+                totalFare,
+                platformFee,
+                driverEarnings,
+                status: 'PENDING',
+              },
+              include: {
+                ride: { include: { driver: { select: { id: true, name: true } } } },
+                passenger: { select: { id: true, name: true } },
+              },
+            })
+
+            const newAvailable = ride.availableSeats - body.seatsBooked
+            await tx.ride.update({
+              where: { id: ride.id },
+              data: {
+                availableSeats: newAvailable,
+                status: newAvailable === 0 ? 'FULL' : 'OPEN',
+              },
+            })
+
+            return created
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        )
+
+        res.status(201).json({ data: serializeBookingList(booking) })
+        return
+      } catch (err) {
+        if (isSerializationFailure(err)) {
+          continue
+        }
+        next(err)
+        return
+      }
+    }
+
+    next(
+      new AppError(
+        'BOOKING_CONFLICT',
+        'Could not complete booking due to high demand. Please try again.',
+        409,
+      ),
+    )
   } catch (err) {
     next(err)
   }
@@ -68,32 +200,38 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
 
 /**
  * GET /api/bookings
- *
- * Passenger: returns their booking history.
- * Driver: returns booking requests for their rides (pass ?asDriver=true).
  */
 export async function listBookings(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // TODO:
-    // const asDriver = req.query.asDriver === 'true'
-    // if (asDriver) {
-    //   // bookings on rides owned by this driver
-    //   const bookings = await prisma.booking.findMany({
-    //     where: { ride: { driverId: req.user!.id } },
-    //     include: { passenger: { select: { id: true, name: true, avatarUrl: true } }, ride: true },
-    //     orderBy: { createdAt: 'desc' },
-    //   })
-    //   res.json({ data: bookings })
-    // } else {
-    //   const bookings = await prisma.booking.findMany({
-    //     where: { passengerId: req.user!.id },
-    //     include: { ride: { include: { driver: { select: { id: true, name: true } } } } },
-    //     orderBy: { createdAt: 'desc' },
-    //   })
-    //   res.json({ data: bookings })
-    // }
+    const userId = req.user?.id
+    if (!userId) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    res.json({ message: 'TODO: list bookings', userId: req.user?.id })
+    const asDriver = req.query.asDriver === 'true'
+
+    if (asDriver) {
+      const bookings = await prisma.booking.findMany({
+        where: { ride: { driverId: userId } },
+        include: {
+          passenger: { select: { id: true, name: true } },
+          ride: { include: { driver: { select: { id: true, name: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      res.json({ data: bookings.map(serializeBookingList) })
+      return
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: { passengerId: userId },
+      include: {
+        passenger: { select: { id: true, name: true } },
+        ride: { include: { driver: { select: { id: true, name: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+    res.json({ data: bookings.map(serializeBookingList) })
   } catch (err) {
     next(err)
   }
@@ -101,15 +239,34 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
 
 /**
  * GET /api/bookings/:id
- *
- * Returns full booking detail. Accessible by the passenger or the ride driver.
  */
 export async function getBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params
+    const userId = req.user?.id
+    if (!userId) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    // TODO: fetch + authorise (passenger or driver)
-    res.json({ message: 'TODO: get booking', bookingId: id })
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        ride: { include: { driver: { select: { id: true, name: true, avatarPath: true } } } },
+        passenger: { select: { id: true, name: true, avatarPath: true } },
+      },
+    })
+
+    if (!booking) {
+      throw new AppError('NOT_FOUND', 'Booking not found', 404)
+    }
+
+    const isPassenger = booking.passengerId === userId
+    const isDriver = booking.ride.driverId === userId
+    if (!isPassenger && !isDriver) {
+      throw new AppError('FORBIDDEN', 'You cannot view this booking', 403)
+    }
+
+    res.json({ data: serializeBookingDetail(booking) })
   } catch (err) {
     next(err)
   }
@@ -117,20 +274,78 @@ export async function getBooking(req: Request, res: Response, next: NextFunction
 
 /**
  * PATCH /api/bookings/:id/confirm
- *
- * Driver confirms a pending booking.
- * Emits booking:status event to the passenger.
- * Enqueues a booking-confirmed email.
  */
 export async function confirmBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params
+    const userId = req.user?.id
+    if (!userId) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    // TODO: verify req.user is the ride's driver, set status = CONFIRMED
-    // notify.bookingStatus(booking.passengerId, { bookingId: id, status: 'CONFIRMED' })
-    // await emailQueue.add('booking-confirmed', { recipientEmail: passenger.email, payload: { bookingId: id } })
+    const maxRetries = 3
+    let updated: Prisma.BookingGetPayload<{
+      include: {
+        ride: { include: { driver: { select: { id: true; name: true } } } }
+        passenger: { select: { id: true; name: true } }
+      }
+    }> | null = null
 
-    res.json({ message: 'TODO: confirm booking', bookingId: id })
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        updated = await prisma.$transaction(
+          async (tx) => {
+            const booking = await tx.booking.findUnique({
+              where: { id },
+              include: { ride: { select: { driverId: true } } },
+            })
+
+            if (!booking) {
+              throw new AppError('NOT_FOUND', 'Booking not found', 404)
+            }
+            if (booking.ride.driverId !== userId) {
+              throw new AppError('FORBIDDEN', 'Only the driver can confirm this booking', 403)
+            }
+
+            const result = await tx.booking.updateMany({
+              where: { id, status: 'PENDING' },
+              data: { status: 'CONFIRMED' },
+            })
+
+            if (result.count === 0) {
+              throw new AppError('INVALID_STATE', 'Only pending bookings can be confirmed', 409)
+            }
+
+            const confirmedBooking = await tx.booking.findUnique({
+              where: { id },
+              include: {
+                ride: { include: { driver: { select: { id: true, name: true } } } },
+                passenger: { select: { id: true, name: true } },
+              },
+            })
+
+            if (!confirmedBooking) {
+              throw new AppError('NOT_FOUND', 'Booking not found', 404)
+            }
+
+            return confirmedBooking
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        )
+        break
+      } catch (err) {
+        if (attempt < maxRetries && isSerializationFailure(err)) {
+          continue
+        }
+        throw err
+      }
+    }
+
+    if (!updated) {
+      throw new AppError('INTERNAL_ERROR', 'Booking confirmation failed', 500)
+    }
+
+    res.json({ data: serializeBookingList(updated) })
   } catch (err) {
     next(err)
   }
@@ -138,17 +353,60 @@ export async function confirmBooking(req: Request, res: Response, next: NextFunc
 
 /**
  * PATCH /api/bookings/:id/decline
- *
- * Driver declines a pending booking.
- * Restores Ride.availableSeats and emits booking:status to the passenger.
  */
 export async function declineBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params
+    const userId = req.user?.id
+    if (!userId) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    // TODO: verify driver, set status = CANCELLED, restore seats
+    await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id },
+        include: { ride: { select: { driverId: true, id: true } } },
+      })
 
-    res.json({ message: 'TODO: decline booking', bookingId: id })
+      if (!booking) {
+        throw new AppError('NOT_FOUND', 'Booking not found', 404)
+      }
+      if (booking.ride.driverId !== userId) {
+        throw new AppError('FORBIDDEN', 'Only the driver can decline this booking', 403)
+      }
+      if (booking.status !== 'PENDING') {
+        throw new AppError('INVALID_STATE', 'Only pending bookings can be declined', 409)
+      }
+
+      await tx.booking.update({
+        where: { id },
+        data: { status: 'CANCELLED' },
+      })
+
+      const ride = await tx.ride.findUniqueOrThrow({
+        where: { id: booking.rideId },
+        select: { availableSeats: true, totalSeats: true, status: true },
+      })
+
+      const newAvailable = ride.availableSeats + booking.seatsBooked
+      await tx.ride.update({
+        where: { id: booking.rideId },
+        data: {
+          availableSeats: Math.min(newAvailable, ride.totalSeats),
+          status: newAvailable > 0 && ride.status === 'FULL' ? 'OPEN' : ride.status,
+        },
+      })
+    })
+
+    const updated = await prisma.booking.findUniqueOrThrow({
+      where: { id },
+      include: {
+        ride: { include: { driver: { select: { id: true, name: true } } } },
+        passenger: { select: { id: true, name: true } },
+      },
+    })
+
+    res.json({ data: serializeBookingList(updated) })
   } catch (err) {
     next(err)
   }
@@ -157,17 +415,69 @@ export async function declineBooking(req: Request, res: Response, next: NextFunc
 /**
  * PATCH /api/bookings/:id/cancel
  *
- * Passenger cancels their own booking.
- * Restores seats on the ride.
- * Sprint 3: trigger Stripe refund if payment was completed.
+ * Passenger-initiated cancellation. Restores ride seat availability in a transaction.
+ * Only PENDING or CONFIRMED bookings can be cancelled.
  */
 export async function cancelBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params
+    const userId = req.user?.id
+    if (!userId) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    // TODO: verify passenger, check cancellation window, restore seats, optionally refund
+    await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id },
+        include: { ride: { select: { id: true, availableSeats: true, totalSeats: true, status: true } } },
+      })
 
-    res.json({ message: 'TODO: cancel booking', bookingId: id })
+      if (!booking) {
+        throw new AppError('NOT_FOUND', 'Booking not found', 404)
+      }
+      if (booking.passengerId !== userId) {
+        throw new AppError('FORBIDDEN', 'You can only cancel your own booking', 403)
+      }
+      if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') {
+        throw new AppError('INVALID_STATE', 'This booking cannot be cancelled', 409)
+      }
+
+      // Update booking status to CANCELLED
+      await tx.booking.update({
+        where: { id },
+        data: { status: 'CANCELLED' },
+      })
+
+      // Restore seats (PENDING and CONFIRMED bookings hold seats)
+      const ride = booking.ride
+      const newAvailable = Math.min(ride.availableSeats + booking.seatsBooked, ride.totalSeats)
+      await tx.ride.update({
+        where: { id: booking.rideId },
+        data: {
+          availableSeats: newAvailable,
+          status: newAvailable > 0 && ride.status === 'FULL' ? 'OPEN' : ride.status,
+        },
+      })
+    })
+
+    const updated = await prisma.booking.findUniqueOrThrow({
+      where: { id },
+      include: {
+        ride: { include: { driver: { select: { id: true, name: true } } } },
+        passenger: { select: { id: true, name: true } },
+      },
+    })
+
+    try {
+      await emailQueue.bookingCancelled(updated.id)
+    } catch (queueErr) {
+      console.error('[bookings/cancel] bookingCancelled queue failed', {
+        bookingId: updated.id,
+        error: queueErr,
+      })
+    }
+
+    res.json({ data: serializeBookingList(updated) })
   } catch (err) {
     next(err)
   }
@@ -176,19 +486,111 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
 /**
  * GET /api/bookings/earnings
  *
- * Driver earnings history: sum of driverEarnings grouped by month/ride.
+ * Driver earnings summary with ride-level breakdown.
  */
 export async function getEarnings(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // TODO:
-    // const earnings = await prisma.booking.aggregate({
-    //   where: { ride: { driverId: req.user!.id }, status: 'COMPLETED' },
-    //   _sum: { driverEarnings: true },
-    //   _count: true,
-    // })
-    // res.json({ data: earnings })
+    const userId = req.user?.id
+    if (!userId) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    res.json({ message: 'TODO: get earnings', driverId: req.user?.id })
+    const bookings = await prisma.booking.findMany({
+      where: {
+        ride: { driverId: userId },
+        status: { in: ['CONFIRMED', 'COMPLETED'] },
+      },
+      include: {
+        ride: {
+          select: {
+            id: true,
+            originAddress: true,
+            destinationAddress: true,
+            departureTime: true,
+          },
+        },
+      },
+      orderBy: [{ ride: { departureTime: 'desc' } }, { createdAt: 'desc' }],
+    })
+
+    const now = new Date()
+    const startOfWeek = getStartOfWeek(now)
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    const rideSummaries = bookings.reduce((acc, booking) => {
+        const existing = acc.get(booking.rideId)
+        const grossFare = new Prisma.Decimal(booking.totalFare.toString())
+        const platformFee = new Prisma.Decimal(booking.platformFee.toString())
+        const driverEarnings = new Prisma.Decimal(booking.driverEarnings.toString())
+
+        if (existing) {
+          existing.bookingCount += 1
+          existing.seatsBooked += booking.seatsBooked
+          existing.grossFare = existing.grossFare.add(grossFare)
+          existing.platformFee = existing.platformFee.add(platformFee)
+          existing.driverEarnings = existing.driverEarnings.add(driverEarnings)
+          existing.paymentStatus = existing.paymentStatus === 'PAID' && booking.paymentStatus === 'PAID'
+            ? 'PAID'
+            : 'PENDING'
+          return acc
+        }
+
+        acc.set(booking.rideId, {
+          rideId: booking.ride.id,
+          originAddress: booking.ride.originAddress,
+          destinationAddress: booking.ride.destinationAddress,
+          departureTime: booking.ride.departureTime,
+          bookingCount: 1,
+          seatsBooked: booking.seatsBooked,
+          grossFare,
+          platformFee,
+          driverEarnings,
+          paymentStatus: booking.paymentStatus === 'PAID' ? 'PAID' : 'PENDING',
+        })
+
+        return acc
+      }, new Map<string, {
+        rideId: string
+        originAddress: string
+        destinationAddress: string
+        departureTime: Date
+        bookingCount: number
+        seatsBooked: number
+        grossFare: Prisma.Decimal
+        platformFee: Prisma.Decimal
+        driverEarnings: Prisma.Decimal
+        paymentStatus: 'PAID' | 'PENDING'
+      }>())
+
+    const rides = Array.from(rideSummaries.values()).map((ride) => ({
+      ...ride,
+      departureTime: ride.departureTime.toISOString(),
+      grossFare: ride.grossFare.toString(),
+      platformFee: ride.platformFee.toString(),
+      driverEarnings: ride.driverEarnings.toString(),
+    }))
+
+    const weeklyBookings = bookings.filter((booking) => booking.createdAt >= startOfWeek)
+    const monthlyBookings = bookings.filter((booking) => booking.createdAt >= startOfMonth)
+    const pendingBookings = bookings.filter((booking) => booking.paymentStatus !== 'PAID')
+
+    res.json({
+      data: {
+        summary: {
+          totalDriverEarnings: sumDecimal(bookings.map((booking) => booking.driverEarnings)).toString(),
+          weeklyDriverEarnings: sumDecimal(
+            weeklyBookings.map((booking) => booking.driverEarnings),
+          ).toString(),
+          monthlyDriverEarnings: sumDecimal(
+            monthlyBookings.map((booking) => booking.driverEarnings),
+          ).toString(),
+          totalPlatformFees: sumDecimal(bookings.map((booking) => booking.platformFee)).toString(),
+          pendingPayouts: sumDecimal(pendingBookings.map((booking) => booking.driverEarnings)).toString(),
+          totalBookings: bookings.length,
+        },
+        rides,
+      },
+    })
   } catch (err) {
     next(err)
   }
@@ -197,17 +599,93 @@ export async function getEarnings(req: Request, res: Response, next: NextFunctio
 /**
  * POST /api/bookings/:id/review
  *
- * Passenger reviews the driver after a COMPLETED booking.
- * One review per booking (enforced by DB unique constraint on Review.bookingId).
+ * Allows a ride participant to leave a single review for a completed booking.
  */
 export async function createReview(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const body = CreateReviewSchema.parse(req.body)
-    const { id } = req.params
+    const userId = req.user?.id
+    if (!userId) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    // TODO: verify booking is COMPLETED and belongs to req.user, create review
+    const bookingId = req.params.id
+    const body = CreateReviewSchema.parse({ ...req.body, bookingId })
 
-    res.status(201).json({ message: 'TODO: create review', bookingId: id, body })
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        ride: {
+          select: {
+            driverId: true,
+          },
+        },
+        passenger: {
+          select: {
+            id: true,
+          },
+        },
+        review: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    })
+
+    if (!booking) {
+      throw new AppError('NOT_FOUND', 'Booking not found', 404)
+    }
+    if (booking.status !== 'COMPLETED') {
+      throw new AppError('INVALID_STATE', 'Reviews can only be created for completed bookings', 409)
+    }
+    if (booking.review) {
+      throw new AppError('CONFLICT', 'A review has already been created for this booking', 409)
+    }
+
+    let revieweeId: string
+    if (booking.passenger.id === userId) {
+      revieweeId = booking.ride.driverId
+    } else if (booking.ride.driverId === userId) {
+      revieweeId = booking.passenger.id
+    } else {
+      throw new AppError('FORBIDDEN', 'You are not part of this booking', 403)
+    }
+
+    const review = await prisma.review.create({
+      data: {
+        bookingId: body.bookingId,
+        reviewerId: userId,
+        revieweeId,
+        rating: body.rating,
+        comment: body.comment?.trim() || null,
+      },
+      include: {
+        reviewer: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        reviewee: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    res.status(201).json({
+      data: {
+        id: review.id,
+        bookingId: review.bookingId,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt.toISOString(),
+        reviewer: review.reviewer,
+        reviewee: review.reviewee,
+      },
+    })
   } catch (err) {
     next(err)
   }

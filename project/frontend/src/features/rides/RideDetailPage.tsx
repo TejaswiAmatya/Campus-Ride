@@ -17,6 +17,13 @@ export function RideDetailPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const canBook =
+    !!user &&
+    !!ride &&
+    ride.status === "OPEN" &&
+    ride.availableSeats > 0 &&
+    user.id !== ride.driver.id;
+
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">

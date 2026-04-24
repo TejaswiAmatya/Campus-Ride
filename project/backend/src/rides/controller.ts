@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { DriverStatus } from "@prisma/client";
 import {
   CreateRideSchema,
   SearchRidesSchema,
@@ -6,7 +7,25 @@ import {
 } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
+import { mapDriverForApi, serializeRideList } from "./serialize";
 import { searchRidesByLocation } from "./location.service";
+import { notify } from "../lib/notify";
+
+const rideStatusTransitions = {
+  OPEN: ["ACTIVE", "CANCELLED"],
+  IN_PROGRESS: ["COMPLETED"],
+  COMPLETED: [],
+  CANCELLED: [],
+  FULL: ["ACTIVE", "CANCELLED"],
+} as const;
+
+function mapRequestedRideStatus(status: "ACTIVE" | "COMPLETED" | "CANCELLED") {
+  if (status === "ACTIVE") {
+    return "IN_PROGRESS" as const;
+  }
+
+  return status;
+}
 
 type VehicleInfo = {
   make: string;
@@ -21,7 +40,7 @@ type VehicleInfo = {
  *
  * Authenticated driver creates a ride offer.
  * Sets availableSeats = totalSeats initially.
- * Requires the authenticated user to have an approved driver profile.
+ * Requires role DRIVER and driverProfile.status = APPROVED.
  */
 export async function createRide(
   req: Request,
@@ -39,13 +58,15 @@ export async function createRide(
     const driver = await prisma.user.findUniqueOrThrow({
       where: { id: driverId },
       select: {
-        driverProfile: {
-          select: { status: true },
-        },
+        role: true,
+        driverProfile: { select: { status: true } },
       },
     });
 
-    if (driver.driverProfile?.status !== "APPROVED") {
+    if (
+      driver.role !== "DRIVER" ||
+      driver.driverProfile?.status !== DriverStatus.APPROVED
+    ) {
       throw new AppError(
         "FORBIDDEN",
         "Driver application not yet approved",
@@ -69,21 +90,17 @@ export async function createRide(
       },
       include: {
         driver: {
-          select: { id: true, name: true, avatarPath: true },
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
         },
       },
     });
 
-    res.status(201).json({
-      data: {
-        ...ride,
-        driver: {
-          id: ride.driver.id,
-          name: ride.driver.name,
-          avatarUrl: ride.driver.avatarPath,
-        },
-      },
-    });
+    res.status(201).json({ data: serializeRideList(ride) });
   } catch (err) {
     next(err);
   }
@@ -159,45 +176,27 @@ export async function getRide(
             id: true,
             name: true,
             avatarPath: true,
-            driverProfile: {
-              select: { vehicleInfo: true },
-            },
-          },
-        },
-        bookings: {
-          where: { status: "CONFIRMED" },
-          select: {
-            passenger: {
-              select: { id: true, name: true, avatarPath: true },
-            },
+            driverProfile: { select: { vehicleInfo: true } },
           },
         },
       },
     });
 
-    const participants = [
-      {
-        id: ride.driver.id,
-        name: ride.driver.name,
-        avatarUrl: ride.driver.avatarPath,
-      },
-      ...ride.bookings.map((booking) => ({
-        id: booking.passenger.id,
-        name: booking.passenger.name,
-        avatarUrl: booking.passenger.avatarPath,
-      })),
-    ];
-
     res.json({
       data: {
-        ...ride,
-        participants,
-        driver: {
-          id: ride.driver.id,
-          name: ride.driver.name,
-          avatarUrl: ride.driver.avatarPath,
-          vehicle: (ride.driver.driverProfile?.vehicleInfo as VehicleInfo | null) ?? null,
-        },
+        id: ride.id,
+        originAddress: ride.originAddress,
+        originLat: ride.originLat,
+        originLng: ride.originLng,
+        destinationAddress: ride.destinationAddress,
+        destinationLat: ride.destinationLat,
+        destinationLng: ride.destinationLng,
+        departureTime: ride.departureTime.toISOString(),
+        availableSeats: ride.availableSeats,
+        totalSeats: ride.totalSeats,
+        pricePerSeat: ride.pricePerSeat.toString(),
+        status: ride.status,
+        driver: mapDriverForApi(ride.driver),
       },
     });
   } catch (err) {
@@ -220,23 +219,63 @@ export async function updateRideStatus(
   next: NextFunction,
 ): Promise<void> {
   try {
+    if (!req.user?.id) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
     const { id } = req.params;
     const body = UpdateRideStatusSchema.parse(req.body);
-
-    // TODO:
-    // const ride = await prisma.ride.findUniqueOrThrow({ where: { id } })
-    // if (ride.driverId !== req.user!.id) throw new AppError('FORBIDDEN', 'Not the driver of this ride', 403)
-    // const updated = await prisma.ride.update({ where: { id }, data: { status: body.status } })
-    //
-    // notify.rideStatus(id, { status: body.status, updatedAt: new Date().toISOString() })
-    // res.json({ data: updated })
-
-    void AppError;
-    res.json({
-      message: "TODO: update ride status",
-      rideId: id,
-      status: body.status,
+    const ride = await prisma.ride.findUniqueOrThrow({
+      where: { id },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+      },
     });
+
+    if (ride.driverId !== req.user.id) {
+      throw new AppError("FORBIDDEN", "Not the driver of this ride", 403);
+    }
+
+    const allowedTransitions = rideStatusTransitions[ride.status];
+    if (!(allowedTransitions as readonly string[]).includes(body.status)) {
+      throw new AppError(
+        "INVALID_STATUS_TRANSITION",
+        `Cannot change ride status from ${ride.status} to ${body.status}`,
+        409,
+      );
+    }
+
+    const updatedRide = await prisma.ride.update({
+      where: { id },
+      data: { status: mapRequestedRideStatus(body.status) },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+      },
+    });
+
+    if (body.status === "ACTIVE") {
+      await notify.rideStatus(id, {
+        rideId: id,
+        bookingId: "",
+        status: "in_progress",
+      });
+    }
+
+    res.json({ data: serializeRideList(updatedRide) });
   } catch (err) {
     next(err);
   }
