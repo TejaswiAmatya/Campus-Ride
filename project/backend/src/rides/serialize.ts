@@ -26,14 +26,12 @@ function parseVehicle(
   if (!vehicleInfo || typeof vehicleInfo !== 'object' || Array.isArray(vehicleInfo)) {
     return null
   }
-
   const o = vehicleInfo as Record<string, unknown>
   const make = o.make
   const model = o.model
   const year = o.year
   const colour = o.colour
   const plateNumber = o.plateNumber
-
   if (
     typeof make !== 'string' ||
     typeof model !== 'string' ||
@@ -43,10 +41,8 @@ function parseVehicle(
   ) {
     return null
   }
-
   const y = typeof year === 'number' ? year : parseInt(String(year), 10)
   if (!Number.isFinite(y)) return null
-
   return { make, model, year: y, colour, plateNumber }
 }
 
