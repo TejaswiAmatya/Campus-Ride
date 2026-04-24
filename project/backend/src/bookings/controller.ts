@@ -184,6 +184,11 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
 
 /**
  * GET /api/bookings
+ *
+ * List bookings for the authenticated user (passenger or driver).
+ * Query params:
+ *   - asDriver=true: View as driver (requires ride.driverId === userId)
+ *   - status=PENDING|CONFIRMED|CANCELLED|COMPLETED: Filter by booking status
  */
 export async function listBookings(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -193,11 +198,20 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
     }
 
     const asDriver = req.query.asDriver === 'true'
-    const statusQuery = req.query.status
+    const statusFilter = req.query.status as string | undefined
+
+    // Validate status filter if provided
+    const validStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED']
+    if (statusFilter && !validStatuses.includes(statusFilter)) {
+      throw new AppError('INVALID_PARAM', `Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400)
+    }
 
     if (asDriver) {
       const bookings = await prisma.booking.findMany({
-        where: { ride: { driverId: userId } },
+        where: {
+          ride: { driverId: userId },
+          ...(statusFilter && { status: statusFilter as any }),
+        },
         include: {
           passenger: { select: { id: true, name: true } },
           ride: { include: { driver: { select: { id: true, name: true } } } },
@@ -208,26 +222,10 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
       return
     }
 
-    const statusFilter =
-      statusQuery === 'PENDING' ||
-      statusQuery === 'CONFIRMED' ||
-      statusQuery === 'CANCELLED' ||
-      statusQuery === 'COMPLETED'
-        ? statusQuery
-        : undefined
-
-    if (statusQuery && !statusFilter) {
-      throw new AppError(
-        'VALIDATION_ERROR',
-        'status must be one of: PENDING, CONFIRMED, CANCELLED, COMPLETED',
-        422,
-      )
-    }
-
     const bookings = await prisma.booking.findMany({
       where: {
         passengerId: userId,
-        ...(statusFilter && { status: statusFilter }),
+        ...(statusFilter && { status: statusFilter as any }),
       },
       include: {
         passenger: { select: { id: true, name: true } },
@@ -498,6 +496,72 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
 export async function getEarnings(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     res.json({ message: 'TODO: get earnings', driverId: req.user?.id })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * PATCH /api/bookings/:id/complete
+ *
+ * Driver-initiated completion. Marks a CONFIRMED booking as COMPLETED after ride departs.
+ * Only the driver who owns the ride can complete the booking.
+ * Only CONFIRMED bookings can be completed (must have been accepted by driver).
+ */
+export async function completeBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params
+    const userId = req.user?.id
+    if (!userId) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
+
+    let updated: Prisma.BookingGetPayload<{
+      include: {
+        ride: { include: { driver: { select: { id: true; name: true } } } }
+        passenger: { select: { id: true; name: true } }
+      }
+    }>
+
+    await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id },
+        include: { ride: { select: { driverId: true, departureTime: true } } },
+      })
+
+      if (!booking) {
+        throw new AppError('NOT_FOUND', 'Booking not found', 404)
+      }
+      if (booking.ride.driverId !== userId) {
+        throw new AppError('FORBIDDEN', 'Only the driver can complete this booking', 403)
+      }
+      if (booking.status !== 'CONFIRMED') {
+        throw new AppError('INVALID_STATE', 'Only confirmed bookings can be completed', 409)
+      }
+
+      // Optionally check if ride has already departed (for safety)
+      const now = new Date()
+      const departureTime = new Date(booking.ride.departureTime)
+      if (now < departureTime) {
+        throw new AppError('INVALID_STATE', 'Cannot complete booking before ride departure', 409)
+      }
+
+      await tx.booking.update({
+        where: { id },
+        data: { status: 'COMPLETED' },
+      })
+
+      // Fetch updated booking for response
+      updated = await tx.booking.findUniqueOrThrow({
+        where: { id },
+        include: {
+          ride: { include: { driver: { select: { id: true, name: true } } } },
+          passenger: { select: { id: true, name: true } },
+        },
+      })
+    })
+
+    res.json({ data: serializeBookingList(updated) })
   } catch (err) {
     next(err)
   }
