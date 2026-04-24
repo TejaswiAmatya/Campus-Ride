@@ -6,6 +6,7 @@ import {
   User,
   LayoutDashboard,
   CheckCircle,
+  FileWarning,
 } from "lucide-react";
 import { useAuth, useLogout } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,11 @@ export function Navbar() {
                   to="/admin/approvals"
                   icon={<CheckCircle className="h-4 w-4" />}
                   label="Approvals"
+                />
+                <NavLink
+                  to="/admin/reports"
+                  icon={<FileWarning className="h-4 w-4" />}
+                  label="Reports"
                 />
               </>
             ) : (
