@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { RegisterSchema, LoginSchema } from "./schemas";
 import { prisma } from "../lib/prisma";
-import { createAuthUser, deleteAuthUser, supabaseAuth } from "../lib/supabase";
+import { createAuthUser, deleteAuthUser, supabaseAuth, supabaseAdmin } from "../lib/supabase";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 
