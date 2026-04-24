@@ -8,7 +8,7 @@ export interface AuthUser {
   email: string
   name: string
   role: 'PASSENGER' | 'DRIVER' | 'ADMIN'
-  avatarUrl?: string
+  avatarPath?: string
   isDriverApproved: boolean
 }
 
