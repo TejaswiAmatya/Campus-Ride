@@ -2,19 +2,9 @@ import { useEffect } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuthStore } from '@/store/authStore'
+import { fetchMe, meQueryKey, type ProfileUser } from './useProfile'
 
-export interface AuthUser {
-  id: string
-  email: string
-  name: string
-  role: 'PASSENGER' | 'DRIVER' | 'ADMIN'
-  avatarPath?: string
-  isDriverApproved: boolean
-}
-
-interface currentUserResponse {
-  data: AuthUser
-}
+export type AuthUser = ProfileUser
 
 interface LoginResponse {
   data: {
@@ -38,17 +28,6 @@ interface RegisterResponse {
   }
 }
 
-const currentUserKey = ['auth', 'currentUser'] as const
-
-const fetchCurrentUser = async (): Promise<AuthUser | null> => {
-  try {
-    const res = await api.get<currentUserResponse>('/api/users/me')
-    return res.data?.data ?? null
-  } catch {
-    return null
-  }
-}
-
 
 /**
  * Returns the currently authenticated user by calling GET /api/users/me.
@@ -63,8 +42,14 @@ export function useAuth() {
 
   // Fetch the current user profile if we have an access token but no user in the store.
   const { data, isLoading } = useQuery({
-    queryKey: ['auth', 'currentUser'],
-    queryFn: fetchCurrentUser,
+    queryKey: meQueryKey,
+    queryFn: async () => {
+      try {
+        return await fetchMe()
+      } catch {
+        return null
+      }
+    },
     enabled: !!token,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -105,15 +90,20 @@ export function useLogin(){
     onSuccess: async (tokens) => {
       setSession(tokens)
 
-      const user = await queryClient.fetchQuery({
-        queryKey: currentUserKey,
-        queryFn: fetchCurrentUser,
-        staleTime: 0,
-      })
+      let user: AuthUser | null = null
+      try {
+        user = await queryClient.fetchQuery({
+          queryKey: meQueryKey,
+          queryFn: fetchMe,
+          staleTime: 0,
+        })
+      } catch {
+        user = null
+      }
 
       if (user) {
         setUser(user)
-        queryClient.setQueryData(currentUserKey, user)
+        queryClient.setQueryData(meQueryKey, user)
       } else {
         clearSession()
       }
