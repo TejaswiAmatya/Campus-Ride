@@ -19,6 +19,11 @@ async function bookingConfirmed(bookingId: string) {
   await emailQueueInstance.add("bookingConfirmed", { bookingId });
 }
 
+async function bookingCancelled(bookingId: string) {
+  console.log("[emailQueue] bookingCancelled queued", { bookingId });
+  await emailQueueInstance.add("bookingCancelled", { bookingId });
+}
+
 async function rideStarted(rideId: string) {
   console.log("[emailQueue] rideStarted queued", { rideId });
   await emailQueueInstance.add("rideStarted", { rideId });
@@ -37,6 +42,7 @@ async function driverRejected(driverId: string, email: string, name: string) {
 export const emailQueue = {
   welcomeEmail,
   bookingConfirmed,
+  bookingCancelled,
   rideStarted,
   driverApproved,
   driverRejected,
