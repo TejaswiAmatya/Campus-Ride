@@ -26,10 +26,28 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
 
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: req.user.id },
-      include: { driverProfile: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        avatarPath: true,
+        driverProfile: {
+          select: {
+            status: true,
+          },
+        },
+      },
     })
 
-    res.json({ data: user })
+    res.json({
+      data: {
+        ...user,
+        isDriverApproved: user.driverProfile?.status === 'APPROVED',
+        driverProfile: undefined,
+      },
+    })
   } catch (err) {
     next(err)
   }
