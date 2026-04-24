@@ -25,6 +25,37 @@ function mapRequestedRideStatus(status: "ACTIVE" | "COMPLETED" | "CANCELLED") {
   return status;
 }
 
+function formatRide<T extends {
+  driver?: {
+    id: string;
+    name: string;
+    avatarPath?: string | null;
+    avatarUrl?: string | null;
+    vehicle?: unknown;
+    driverProfile?: {
+      vehicleInfo: unknown;
+    } | null;
+  };
+}>(ride: T) {
+  if (!ride.driver) {
+    return ride;
+  }
+
+  return {
+    ...ride,
+    driver: {
+      id: ride.driver.id,
+      name: ride.driver.name,
+      avatarUrl: ride.driver.avatarPath ?? ride.driver.avatarUrl ?? null,
+      vehicle: ride.driver.vehicle ??
+        (ride.driver.driverProfile &&
+        typeof ride.driver.driverProfile.vehicleInfo === "object"
+          ? ride.driver.driverProfile.vehicleInfo
+          : null),
+    },
+  };
+}
+
 /**
  * POST /api/rides
  *
@@ -47,10 +78,19 @@ export async function createRide(
 
     const driver = await prisma.user.findUniqueOrThrow({
       where: { id: driverId },
-      select: { isDriverApproved: true },
-    });
+      include: {
+        driverProfile: {
+          select: { status: true },
+        },
+      },
+    } as never);
 
-    if (!driver.isDriverApproved) {
+    const isApproved =
+      (driver as { isDriverApproved?: boolean }).isDriverApproved === true ||
+      (driver as { driverProfile?: { status?: string } | null }).driverProfile
+        ?.status === "APPROVED";
+
+    if (!isApproved) {
       throw new AppError(
         "FORBIDDEN",
         "Driver application not yet approved",
@@ -74,12 +114,19 @@ export async function createRide(
       },
       include: {
         driver: {
-          select: { id: true, name: true, avatarUrl: true },
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: {
+              select: { vehicleInfo: true },
+            },
+          },
         },
       },
     });
 
-    res.status(201).json({ data: ride });
+    res.status(201).json({ data: formatRide(ride) });
   } catch (err) {
     next(err);
   }
@@ -154,14 +201,16 @@ export async function getRide(
           select: {
             id: true,
             name: true,
-            avatarUrl: true,
-            vehicle: true,
+            avatarPath: true,
+            driverProfile: {
+              select: { vehicleInfo: true },
+            },
           },
         },
       },
     });
 
-    res.json({ data: ride });
+    res.json({ data: formatRide(ride) });
   } catch (err) {
     next(err);
   }
@@ -192,7 +241,14 @@ export async function updateRideStatus(
       where: { id },
       include: {
         driver: {
-          select: { id: true, name: true, avatarUrl: true },
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: {
+              select: { vehicleInfo: true },
+            },
+          },
         },
       },
     });
@@ -202,7 +258,7 @@ export async function updateRideStatus(
     }
 
     const allowedTransitions = rideStatusTransitions[ride.status];
-    if (!allowedTransitions.includes(body.status)) {
+    if (!(allowedTransitions as readonly string[]).includes(body.status)) {
       throw new AppError(
         "INVALID_STATUS_TRANSITION",
         `Cannot change ride status from ${ride.status} to ${body.status}`,
@@ -215,7 +271,14 @@ export async function updateRideStatus(
       data: { status: mapRequestedRideStatus(body.status) },
       include: {
         driver: {
-          select: { id: true, name: true, avatarUrl: true },
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: {
+              select: { vehicleInfo: true },
+            },
+          },
         },
       },
     });
@@ -228,7 +291,7 @@ export async function updateRideStatus(
       });
     }
 
-    res.json({ data: updatedRide });
+    res.json({ data: formatRide(updatedRide) });
   } catch (err) {
     next(err);
   }
