@@ -7,7 +7,12 @@ import {
 } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
-import { mapDriverForApi, serializeRideList } from "./serialize";
+
+import {
+  mapDriverForApi,
+  serializeMyRide,
+  serializeRideList,
+} from "./serialize";
 import { searchRidesByLocation } from "./location.service";
 import { notify } from "../lib/notify";
 
@@ -145,11 +150,33 @@ export async function getMyRides(
 
     const rides = await prisma.ride.findMany({
       where: { driverId: req.user.id },
-      include: { _count: { select: { bookings: true } } },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+        bookings: {
+          include: {
+            passenger: {
+              select: {
+                id: true,
+                name: true,
+                avatarPath: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        _count: { select: { bookings: true } },
+      },
       orderBy: { departureTime: "desc" },
     });
 
-    res.json({ data: rides });
+    res.json({ data: rides.map((ride) => serializeMyRide(ride)) });
   } catch (err) {
     next(err);
   }

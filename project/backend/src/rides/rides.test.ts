@@ -7,7 +7,7 @@ import {
   UpdateRideStatusSchema,
 } from "./schemas";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { createRide, searchRides, updateRideStatus } from "./controller";
+import { createRide, getMyRides, searchRides, updateRideStatus } from "./controller";
 import { searchRidesByLocation } from "./location.service";
 import { prisma } from "../lib/prisma";
 import { errorHandler } from "../middleware/error";
@@ -56,6 +56,15 @@ type RideRecord = {
   updatedAt: Date;
 };
 
+type BookingRecord = {
+  id: string;
+  rideId: string;
+  passengerId: string;
+  seatsBooked: number;
+  status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  createdAt: Date;
+};
+
 type RideSearchWhere = {
   status?: string;
   availableSeats?: { gte: number };
@@ -64,9 +73,10 @@ type RideSearchWhere = {
   driverId?: string;
 };
 
-const testState: { users: UserRecord[]; rides: RideRecord[] } = {
+const testState: { users: UserRecord[]; rides: RideRecord[]; bookings: BookingRecord[] } = {
   users: [],
   rides: [],
+  bookings: [],
 };
 
 vi.mock("../lib/supabase", () => ({
@@ -204,6 +214,24 @@ vi.mock("../lib/prisma", () => ({
             const driver = testState.users.find(
               (entry) => entry.id === ride.driverId,
             );
+            const bookings = testState.bookings
+              .filter((booking) => booking.rideId === ride.id)
+              .map((booking) => {
+                const passenger = testState.users.find(
+                  (entry) => entry.id === booking.passengerId,
+                );
+
+                return {
+                  ...booking,
+                  passenger: passenger
+                    ? {
+                        id: passenger.id,
+                        name: passenger.name,
+                        avatarPath: passenger.avatarUrl ?? null,
+                      }
+                    : null,
+                };
+              });
 
             return {
               ...ride,
@@ -211,9 +239,12 @@ vi.mock("../lib/prisma", () => ({
                 ? {
                     id: driver.id,
                     name: driver.name,
-                    avatarUrl: driver.avatarUrl ?? null,
+                    avatarPath: driver.avatarUrl ?? null,
+                    driverProfile: { vehicleInfo: null },
                   }
                 : null,
+              bookings,
+              _count: { bookings: bookings.length },
             };
           });
       }),
@@ -283,6 +314,7 @@ beforeEach(() => {
     },
   ];
   testState.rides = [];
+  testState.bookings = [];
   notifyRideStatusMock.mockReset();
 });
 
@@ -519,6 +551,59 @@ describe("UpdateRideStatusSchema", () => {
 });
 
 describe("rides API integration", () => {
+  it("returns the driver's rides with booking request details", async () => {
+    const departureTime = new Date(futureDate);
+    testState.rides.push({
+      id: "ride-mine-1",
+      driverId: "driver-1",
+      originAddress: "University",
+      originLat: 58.9,
+      originLng: 5.7,
+      destinationAddress: "Station",
+      destinationLat: 58.97,
+      destinationLng: 5.73,
+      departureTime,
+      totalSeats: 3,
+      availableSeats: 1,
+      pricePerSeat: new Prisma.Decimal(80),
+      status: "OPEN",
+      createdAt: departureTime,
+      updatedAt: departureTime,
+    });
+    testState.bookings.push({
+      id: "booking-1",
+      rideId: "ride-mine-1",
+      passengerId: "passenger-1",
+      seatsBooked: 2,
+      status: "PENDING",
+      createdAt: departureTime,
+    });
+
+    const response = await runHandlers([requireAuth, getMyRides], {
+      method: "GET",
+      headers: { authorization: "Bearer driver-token" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.data).toMatchObject([
+      {
+        id: "ride-mine-1",
+        _count: { bookings: 1 },
+        bookings: [
+          {
+            id: "booking-1",
+            seatsBooked: 2,
+            status: "PENDING",
+            passenger: {
+              id: "passenger-1",
+              name: "Pat Passenger",
+            },
+          },
+        ],
+      },
+    ]);
+  });
+
   it("posts a ride and returns it from search with the correct seat count", async () => {
     const createResponse = await runHandlers(
       [requireAuth, requireRole("DRIVER"), createRide],
