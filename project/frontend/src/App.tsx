@@ -8,6 +8,7 @@ import { DriverRegistrationPage } from './features/auth/DriverRegistrationPage'
 import { SearchRidesPage } from './features/rides/SearchRidesPage'
 import { PostRidePage } from './features/rides/PostRidePage'
 import { RideDetailPage } from './features/rides/RideDetailPage'
+import { MyRidesPage } from './features/rides/MyRidesPage'
 import { BookingsPage } from './features/bookings/BookingsPage'
 import { BookingCheckoutPage } from './features/bookings/BookingCheckoutPage'
 import { BookingStatusPage } from './features/bookings/BookingStatusPage'
@@ -44,6 +45,7 @@ export function App() {
                 <Route path="/driver/register" element={<DriverRegistrationPage />} />
               
                 <Route path="/rides" element={<SearchRidesPage />} />
+                <Route path="/rides/mine" element={<MyRidesPage />} />
                 <Route path="/rides/post" element={<PostRidePage />} />
                 <Route path="/rides/:rideId/checkout" element={<BookingCheckoutPage />} />
                 <Route path="/rides/:id" element={<RideDetailPage />} />

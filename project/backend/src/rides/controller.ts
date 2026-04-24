@@ -5,6 +5,23 @@ import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
 import { mapDriverForApi, serializeRideList } from './serialize'
 import { searchRidesByLocation } from "./location.service";
+import { notify } from "../lib/notify";
+
+const rideStatusTransitions = {
+  OPEN: ['ACTIVE', 'CANCELLED'],
+  IN_PROGRESS: ['COMPLETED'],
+  COMPLETED: [],
+  CANCELLED: [],
+  FULL: ['ACTIVE', 'CANCELLED'],
+} as const
+
+function mapRequestedRideStatus(status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED') {
+  if (status === 'ACTIVE') {
+    return 'IN_PROGRESS' as const
+  }
+
+  return status
+}
 
 /**
  * POST /api/rides
@@ -19,11 +36,11 @@ export async function createRide(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const body = CreateRideSchema.parse(req.body);
-    const driverId = req.user?.id;
+    const body = CreateRideSchema.parse(req.body)
+    const driverId = req.user?.id
 
     if (!driverId) {
-      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
     }
 
     const driver = await prisma.user.findUniqueOrThrow({
@@ -36,10 +53,10 @@ export async function createRide(
 
     if (driver.role !== "DRIVER" || driver.driverProfile?.status !== DriverStatus.APPROVED) {
       throw new AppError(
-        "FORBIDDEN",
-        "Driver application not yet approved",
+        'FORBIDDEN',
+        'Driver application not yet approved',
         403,
-      );
+      )
     }
 
     const ride = await prisma.ride.create({
@@ -66,11 +83,11 @@ export async function createRide(
           },
         },
       },
-    });
+    })
 
     res.status(201).json({ data: serializeRideList(ride) })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
@@ -87,12 +104,12 @@ export async function searchRides(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const query = SearchRidesSchema.parse(req.query);
-    const rides = await searchRidesByLocation(query);
+    const query = SearchRidesSchema.parse(req.query)
+    const rides = await searchRidesByLocation(query)
 
-    res.json({ data: rides });
+    res.json({ data: rides })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
@@ -108,18 +125,18 @@ export async function getMyRides(
 ): Promise<void> {
   try {
     if (!req.user?.id) {
-      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
     }
 
     const rides = await prisma.ride.findMany({
       where: { driverId: req.user.id },
       include: { _count: { select: { bookings: true } } },
-      orderBy: { departureTime: "desc" },
-    });
+      orderBy: { departureTime: 'desc' },
+    })
 
-    res.json({ data: rides });
+    res.json({ data: rides })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
@@ -135,7 +152,7 @@ export async function getRide(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { id } = req.params;
+    const { id } = req.params
     const ride = await prisma.ride.findUniqueOrThrow({
       where: { id },
       include: {
@@ -148,7 +165,7 @@ export async function getRide(
           },
         },
       },
-    });
+    })
 
     res.json({
       data: {
@@ -168,7 +185,7 @@ export async function getRide(
       },
     })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
@@ -187,25 +204,65 @@ export async function updateRideStatus(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { id } = req.params;
-    const body = UpdateRideStatusSchema.parse(req.body);
+    if (!req.user?.id) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
 
-    // TODO:
-    // const ride = await prisma.ride.findUniqueOrThrow({ where: { id } })
-    // if (ride.driverId !== req.user!.id) throw new AppError('FORBIDDEN', 'Not the driver of this ride', 403)
-    // const updated = await prisma.ride.update({ where: { id }, data: { status: body.status } })
-    //
-    // notify.rideStatus(id, { status: body.status, updatedAt: new Date().toISOString() })
-    // res.json({ data: updated })
+    const { id } = req.params
+    const body = UpdateRideStatusSchema.parse(req.body)
+    const ride = await prisma.ride.findUniqueOrThrow({
+      where: { id },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+      },
+    })
 
-    void AppError;
-    res.json({
-      message: "TODO: update ride status",
-      rideId: id,
-      status: body.status,
-    });
+    if (ride.driverId !== req.user.id) {
+      throw new AppError('FORBIDDEN', 'Not the driver of this ride', 403)
+    }
+
+    const allowedTransitions = rideStatusTransitions[ride.status]
+    if (!(allowedTransitions as readonly string[]).includes(body.status)) {
+      throw new AppError(
+        'INVALID_STATUS_TRANSITION',
+        `Cannot change ride status from ${ride.status} to ${body.status}`,
+        409,
+      )
+    }
+
+    const updatedRide = await prisma.ride.update({
+      where: { id },
+      data: { status: mapRequestedRideStatus(body.status) },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+      },
+    })
+
+    if (body.status === 'ACTIVE') {
+      await notify.rideStatus(id, {
+        rideId: id,
+        bookingId: '',
+        status: 'in_progress',
+      })
+    }
+
+    res.json({ data: serializeRideList(updatedRide) })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
@@ -221,13 +278,13 @@ export async function cancelRide(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
     // TODO: check ownership, check no confirmed bookings, set status = CANCELLED
     // Cancel all pending bookings and refund if Stripe is integrated
 
-    res.json({ message: "TODO: cancel ride", rideId: id });
+    res.json({ message: 'TODO: cancel ride', rideId: id })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
