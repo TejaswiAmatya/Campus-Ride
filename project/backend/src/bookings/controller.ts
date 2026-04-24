@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { Prisma } from '@prisma/client'
+import { BookingStatus, Prisma } from '@prisma/client'
 import { CreateBookingSchema, CreateReviewSchema } from './schemas'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
@@ -200,15 +200,15 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
     const asDriver = req.query.asDriver === 'true'
     const rawStatus = req.query.status
     const statusValue = Array.isArray(rawStatus) ? undefined : rawStatus
-    const allowedStatuses: ReadonlyArray<Prisma.BookingStatus> = [
+    const allowedStatuses: ReadonlyArray<BookingStatus> = [
       'PENDING',
       'CONFIRMED',
       'CANCELLED',
       'COMPLETED',
     ]
     const statusFilter =
-      typeof statusValue === 'string' && allowedStatuses.includes(statusValue as Prisma.BookingStatus)
-        ? (statusValue as Prisma.BookingStatus)
+      typeof statusValue === 'string' && allowedStatuses.includes(statusValue as BookingStatus)
+        ? (statusValue as BookingStatus)
         : undefined
 
     if (rawStatus !== undefined && !statusFilter) {
@@ -437,14 +437,7 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
       throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
     }
 
-    let updated: Prisma.BookingGetPayload<{
-      include: {
-        ride: { include: { driver: { select: { id: true; name: true } } } }
-        passenger: { select: { id: true; name: true } }
-      }
-    }>
-
-    await prisma.$transaction(async (tx) => {
+    const updated = await prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({
         where: { id },
         include: { ride: { select: { id: true, availableSeats: true, totalSeats: true, status: true } } },
@@ -478,7 +471,7 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
       })
 
       // Fetch updated booking for response
-      updated = await tx.booking.findUniqueOrThrow({
+      return tx.booking.findUniqueOrThrow({
         where: { id },
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
@@ -529,14 +522,7 @@ export async function completeBooking(req: Request, res: Response, next: NextFun
       throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
     }
 
-    let updated: Prisma.BookingGetPayload<{
-      include: {
-        ride: { include: { driver: { select: { id: true; name: true } } } }
-        passenger: { select: { id: true; name: true } }
-      }
-    }>
-
-    await prisma.$transaction(async (tx) => {
+    const updated = await prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({
         where: { id },
         include: { ride: { select: { driverId: true, departureTime: true } } },
@@ -565,7 +551,7 @@ export async function completeBooking(req: Request, res: Response, next: NextFun
       })
 
       // Fetch updated booking for response
-      updated = await tx.booking.findUniqueOrThrow({
+      return tx.booking.findUniqueOrThrow({
         where: { id },
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
