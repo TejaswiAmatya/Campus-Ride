@@ -15,6 +15,7 @@ export function SearchRidesPage() {
 
   const { data: rides, isLoading } = useSearchRides({
     location: filters.location || undefined,
+    origin: filters.location || undefined,
     date: filters.date || undefined,
   })
 

@@ -18,6 +18,7 @@ export const CreateRideSchema = z.object({
 
 export const SearchRidesSchema = z
   .object({
+    location: z.string().trim().min(1).optional(),
     origin: z.string().trim().min(1).optional(),
     dest: z.string().trim().min(1).optional(),
     date: z
