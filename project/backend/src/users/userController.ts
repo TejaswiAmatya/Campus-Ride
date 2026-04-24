@@ -44,19 +44,31 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
 export async function updateCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = UpdateProfileSchema.parse(req.body)
-    const user = await prisma.user.update({ 
-      where: { id: req.user!.id }, 
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
       data: body,
       select: {
         id: true,
+        email: true,
         name: true,
         phone: true,
         role: true,
         avatarPath: true,
+        driverProfile: {
+          select: {
+            status: true,
+          },
+        },
       },
-     })
+    })
 
-    res.json({ data: user })
+    res.json({
+      data: {
+        ...user,
+        isDriverApproved: user.driverProfile?.status === 'APPROVED',
+        driverProfile: undefined
+      },
+    })
   } catch (err) {
     next(err)
   }
