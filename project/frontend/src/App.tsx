@@ -13,7 +13,7 @@ import { BookingsPage } from './features/bookings/BookingsPage'
 import { BookingCheckoutPage } from './features/bookings/BookingCheckoutPage'
 import { BookingStatusPage } from './features/bookings/BookingStatusPage'
 import { BookingHistoryPage } from './features/bookings/BookingHistoryPage'
-import { ProfilePage } from './features/profile/ProfilePage'
+import { ProfilePage } from './features/user/ProfilePage'
 import { AdminDashboard } from './features/admin/AdminDashboard'
 import { DriverApprovalPage } from './features/admin/DriverApprovalPage'
 
