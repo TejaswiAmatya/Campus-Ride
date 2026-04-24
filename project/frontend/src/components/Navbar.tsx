@@ -20,7 +20,11 @@ export function Navbar() {
         {isAuthenticated ? (
           <div className="flex items-center gap-1">
             <NavLink to="/rides" icon={<MapPin className="h-4 w-4" />} label="Rides" />
-            <NavLink to="/bookings" icon={<CalendarCheck className="h-4 w-4" />} label="Bookings" />
+            <NavLink
+              to={user?.role === 'DRIVER' ? '/bookings/manage' : '/bookings'}
+              icon={<CalendarCheck className="h-4 w-4" />}
+              label="Bookings"
+            />
             {user?.role === 'ADMIN' && (
               <NavLink
                 to="/admin"

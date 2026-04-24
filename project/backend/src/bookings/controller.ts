@@ -198,19 +198,32 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
     }
 
     const asDriver = req.query.asDriver === 'true'
-    const statusFilter = req.query.status as string | undefined
+    const rawStatus = req.query.status
+    const statusValue = Array.isArray(rawStatus) ? undefined : rawStatus
+    const allowedStatuses: ReadonlyArray<Prisma.BookingStatus> = [
+      'PENDING',
+      'CONFIRMED',
+      'CANCELLED',
+      'COMPLETED',
+    ]
+    const statusFilter =
+      typeof statusValue === 'string' && allowedStatuses.includes(statusValue as Prisma.BookingStatus)
+        ? (statusValue as Prisma.BookingStatus)
+        : undefined
 
-    // Validate status filter if provided
-    const validStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED']
-    if (statusFilter && !validStatuses.includes(statusFilter)) {
-      throw new AppError('INVALID_PARAM', `Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400)
+    if (rawStatus !== undefined && !statusFilter) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `status must be one of: ${allowedStatuses.join(', ')}`,
+        422,
+      )
     }
 
     if (asDriver) {
       const bookings = await prisma.booking.findMany({
         where: {
           ride: { driverId: userId },
-          ...(statusFilter && { status: statusFilter as any }),
+          ...(statusFilter && { status: statusFilter }),
         },
         include: {
           passenger: { select: { id: true, name: true } },
@@ -225,7 +238,7 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
     const bookings = await prisma.booking.findMany({
       where: {
         passengerId: userId,
-        ...(statusFilter && { status: statusFilter as any }),
+        ...(statusFilter && { status: statusFilter }),
       },
       include: {
         passenger: { select: { id: true, name: true } },

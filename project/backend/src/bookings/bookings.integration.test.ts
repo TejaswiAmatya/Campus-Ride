@@ -659,4 +659,84 @@ describe.sequential('Bookings integration (book → confirm / decline)', () => {
     expect(completeRes.status).toBe(409)
     expect((completeRes.body as ApiEnvelope<{ error: { code: string } }>).error?.code).toBe('INVALID_STATE')
   })
+
+  it('passenger can filter booking history by status', async () => {
+    const dEmail = `${prefix}d11@university.edu`
+    const pEmail = `${prefix}p11@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Eleven',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const regP = await request(app).post('/api/auth/register').send({
+      email: pEmail,
+      name: 'Pass Eleven',
+      password,
+    })
+    const passengerId = (regP.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!passengerId) throw new Error('missing passenger id')
+
+    await promoteToApprovedDriver(driverId)
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    const createRide = await request(app)
+      .post('/api/rides')
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send(ridePayload())
+    const rideId = (createRide.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!rideId) throw new Error('missing ride')
+
+    const loginP = await request(app).post('/api/auth/login').send({ email: pEmail, password })
+    const passengerToken = (loginP.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!passengerToken) throw new Error('missing passenger token')
+
+    const bookRes = await request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ rideId, seatsBooked: 1 })
+    const bookingId = (bookRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!bookingId) throw new Error('missing booking')
+
+    await request(app)
+      .patch(`/api/bookings/${bookingId}/confirm`)
+      .set('Authorization', `Bearer ${driverToken}`)
+
+    const confirmedRes = await request(app)
+      .get('/api/bookings?status=CONFIRMED')
+      .set('Authorization', `Bearer ${passengerToken}`)
+    expect(confirmedRes.status).toBe(200)
+    expect(Array.isArray((confirmedRes.body as ApiEnvelope<unknown[]>).data)).toBe(true)
+    const confirmed = (confirmedRes.body as ApiEnvelope<Array<{ id: string; status: string }>>).data ?? []
+    expect(confirmed.some((b) => b.id === bookingId && b.status === 'CONFIRMED')).toBe(true)
+
+    const pendingRes = await request(app)
+      .get('/api/bookings?status=PENDING')
+      .set('Authorization', `Bearer ${passengerToken}`)
+    expect(pendingRes.status).toBe(200)
+    const pending = (pendingRes.body as ApiEnvelope<Array<{ id: string }>>).data ?? []
+    expect(pending.some((b) => b.id === bookingId)).toBe(false)
+  })
+
+  it('returns 422 for invalid status filter', async () => {
+    const email = `${prefix}badstatus@university.edu`
+    await request(app).post('/api/auth/register').send({
+      email,
+      name: 'Status User',
+      password,
+    })
+    const loginRes = await request(app).post('/api/auth/login').send({ email, password })
+    const token = (loginRes.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!token) throw new Error('missing token')
+
+    const res = await request(app).get('/api/bookings?status=DECLINED').set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(422)
+    expect((res.body as ApiEnvelope<unknown>).error?.code).toBe('VALIDATION_ERROR')
+  })
 })

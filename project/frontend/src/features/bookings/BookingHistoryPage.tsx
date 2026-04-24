@@ -31,11 +31,14 @@ export function BookingHistoryPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Booking status filters">
         {FILTERS.map((filter) => (
           <button
             key={filter.value}
             type="button"
+            role="tab"
+            aria-selected={statusFilter === filter.value}
+            aria-pressed={statusFilter === filter.value}
             onClick={() => setStatusFilter(filter.value)}
             className={cn(
               'rounded-full border px-3 py-1.5 text-sm transition-colors',
