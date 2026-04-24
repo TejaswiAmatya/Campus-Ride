@@ -193,6 +193,7 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
     }
 
     const asDriver = req.query.asDriver === 'true'
+    const statusQuery = req.query.status
 
     if (asDriver) {
       const bookings = await prisma.booking.findMany({
@@ -207,8 +208,27 @@ export async function listBookings(req: Request, res: Response, next: NextFuncti
       return
     }
 
+    const statusFilter =
+      statusQuery === 'PENDING' ||
+      statusQuery === 'CONFIRMED' ||
+      statusQuery === 'CANCELLED' ||
+      statusQuery === 'COMPLETED'
+        ? statusQuery
+        : undefined
+
+    if (statusQuery && !statusFilter) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'status must be one of: PENDING, CONFIRMED, CANCELLED, COMPLETED',
+        422,
+      )
+    }
+
     const bookings = await prisma.booking.findMany({
-      where: { passengerId: userId },
+      where: {
+        passengerId: userId,
+        ...(statusFilter && { status: statusFilter }),
+      },
       include: {
         passenger: { select: { id: true, name: true } },
         ride: { include: { driver: { select: { id: true, name: true } } } },
@@ -467,6 +487,32 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
     }
 
     res.json({ data: serializeBookingList(updated) })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * GET /api/bookings/earnings
+ */
+export async function getEarnings(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ message: 'TODO: get earnings', driverId: req.user?.id })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * POST /api/bookings/:id/review
+ */
+export async function createReview(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const body = CreateReviewSchema.parse(req.body)
+    const { id } = req.params
+
+    void body
+    res.status(201).json({ message: 'TODO: create review', bookingId: id })
   } catch (err) {
     next(err)
   }
