@@ -3,12 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
 import type { BookingDetail, BookingListItem } from './types'
 
-export function useBookings(asDriver?: boolean) {
+export function useBookings(params?: {
+  asDriver?: boolean
+  status?: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
+}) {
+  const asDriver = params?.asDriver ?? false
+  const status = params?.status
+
   return useQuery({
-    queryKey: ['bookings', { asDriver: !!asDriver }],
+    queryKey: ['bookings', { asDriver: !!asDriver, status: status ?? 'ALL' }],
     queryFn: async (): Promise<BookingListItem[]> => {
+      const query = new URLSearchParams()
+      if (asDriver) query.set('asDriver', 'true')
+      if (!asDriver && status) query.set('status', status)
       const res = await api.get<{ data: BookingListItem[] }>(
-        `/api/bookings${asDriver ? '?asDriver=true' : ''}`,
+        `/api/bookings${query.toString() ? `?${query.toString()}` : ''}`,
       )
       return res.data.data ?? []
     },
