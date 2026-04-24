@@ -23,6 +23,7 @@ import { useAuth } from "./hooks/useAuth";
 import { BookingHistoryPage } from "./features/bookings/BookingHistoryPage";
 import { DriverApprovalPage } from "./features/admin/DriverApprovalPage";
 
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
