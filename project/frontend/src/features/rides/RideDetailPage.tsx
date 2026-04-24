@@ -4,8 +4,9 @@ import { Clock, MapPin, Users } from "lucide-react";
 import { MapView } from "@/components/MapView";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { useRide } from "./hooks";
 import { api } from "@/api/client";
+import { DriverLocationLayer } from "./components/DriverLocationLayer";
+import { useDriverLocation, useRide } from "./hooks";
 
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +17,9 @@ export function RideDetailPage() {
   const [reason, setReason] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const driverLocation = useDriverLocation(
+    ride?.status === "IN_PROGRESS" ? ride.id : undefined,
+  );
 
   const canBook =
     !!user &&
@@ -114,7 +118,9 @@ export function RideDetailPage() {
             type: "destination",
           },
         ]}
-      />
+      >
+        <DriverLocationLayer location={driverLocation} />
+      </MapView>
 
       <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-3">
         <div className="space-y-1">

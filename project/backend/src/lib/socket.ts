@@ -1,10 +1,13 @@
-import { get, Server as HttpServer } from "http";
+import { Server as HttpServer } from "http";
 import { Server, Socket } from "socket.io";
 import {
   BookingNewPayload,
   BookingStatusPayload,
+  DriverLocationPayload,
+  DriverLocationUpdatePayload,
   RideStatusPayload,
 } from "./socket.types";
+
 let io: Server | null = null;
 
 export function initSocket(server: HttpServer): Server {
@@ -30,6 +33,27 @@ export function initSocket(server: HttpServer): Server {
       socket.join(`ride:${rideId}`);
       console.log(`[socket] ${socket.id} joined room ride:${rideId}`);
     });
+
+    socket.on(
+      "driver:locationUpdate",
+      ({ rideId, lat, lng }: DriverLocationUpdatePayload) => {
+        if (
+          !rideId ||
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lng)
+        ) {
+          return;
+        }
+
+        const payload: DriverLocationPayload = {
+          lat,
+          lng,
+          updatedAt: new Date().toISOString(),
+        };
+
+        io?.to(`ride:${rideId}`).emit("driver:location", payload);
+      },
+    );
 
     socket.on("disconnect", () => {
       console.log(`[socket] client disconnected: ${socket.id}`);

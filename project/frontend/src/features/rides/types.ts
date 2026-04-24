@@ -31,7 +31,19 @@ export interface RideParticipant {
   avatarUrl?: string | null;
 }
 
+export interface RideBooking {
+  id: string;
+  seatsBooked: number;
+  status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  passenger: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+  };
+}
+
 export interface Ride {
+  participants?: RideParticipant[];
   id: string;
   originAddress: string;
   originLat: number;
@@ -45,7 +57,10 @@ export interface Ride {
   pricePerSeat: string;
   status: "OPEN" | "FULL" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   driver: RideDriver;
-  participants?: RideParticipant[];
+  bookings?: RideBooking[];
+  _count?: {
+    bookings: number;
+  };
 }
 
 export interface SearchRidesParams {

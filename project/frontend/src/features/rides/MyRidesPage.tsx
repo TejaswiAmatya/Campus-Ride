@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CarFront, Clock3, MapPin, Plus, Users } from 'lucide-react'
+import { CarFront, ChevronDown, ChevronUp, Clock3, MapPin, Plus, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAuth } from '@/hooks/useAuth'
 import { useMyRides, useUpdateRideStatus } from './hooks'
-import type { Ride, RideStatusUpdate } from './types'
+import type { Ride, RideBooking, RideStatusUpdate } from './types'
 
 const statusLabels: Record<Ride['status'], string> = {
   OPEN: 'Scheduled',
@@ -20,6 +22,20 @@ const statusVariants: Record<Ride['status'], 'default' | 'secondary' | 'destruct
   IN_PROGRESS: 'default',
   COMPLETED: 'outline',
   CANCELLED: 'destructive',
+}
+
+const bookingStatusLabels: Record<RideBooking['status'], string> = {
+  PENDING: 'Pending',
+  CONFIRMED: 'Confirmed',
+  CANCELLED: 'Cancelled',
+  COMPLETED: 'Completed',
+}
+
+const bookingStatusVariants: Record<RideBooking['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  PENDING: 'secondary',
+  CONFIRMED: 'default',
+  CANCELLED: 'destructive',
+  COMPLETED: 'outline',
 }
 
 function availableActions(status: Ride['status']) {
@@ -50,6 +66,7 @@ export function MyRidesPage() {
   const { user } = useAuth()
   const { data: rides, isLoading } = useMyRides()
   const updateRideStatus = useUpdateRideStatus()
+  const [expandedRideId, setExpandedRideId] = useState<string | null>(null)
 
   if (!user || user.role !== 'DRIVER') {
     return (
@@ -89,6 +106,8 @@ export function MyRidesPage() {
         <div className="space-y-4">
           {(rides ?? []).map((ride) => {
             const actions = availableActions(ride.status)
+            const bookings = ride.bookings ?? []
+            const isExpanded = expandedRideId === ride.id
 
             return (
               <div key={ride.id} className="rounded-xl border p-4 shadow-sm">
@@ -121,11 +140,19 @@ export function MyRidesPage() {
                         <Users className="h-4 w-4" />
                         {ride.availableSeats} / {ride.totalSeats} seats left
                       </span>
+                      <span>{ride._count?.bookings ?? bookings.length} booking requests</span>
                       <span className="font-medium text-foreground">{ride.pricePerSeat} NOK / seat</span>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap gap-2 lg:justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => setExpandedRideId((current) => (current === ride.id ? null : ride.id))}
+                    >
+                      {isExpanded ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
+                      {isExpanded ? 'Hide Requests' : 'View Requests'}
+                    </Button>
                     {actions.map((status) => (
                       <Button
                         key={status}
@@ -138,6 +165,40 @@ export function MyRidesPage() {
                     ))}
                   </div>
                 </div>
+
+                {isExpanded && (
+                  <div className="mt-4 rounded-lg border bg-muted/20">
+                    <div className="border-b px-4 py-3">
+                      <h2 className="text-sm font-semibold">Booking Requests</h2>
+                    </div>
+                    {bookings.length === 0 ? (
+                      <p className="px-4 py-6 text-sm text-muted-foreground">No booking requests yet.</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Passenger</TableHead>
+                            <TableHead>Seats</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {bookings.map((booking) => (
+                            <TableRow key={booking.id}>
+                              <TableCell className="font-medium">{booking.passenger.name}</TableCell>
+                              <TableCell>{booking.seatsBooked}</TableCell>
+                              <TableCell>
+                                <Badge variant={bookingStatusVariants[booking.status]}>
+                                  {bookingStatusLabels[booking.status]}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
