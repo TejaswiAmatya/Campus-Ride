@@ -16,6 +16,16 @@ export interface MeResponse {
   data: ProfileUser;
 }
 
+interface MeApiResponse {
+  id: string;
+  email: string;
+  name: string;
+  role: "PASSENGER" | "DRIVER" | "ADMIN";
+  avatarUrl: string | null;
+  driverStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
+  createdAt: string;
+}
+
 interface UpdateProfileInput {
   name?: string;
   phone?: string;
@@ -24,9 +34,22 @@ interface UpdateProfileInput {
 
 export const meQueryKey = ["auth", "currentUser"] as const;
 
-const fetchMe = async (): Promise<ProfileUser> => {
-  const res = await api.get<MeResponse>("/api/users/me");
-  return res.data.data;
+export const fetchMe = async (): Promise<ProfileUser> => {
+  const res = await api.get<MeApiResponse | MeResponse>("/api/users/me");
+  const payload = "data" in res.data ? res.data.data : res.data;
+
+  if ("driverStatus" in payload) {
+    return {
+      id: payload.id,
+      email: payload.email,
+      name: payload.name,
+      role: payload.role,
+      avatarPath: payload.avatarUrl ?? undefined,
+      isDriverApproved: payload.driverStatus === "APPROVED",
+    };
+  }
+
+  return payload;
 };
 
 export function useProfile() {
