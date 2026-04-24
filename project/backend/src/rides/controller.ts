@@ -1,59 +1,26 @@
-import type { Request, Response, NextFunction } from "express";
-import {
-  CreateRideSchema,
-  SearchRidesSchema,
-  UpdateRideStatusSchema,
-} from "./schemas";
-import { prisma } from "../lib/prisma";
-import { AppError } from "../middleware/error";
-import { searchRidesByLocation } from "./location.service";
-import { notify } from "../lib/notify";
+import type { Request, Response, NextFunction } from 'express'
+import { DriverStatus } from '@prisma/client'
+import { CreateRideSchema, SearchRidesSchema, UpdateRideStatusSchema } from './schemas'
+import { prisma } from '../lib/prisma'
+import { AppError } from '../middleware/error'
+import { mapDriverForApi, serializeRideList } from './serialize'
+import { searchRidesByLocation } from './location.service'
+import { notify } from '../lib/notify'
 
 const rideStatusTransitions = {
-  OPEN: ["ACTIVE", "CANCELLED"],
-  IN_PROGRESS: ["COMPLETED"],
+  OPEN: ['ACTIVE', 'CANCELLED'],
+  IN_PROGRESS: ['COMPLETED'],
   COMPLETED: [],
   CANCELLED: [],
-  FULL: ["ACTIVE", "CANCELLED"],
-} as const;
+  FULL: ['ACTIVE', 'CANCELLED'],
+} as const
 
-function mapRequestedRideStatus(status: "ACTIVE" | "COMPLETED" | "CANCELLED") {
-  if (status === "ACTIVE") {
-    return "IN_PROGRESS" as const;
+function mapRequestedRideStatus(status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED') {
+  if (status === 'ACTIVE') {
+    return 'IN_PROGRESS' as const
   }
 
-  return status;
-}
-
-function formatRide<T extends {
-  driver?: {
-    id: string;
-    name: string;
-    avatarPath?: string | null;
-    avatarUrl?: string | null;
-    vehicle?: unknown;
-    driverProfile?: {
-      vehicleInfo: unknown;
-    } | null;
-  };
-}>(ride: T) {
-  if (!ride.driver) {
-    return ride;
-  }
-
-  return {
-    ...ride,
-    driver: {
-      id: ride.driver.id,
-      name: ride.driver.name,
-      avatarUrl: ride.driver.avatarPath ?? ride.driver.avatarUrl ?? null,
-      vehicle: ride.driver.vehicle ??
-        (ride.driver.driverProfile &&
-        typeof ride.driver.driverProfile.vehicleInfo === "object"
-          ? ride.driver.driverProfile.vehicleInfo
-          : null),
-    },
-  };
+  return status
 }
 
 /**
@@ -61,7 +28,7 @@ function formatRide<T extends {
  *
  * Authenticated driver creates a ride offer.
  * Sets availableSeats = totalSeats initially.
- * Requires user.isDriverApproved = true.
+ * Requires role DRIVER and driverProfile.status = APPROVED.
  */
 export async function createRide(
   req: Request,
@@ -69,33 +36,33 @@ export async function createRide(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const body = CreateRideSchema.parse(req.body);
-    const driverId = req.user?.id;
+    const body = CreateRideSchema.parse(req.body)
+    const driverId = req.user?.id
 
     if (!driverId) {
-      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
     }
 
     const driver = await prisma.user.findUniqueOrThrow({
       where: { id: driverId },
-      include: {
-        driverProfile: {
-          select: { status: true },
-        },
+      select: {
+        role: true,
+        driverProfile: { select: { status: true } },
       },
-    } as never);
+    } as never)
 
+    const role = (driver as { role?: string }).role ?? 'DRIVER'
     const isApproved =
       (driver as { isDriverApproved?: boolean }).isDriverApproved === true ||
-      (driver as { driverProfile?: { status?: string } | null }).driverProfile
-        ?.status === "APPROVED";
+      (driver as { driverProfile?: { status?: DriverStatus | null } | null }).driverProfile?.status ===
+        DriverStatus.APPROVED
 
-    if (!isApproved) {
+    if (role !== 'DRIVER' || !isApproved) {
       throw new AppError(
-        "FORBIDDEN",
-        "Driver application not yet approved",
+        'FORBIDDEN',
+        'Driver application not yet approved',
         403,
-      );
+      )
     }
 
     const ride = await prisma.ride.create({
@@ -118,17 +85,15 @@ export async function createRide(
             id: true,
             name: true,
             avatarPath: true,
-            driverProfile: {
-              select: { vehicleInfo: true },
-            },
+            driverProfile: { select: { vehicleInfo: true } },
           },
         },
       },
-    });
+    })
 
-    res.status(201).json({ data: formatRide(ride) });
+    res.status(201).json({ data: serializeRideList(ride) })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
@@ -145,12 +110,12 @@ export async function searchRides(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const query = SearchRidesSchema.parse(req.query);
-    const rides = await searchRidesByLocation(query);
+    const query = SearchRidesSchema.parse(req.query)
+    const rides = await searchRidesByLocation(query)
 
-    res.json({ data: rides });
+    res.json({ data: rides })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
@@ -166,18 +131,18 @@ export async function getMyRides(
 ): Promise<void> {
   try {
     if (!req.user?.id) {
-      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
     }
 
     const rides = await prisma.ride.findMany({
       where: { driverId: req.user.id },
       include: { _count: { select: { bookings: true } } },
-      orderBy: { departureTime: "desc" },
-    });
+      orderBy: { departureTime: 'desc' },
+    })
 
-    res.json({ data: rides });
+    res.json({ data: rides })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
@@ -193,7 +158,7 @@ export async function getRide(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { id } = req.params;
+    const { id } = req.params
     const ride = await prisma.ride.findUniqueOrThrow({
       where: { id },
       include: {
@@ -202,17 +167,31 @@ export async function getRide(
             id: true,
             name: true,
             avatarPath: true,
-            driverProfile: {
-              select: { vehicleInfo: true },
-            },
+            driverProfile: { select: { vehicleInfo: true } },
           },
         },
       },
-    });
+    })
 
-    res.json({ data: formatRide(ride) });
+    res.json({
+      data: {
+        id: ride.id,
+        originAddress: ride.originAddress,
+        originLat: ride.originLat,
+        originLng: ride.originLng,
+        destinationAddress: ride.destinationAddress,
+        destinationLat: ride.destinationLat,
+        destinationLng: ride.destinationLng,
+        departureTime: ride.departureTime.toISOString(),
+        availableSeats: ride.availableSeats,
+        totalSeats: ride.totalSeats,
+        pricePerSeat: ride.pricePerSeat.toString(),
+        status: ride.status,
+        driver: mapDriverForApi(ride.driver),
+      },
+    })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
@@ -232,11 +211,11 @@ export async function updateRideStatus(
 ): Promise<void> {
   try {
     if (!req.user?.id) {
-      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
     }
 
-    const { id } = req.params;
-    const body = UpdateRideStatusSchema.parse(req.body);
+    const { id } = req.params
+    const body = UpdateRideStatusSchema.parse(req.body)
     const ride = await prisma.ride.findUniqueOrThrow({
       where: { id },
       include: {
@@ -245,25 +224,23 @@ export async function updateRideStatus(
             id: true,
             name: true,
             avatarPath: true,
-            driverProfile: {
-              select: { vehicleInfo: true },
-            },
+            driverProfile: { select: { vehicleInfo: true } },
           },
         },
       },
-    });
+    })
 
     if (ride.driverId !== req.user.id) {
-      throw new AppError("FORBIDDEN", "Not the driver of this ride", 403);
+      throw new AppError('FORBIDDEN', 'Not the driver of this ride', 403)
     }
 
-    const allowedTransitions = rideStatusTransitions[ride.status];
+    const allowedTransitions = rideStatusTransitions[ride.status]
     if (!(allowedTransitions as readonly string[]).includes(body.status)) {
       throw new AppError(
-        "INVALID_STATUS_TRANSITION",
+        'INVALID_STATUS_TRANSITION',
         `Cannot change ride status from ${ride.status} to ${body.status}`,
         409,
-      );
+      )
     }
 
     const updatedRide = await prisma.ride.update({
@@ -275,25 +252,23 @@ export async function updateRideStatus(
             id: true,
             name: true,
             avatarPath: true,
-            driverProfile: {
-              select: { vehicleInfo: true },
-            },
+            driverProfile: { select: { vehicleInfo: true } },
           },
         },
       },
-    });
+    })
 
-    if (body.status === "ACTIVE") {
+    if (body.status === 'ACTIVE') {
       await notify.rideStatus(id, {
         rideId: id,
-        bookingId: "",
-        status: "in_progress",
-      });
+        bookingId: '',
+        status: 'in_progress',
+      })
     }
 
-    res.json({ data: formatRide(updatedRide) });
+    res.json({ data: serializeRideList(updatedRide) })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
 
@@ -309,13 +284,13 @@ export async function cancelRide(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
     // TODO: check ownership, check no confirmed bookings, set status = CANCELLED
     // Cancel all pending bookings and refund if Stripe is integrated
 
-    res.json({ message: "TODO: cancel ride", rideId: id });
+    res.json({ message: 'TODO: cancel ride', rideId: id })
   } catch (err) {
-    next(err);
+    next(err)
   }
 }
