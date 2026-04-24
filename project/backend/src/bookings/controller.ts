@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { CreateBookingSchema, CreateReviewSchema } from './schemas'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
+import { emailQueue } from '../lib/emailQueue'
 
 const PLATFORM_FEE_PERCENT = 0.1
 
@@ -393,6 +394,9 @@ export async function declineBooking(req: Request, res: Response, next: NextFunc
 
 /**
  * PATCH /api/bookings/:id/cancel
+ *
+ * Passenger-initiated cancellation. Restores ride seat availability in a transaction.
+ * Only PENDING or CONFIRMED bookings can be cancelled.
  */
 export async function cancelBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -402,10 +406,17 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
       throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
     }
 
+    let updated: Prisma.BookingGetPayload<{
+      include: {
+        ride: { include: { driver: { select: { id: true; name: true } } } }
+        passenger: { select: { id: true; name: true } }
+      }
+    }>
+
     await prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({
         where: { id },
-        include: { ride: { select: { id: true } } },
+        include: { ride: { select: { id: true, availableSeats: true, totalSeats: true, status: true } } },
       })
 
       if (!booking) {
@@ -418,64 +429,44 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
         throw new AppError('INVALID_STATE', 'This booking cannot be cancelled', 409)
       }
 
-      const wasHoldingSeats = booking.status === 'PENDING' || booking.status === 'CONFIRMED'
-
+      // Update booking status to CANCELLED
       await tx.booking.update({
         where: { id },
         data: { status: 'CANCELLED' },
       })
 
-      if (wasHoldingSeats) {
-        const ride = await tx.ride.findUniqueOrThrow({
-          where: { id: booking.rideId },
-          select: { availableSeats: true, totalSeats: true, status: true },
-        })
-        const newAvailable = Math.min(ride.availableSeats + booking.seatsBooked, ride.totalSeats)
-        await tx.ride.update({
-          where: { id: booking.rideId },
-          data: {
-            availableSeats: newAvailable,
-            status: newAvailable > 0 && ride.status === 'FULL' ? 'OPEN' : ride.status,
-          },
-        })
-      }
+      // Restore seats (PENDING and CONFIRMED bookings hold seats)
+      const ride = booking.ride
+      const newAvailable = Math.min(ride.availableSeats + booking.seatsBooked, ride.totalSeats)
+      await tx.ride.update({
+        where: { id: booking.rideId },
+        data: {
+          availableSeats: newAvailable,
+          status: newAvailable > 0 && ride.status === 'FULL' ? 'OPEN' : ride.status,
+        },
+      })
+
+      // Fetch updated booking for response
+      updated = await tx.booking.findUniqueOrThrow({
+        where: { id },
+        include: {
+          ride: { include: { driver: { select: { id: true, name: true } } } },
+          passenger: { select: { id: true, name: true } },
+        },
+      })
     })
 
-    const updated = await prisma.booking.findUniqueOrThrow({
-      where: { id },
-      include: {
-        ride: { include: { driver: { select: { id: true, name: true } } } },
-        passenger: { select: { id: true, name: true } },
-      },
-    })
+    // Enqueue cancellation email (non-blocking)
+    try {
+      await emailQueue.bookingCancelled(updated.id)
+    } catch (queueErr) {
+      console.error('[bookings/cancel] bookingCancelled queue failed', {
+        bookingId: updated.id,
+        error: queueErr,
+      })
+    }
 
     res.json({ data: serializeBookingList(updated) })
-  } catch (err) {
-    next(err)
-  }
-}
-
-/**
- * GET /api/bookings/earnings
- */
-export async function getEarnings(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    res.json({ message: 'TODO: get earnings', driverId: req.user?.id })
-  } catch (err) {
-    next(err)
-  }
-}
-
-/**
- * POST /api/bookings/:id/review
- */
-export async function createReview(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const body = CreateReviewSchema.parse(req.body)
-    const { id } = req.params
-
-    void body
-    res.status(201).json({ message: 'TODO: create review', bookingId: id })
   } catch (err) {
     next(err)
   }

@@ -45,10 +45,13 @@ export async function createRide(
 
     const driver = await prisma.user.findUniqueOrThrow({
       where: { id: driverId },
-      select: { isDriverApproved: true },
+      select: {
+        role: true,
+        driverProfile: { select: { status: true } },
+      },
     });
 
-    if (!driver.isDriverApproved) {
+    if (driver.role !== "DRIVER" || driver.driverProfile?.status !== DriverStatus.APPROVED) {
       throw new AppError(
         "FORBIDDEN",
         "Driver application not yet approved",
