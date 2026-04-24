@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Car } from "lucide-react";
-import { getDefaultRoute } from "@/auth/routing";
+import { getDefaultRoute } from "@/features/auth/routing";
 import { useAuth, useLogin } from "@/hooks/useAuth";
 
 export function LoginPage() {
