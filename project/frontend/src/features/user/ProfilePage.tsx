@@ -1,11 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Car, Star } from "lucide-react";
 import { api } from "@/api/client";
-import { AvatarUpload } from "@/components/AvatarUpload";
-import { useAuth } from "@/hooks/useAuth";
-import { useUpdateProfile } from "@/hooks/useProfile";
+import { UserProfileCard } from "@/components/UserProfileCard";
+import { useProfile } from "@/hooks/useProfile";
 
 interface Review {
   id: string;
@@ -16,11 +14,7 @@ interface Review {
 }
 
 export function ProfilePage() {
-  const { user } = useAuth();
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(user?.name ?? "");
-
-  const updateMutation = useUpdateProfile();
+  const { data: user } = useProfile();
 
   const { data: reviews } = useQuery({
     queryKey: ["reviews", user?.id],
@@ -41,57 +35,11 @@ export function ProfilePage() {
       <h1 className="text-2xl font-bold">Your Profile</h1>
 
       {/* Profile card */}
-      <div className="rounded-lg border p-6 space-y-4">
-        <div className="flex items-center gap-4">
-          <AvatarUpload />
-          <div>
-            {editing ? (
-              <div className="flex gap-2">
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="rounded-md border border-input px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <button
-                  onClick={() =>
-                    updateMutation.mutate(
-                      { name },
-                      { onSuccess: () => setEditing(false) },
-                    )
-                  }
-                  disabled={updateMutation.isPending}
-                  className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-50"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setEditing(false)}
-                  className="text-xs text-muted-foreground hover:underline"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-lg">{user.name}</p>
-                <button
-                  onClick={() => {
-                    setName(user.name);
-                    setEditing(true);
-                  }}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Edit
-                </button>
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground">{user.email}</p>
-            <span className="inline-block rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium mt-1">
-              {user.role}
-            </span>
-          </div>
-        </div>
-      </div>
+      <UserProfileCard
+        user={user}
+        onAvatarSaved={() => undefined}
+        onDetailsSaved={() => undefined}
+      />
 
       {/* Driver status */}
       {user.role === "DRIVER" && (
