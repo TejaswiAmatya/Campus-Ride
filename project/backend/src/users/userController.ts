@@ -75,14 +75,20 @@ export async function applyAsDriver(req: Request, res: Response, next: NextFunct
 
     const licencePath = await uploadLicense(req.user!.id, req.file.buffer, req.file.mimetype)
 
-    const driverProfile = await prisma.driverProfile.create({
-      data: {
-        userId: req.user!.id,
-        licencePath,
-        vehicleInfo: body.vehicle,
-        status: 'PENDING',
-      },
-    })
+    const [driverProfile] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id: req.user!.id },
+        data: { role: 'DRIVER' },
+      }),
+      prisma.driverProfile.create({
+        data: {
+          userId: req.user!.id,
+          licencePath,
+          vehicleInfo: body.vehicle,
+          status: 'PENDING',
+        },
+      }),
+    ])
 
     res.status(201).json({ data: driverProfile })
   } catch (err) {
