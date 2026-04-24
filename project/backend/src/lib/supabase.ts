@@ -70,6 +70,23 @@ export async function uploadLicense(
   return path
 }
 
+export async function createSignedLicenseUrl(path: string): Promise<string> {
+  const { data, error } = await supabaseAdmin.storage
+    .from('DriversInfo')
+    .createSignedUrl(path, 60 * 60)
+
+  if (error || !data?.signedUrl) {
+    console.error('Supabase signed license URL creation failed:', {
+      message: error?.message,
+      name: error?.name,
+      path,
+    })
+    throw new AppError('UPLOAD_FAILED', 'Failed to access license', 500)
+  }
+
+  return data.signedUrl
+}
+
 export async function uploadAvatar(
   userId: string,
   buffer: Buffer,

@@ -41,7 +41,9 @@ export function DriverApprovalsPage() {
       </div>
 
       {(pendingDrivers ?? []).length === 0 ? (
-        <p className="text-sm text-muted-foreground">No pending applications.</p>
+        <p className="text-sm text-muted-foreground">
+          No pending applications.
+        </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
@@ -57,7 +59,10 @@ export function DriverApprovalsPage() {
             </thead>
             <tbody className="divide-y">
               {(pendingDrivers ?? []).map((driver) => (
-                <tr key={driver.id} className="hover:bg-muted/30 transition-colors">
+                <tr
+                  key={driver.id}
+                  className="hover:bg-muted/30 transition-colors"
+                >
                   <td className="px-4 py-3 font-medium">{driver.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {driver.email}
@@ -78,7 +83,9 @@ export function DriverApprovalsPage() {
                         View
                       </a>
                     ) : (
-                      <span className="text-muted-foreground">Not uploaded</span>
+                      <span className="text-muted-foreground">
+                        Not uploaded
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">

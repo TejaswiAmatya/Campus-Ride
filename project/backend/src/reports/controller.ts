@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { CreateReportSchema } from "../admin/schemas";
+import { validateReportTarget } from "./validation";
 
 export async function createReport(
   req: Request,
@@ -15,14 +16,11 @@ export async function createReport(
     }
 
     const body = CreateReportSchema.parse(req.body);
-
-    const targetUser = await prisma.user.findUnique({
-      where: { id: body.targetUserId },
-    });
-
-    if (!targetUser) {
-      throw new AppError("NOT_FOUND", "Target user not found", 404);
-    }
+    const targetUser = await validateReportTarget(
+      req.user.id,
+      body.targetUserId,
+      body.targetRideId,
+    );
 
     const report = await prisma.report.create({
       data: {

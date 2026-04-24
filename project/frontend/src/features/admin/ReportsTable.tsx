@@ -1,22 +1,29 @@
-import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-import type { AdminReport } from './types'
+import type { AdminReport } from "./types";
 
 interface ReportsTableProps {
-  reports: AdminReport[]
+  reports: AdminReport[];
 }
 
-function getStatusVariant(status: AdminReport['status']) {
-  if (status === 'OPEN') {
-    return 'destructive'
+function getStatusVariant(status: AdminReport["status"]) {
+  if (status === "OPEN") {
+    return "destructive";
   }
 
-  if (status === 'RESOLVED') {
-    return 'default'
+  if (status === "RESOLVED") {
+    return "default";
   }
 
-  return 'secondary'
+  return "secondary";
 }
 
 export function ReportsTable({ reports }: ReportsTableProps) {
@@ -25,7 +32,7 @@ export function ReportsTable({ reports }: ReportsTableProps) {
       <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground shadow-sm">
         No reports found.
       </div>
-    )
+    );
   }
 
   return (
@@ -45,17 +52,29 @@ export function ReportsTable({ reports }: ReportsTableProps) {
             <TableRow key={report.id}>
               <TableCell className="font-medium">
                 <div>{report.reporter.name}</div>
-                <div className="text-xs text-muted-foreground">{report.reporter.email}</div>
+                <div className="text-xs text-muted-foreground">
+                  {report.reporter.email}
+                </div>
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                <div>{report.targetUserId ? `User: ${report.targetUserId}` : 'No user target'}</div>
-                <div>{report.targetRideId ? `Ride: ${report.targetRideId}` : 'No ride target'}</div>
+                <div>
+                  {report.targetUserId
+                    ? `User: ${report.targetUserId}`
+                    : "No user target"}
+                </div>
+                <div>
+                  {report.targetRideId
+                    ? `Ride: ${report.targetRideId}`
+                    : "No ride target"}
+                </div>
               </TableCell>
               <TableCell className="max-w-sm whitespace-normal break-words text-sm">
                 {report.reason}
               </TableCell>
               <TableCell>
-                <Badge variant={getStatusVariant(report.status)}>{report.status}</Badge>
+                <Badge variant={getStatusVariant(report.status)}>
+                  {report.status}
+                </Badge>
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {new Date(report.createdAt).toLocaleString()}
@@ -65,5 +84,5 @@ export function ReportsTable({ reports }: ReportsTableProps) {
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }

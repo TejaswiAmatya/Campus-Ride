@@ -8,7 +8,8 @@ import {
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
-import { supabaseAdmin } from "../lib/supabase";
+import { createSignedLicenseUrl } from "../lib/supabase";
+import { validateReportTarget } from "../reports/validation";
 
 type VehicleInfo = {
   make: string;
@@ -117,15 +118,19 @@ export async function listPendingDrivers(
       orderBy: { createdAt: "asc" },
     });
 
-    res.json({
-      data: drivers.map((driver) => ({
+    const serializedDrivers = await Promise.all(
+      drivers.map(async (driver) => ({
         id: driver.user.id,
         name: driver.user.name,
         email: driver.user.email,
-        licenceUrl: driver.licencePath,
+        licenceUrl: await createSignedLicenseUrl(driver.licencePath),
         vehicle: driver.vehicleInfo as VehicleInfo,
         createdAt: driver.createdAt,
       })),
+    );
+
+    res.json({
+      data: serializedDrivers,
     });
   } catch (err) {
     next(err);
@@ -323,19 +328,20 @@ export async function createReport(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const body = CreateReportSchema.parse(req.body);
-
-    const targetUser = await prisma.user.findUnique({
-      where: { id: body.targetUserId },
-    });
-
-    if (!targetUser) {
-      throw new AppError("NOT_FOUND", "Target user not found", 404);
+    if (!req.user?.id) {
+      throw new AppError("UNAUTHORIZED", "Authentication required", 401);
     }
+
+    const body = CreateReportSchema.parse(req.body);
+    const targetUser = await validateReportTarget(
+      req.user.id,
+      body.targetUserId,
+      body.targetRideId,
+    );
 
     const report = await prisma.report.create({
       data: {
-        reporterId: req.user!.id,
+        reporterId: req.user.id,
         targetUserId: body.targetUserId,
         targetRideId: body.targetRideId,
         targetUserRole: targetUser.role,
