@@ -1,11 +1,19 @@
 import { Link } from 'react-router-dom'
-import { Car, MapPin, CalendarCheck, User, LayoutDashboard } from 'lucide-react'
+import {
+  Car,
+  MapPin,
+  CalendarCheck,
+  User,
+  LayoutDashboard,
+  CheckCircle,
+} from 'lucide-react'
 import { useAuth, useLogout } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 
 export function Navbar() {
   const { user, isAuthenticated } = useAuth()
   const logout = useLogout()
+  const isAdmin = user?.role === 'ADMIN'
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -19,16 +27,26 @@ export function Navbar() {
         {/* Nav links */}
         {isAuthenticated ? (
           <div className="flex items-center gap-1">
-            <NavLink to="/rides" icon={<MapPin className="h-4 w-4" />} label="Rides" />
-            <NavLink to="/bookings" icon={<CalendarCheck className="h-4 w-4" />} label="Bookings" />
-            {user?.role === 'ADMIN' && (
-              <NavLink
-                to="/admin"
-                icon={<LayoutDashboard className="h-4 w-4" />}
-                label="Admin"
-              />
+            {isAdmin ? (
+              <>
+                <NavLink
+                  to="/admin"
+                  icon={<LayoutDashboard className="h-4 w-4" />}
+                  label="Admin"
+                />
+                <NavLink
+                  to="/admin/approvals"
+                  icon={<CheckCircle className="h-4 w-4" />}
+                  label="Approvals"
+                />
+              </>
+            ) : (
+              <>
+                <NavLink to="/rides" icon={<MapPin className="h-4 w-4" />} label="Rides" />
+                <NavLink to="/bookings" icon={<CalendarCheck className="h-4 w-4" />} label="Bookings" />
+                <NavLink to="/profile" icon={<User className="h-4 w-4" />} label={user?.name ?? 'Profile'} />
+              </>
             )}
-            <NavLink to="/profile" icon={<User className="h-4 w-4" />} label={user?.name ?? 'Profile'} />
             <button
               onClick={logout}
               className="ml-2 rounded-md px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"

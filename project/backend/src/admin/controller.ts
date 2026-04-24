@@ -8,6 +8,13 @@ import {
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 
+type VehicleInfo = {
+  make: string;
+  model: string;
+  year: number;
+  plateNumber: string;
+};
+
 /**
  * GET /api/admin/stats
  *
@@ -56,13 +63,9 @@ export async function getStats(
       prisma.booking.count({ where: { createdAt: { gte: startOfMonth } } }),
       prisma.ride.count({ where: { status: "COMPLETED" } }),
       prisma.ride.count({ where: { status: "CANCELLED" } }),
-      prisma.user.count({
-        where: { role: "DRIVER", isDriverApproved: false },
-      }),
+      prisma.driverProfile.count({ where: { status: "PENDING" } }),
       prisma.report.count({ where: { status: "OPEN" } }),
-      prisma.user.count({
-        where: { role: "DRIVER", isDriverApproved: true },
-      }),
+      prisma.driverProfile.count({ where: { status: "APPROVED" } }),
       prisma.user.count({ where: { role: "PASSENGER" } }),
       prisma.booking.aggregate({
         _sum: { platformFee: true },
@@ -93,7 +96,7 @@ export async function getStats(
 /**
  * GET /api/admin/drivers/pending
  *
- * Lists all users with role=DRIVER and isDriverApproved=false,
+ * Lists all pending driver applications,
  * including their uploaded licence URL and vehicle info.
  */
 export async function listPendingDrivers(
@@ -102,13 +105,26 @@ export async function listPendingDrivers(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const drivers = await prisma.user.findMany({
-      where: { role: "DRIVER", isDriverApproved: false },
-      include: { vehicle: true },
+    const drivers = await prisma.driverProfile.findMany({
+      where: { status: "PENDING" },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
       orderBy: { createdAt: "asc" },
     });
 
-    res.json({ data: drivers });
+    res.json({
+      data: drivers.map((driver) => ({
+        id: driver.user.id,
+        name: driver.user.name,
+        email: driver.user.email,
+        licenceUrl: driver.licencePath,
+        vehicle: driver.vehicleInfo as VehicleInfo,
+        createdAt: driver.createdAt,
+      })),
+    });
   } catch (err) {
     next(err);
   }
@@ -118,8 +134,8 @@ export async function listPendingDrivers(
  * PATCH /api/admin/drivers/:id/decision
  *
  * Approve or reject a driver application.
- * On approval: sets isDriverApproved = true, enqueues driver-approved email.
- * On rejection: sets role = PASSENGER (reverts), enqueues rejection email with reason.
+ * On approval: marks the driver profile APPROVED and promotes the user role to DRIVER.
+ * On rejection: marks the driver profile REJECTED and reverts the user role to PASSENGER.
  */
 export async function driverDecision(
   req: Request,
@@ -129,25 +145,47 @@ export async function driverDecision(
   try {
     const { id } = req.params;
     const body = DriverDecisionSchema.parse(req.body);
-    const existingDriver = await prisma.user.findUnique({
-      where: { id },
-      select: { id: true, role: true, isDriverApproved: true },
+    const existingDriver = await prisma.driverProfile.findUnique({
+      where: { userId: id },
+      include: {
+        user: {
+          select: { id: true, role: true, name: true, email: true },
+        },
+      },
     });
 
-    if (!existingDriver || existingDriver.role !== "DRIVER") {
+    if (!existingDriver) {
       throw new AppError("NOT_FOUND", "Driver application not found", 404);
     }
 
-    const updatedDriver = await prisma.user.update({
-      where: { id },
-      data: {
-        isDriverApproved: body.approved,
-        ...(body.approved ? {} : { role: "PASSENGER" }),
-      },
-      include: { vehicle: true },
+    const updatedDriver = await prisma.$transaction(async (tx) => {
+      const profile = await tx.driverProfile.update({
+        where: { userId: id },
+        data: {
+          status: body.approved ? "APPROVED" : "REJECTED",
+          approvedAt: body.approved ? new Date() : null,
+        },
+      });
+
+      const user = await tx.user.update({
+        where: { id },
+        data: { role: body.approved ? "DRIVER" : "PASSENGER" },
+        select: { id: true, name: true, email: true, role: true },
+      });
+
+      return { profile, user };
     });
 
-    res.json({ data: updatedDriver });
+    res.json({
+      data: {
+        id: updatedDriver.user.id,
+        name: updatedDriver.user.name,
+        email: updatedDriver.user.email,
+        role: updatedDriver.user.role,
+        status: updatedDriver.profile.status,
+        approvedAt: updatedDriver.profile.approvedAt,
+      },
+    });
   } catch (err) {
     next(err);
   }
