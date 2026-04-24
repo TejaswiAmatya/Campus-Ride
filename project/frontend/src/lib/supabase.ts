@@ -9,7 +9,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
 
 interface SupabaseSessionTokens {
   access_token: string;
@@ -21,7 +26,8 @@ function parseJwtRef(token: string): string | null {
     const payload = token.split(".")[1];
     if (!payload) return null;
     const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const parsed = JSON.parse(atob(normalized)) as { ref?: string };
+    const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
+    const parsed = JSON.parse(atob(normalized + padding)) as { ref?: string };
     return parsed.ref ?? null;
   } catch {
     return null;
