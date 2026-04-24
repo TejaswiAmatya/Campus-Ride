@@ -1,6 +1,14 @@
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
+import { useSocket } from '@/lib/socket'
 import type { CreateRideDto, Ride, RideStatusUpdate, SearchRidesParams } from './types'
+
+export interface DriverLocation {
+  lat: number
+  lng: number
+  updatedAt: string
+}
 
 export function usePostRide() {
   const queryClient = useQueryClient()
@@ -35,6 +43,34 @@ export function useRide(id?: string) {
     },
     enabled: !!id,
   })
+}
+
+export function useDriverLocation(rideId?: string) {
+  const { socket, isConnected } = useSocket()
+  const [location, setLocation] = useState<DriverLocation | null>(null)
+
+  useEffect(() => {
+    if (!rideId) {
+      setLocation(null)
+      return
+    }
+
+    if (!isConnected) return
+
+    socket.emit('join:ride', { rideId })
+
+    function onDriverLocation(payload: DriverLocation) {
+      setLocation(payload)
+    }
+
+    socket.on('driver:location', onDriverLocation)
+
+    return () => {
+      socket.off('driver:location', onDriverLocation)
+    }
+  }, [isConnected, rideId, socket])
+
+  return location
 }
 
 export function useMyRides() {
