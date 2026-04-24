@@ -18,6 +18,7 @@ import { BookingStatusPage } from "./features/bookings/BookingStatusPage";
 import { ProfilePage } from "./features/user/ProfilePage";
 import { AdminDashboard } from "./features/admin/AdminDashboard";
 import { DriverApprovalsPage } from "./features/admin/DriverApprovalsPage";
+import { ReportsPage } from "./features/admin/ReportsPage";
 import { useAuth } from "./hooks/useAuth";
 
 const queryClient = new QueryClient({
@@ -73,6 +74,7 @@ export function App() {
                   path="/admin/approvals"
                   element={<DriverApprovalsPage />}
                 />
+                <Route path="/admin/reports" element={<ReportsPage />} />
               </Route>
 
               {/* Fallback */}
