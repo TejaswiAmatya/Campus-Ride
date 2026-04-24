@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { RegisterSchema, LoginSchema } from './schemas'
 import { prisma } from '../lib/prisma'
-import { supabaseAdmin } from '../lib/supabase'
+import { supabaseAdmin, supabaseAuth } from '../lib/supabase'
 import { AppError } from '../middleware/error'
 
 // POST /api/auth/register
@@ -71,7 +71,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     // validate the request body
     const body = LoginSchema.parse(req.body)
 
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+    const { data, error } = await supabaseAuth.auth.signInWithPassword({
       email: body.email,
       password: body.password,
     })
