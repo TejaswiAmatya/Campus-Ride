@@ -89,12 +89,29 @@ function getDateBounds(date: string) {
 export async function searchRidesByLocation(query: SearchRidesInput) {
   const seats = query.seats ?? 1;
   const dateBounds = query.date ? getDateBounds(query.date) : null;
+  const originText = query.origin ?? query.location;
+  const destinationText = query.dest;
+  const textFilters = {
+    ...(originText && {
+      originAddress: {
+        contains: originText,
+        mode: "insensitive" as const,
+      },
+    }),
+    ...(destinationText && {
+      destinationAddress: {
+        contains: destinationText,
+        mode: "insensitive" as const,
+      },
+    }),
+  };
 
   if (query.originLat === undefined && query.destLat === undefined) {
     return prisma.ride.findMany({
       where: {
         status: "OPEN",
         availableSeats: { gte: seats },
+        ...textFilters,
         ...(dateBounds && {
           departureTime: {
             gte: dateBounds.start,
@@ -164,6 +181,7 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
       id: { in: proximityRows.map((row) => row.id) },
       status: "OPEN",
       availableSeats: { gte: seats },
+      ...textFilters,
       ...(dateBounds && {
         departureTime: {
           gte: dateBounds.start,
