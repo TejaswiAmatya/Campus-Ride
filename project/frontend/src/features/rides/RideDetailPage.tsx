@@ -28,6 +28,11 @@ export function RideDetailPage() {
     ride.availableSeats > 0 &&
     user.id !== ride.driver.id;
 
+  const reportableMembers = useMemo(() => {
+    const participants = ride?.participants ?? [];
+    return participants.filter((participant) => participant.id !== user?.id);
+  }, [ride?.participants, user?.id]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -53,11 +58,6 @@ export function RideDetailPage() {
       </div>
     );
   }
-
-  const reportableMembers = useMemo(() => {
-    const participants = ride.participants ?? [];
-    return participants.filter((participant) => participant.id !== user?.id);
-  }, [ride.participants, user?.id]);
 
   const canSubmitReport =
     selectedUserId && reason.trim().length >= 10 && !isSubmitting;
