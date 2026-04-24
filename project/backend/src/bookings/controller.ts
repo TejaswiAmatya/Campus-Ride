@@ -266,29 +266,63 @@ export async function confirmBooking(req: Request, res: Response, next: NextFunc
       throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
     }
 
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: { ride: { select: { driverId: true } } },
-    })
-
-    if (!booking) {
-      throw new AppError('NOT_FOUND', 'Booking not found', 404)
-    }
-    if (booking.ride.driverId !== userId) {
-      throw new AppError('FORBIDDEN', 'Only the driver can confirm this booking', 403)
-    }
-    if (booking.status !== 'PENDING') {
-      throw new AppError('INVALID_STATE', 'Only pending bookings can be confirmed', 409)
-    }
-
-    const updated = await prisma.booking.update({
-      where: { id },
-      data: { status: 'CONFIRMED' },
+    const maxRetries = 3
+    let updated: Prisma.BookingGetPayload<{
       include: {
-        ride: { include: { driver: { select: { id: true, name: true } } } },
-        passenger: { select: { id: true, name: true } },
-      },
-    })
+        ride: { include: { driver: { select: { id: true; name: true } } } }
+        passenger: { select: { id: true; name: true } }
+      }
+    }>
+
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        updated = await prisma.$transaction(
+          async (tx) => {
+            const booking = await tx.booking.findUnique({
+              where: { id },
+              include: { ride: { select: { driverId: true } } },
+            })
+
+            if (!booking) {
+              throw new AppError('NOT_FOUND', 'Booking not found', 404)
+            }
+            if (booking.ride.driverId !== userId) {
+              throw new AppError('FORBIDDEN', 'Only the driver can confirm this booking', 403)
+            }
+
+            const result = await tx.booking.updateMany({
+              where: { id, status: 'PENDING' },
+              data: { status: 'CONFIRMED' },
+            })
+
+            if (result.count === 0) {
+              throw new AppError('INVALID_STATE', 'Only pending bookings can be confirmed', 409)
+            }
+
+            const confirmedBooking = await tx.booking.findUnique({
+              where: { id },
+              include: {
+                ride: { include: { driver: { select: { id: true, name: true } } } },
+                passenger: { select: { id: true, name: true } },
+              },
+            })
+
+            if (!confirmedBooking) {
+              throw new AppError('NOT_FOUND', 'Booking not found', 404)
+            }
+
+            return confirmedBooking
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        )
+        break
+      } catch (err) {
+        if (attempt < maxRetries && isSerializationFailure(err)) {
+          continue
+        }
+        throw err
+      }
+    }
 
     res.json({ data: serializeBookingList(updated) })
   } catch (err) {
