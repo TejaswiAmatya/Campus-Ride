@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Loader2, Upload, User } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -8,20 +8,41 @@ import { supabase } from "@/lib/supabase";
 const AVATAR_BUCKET = "avatars";
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
+interface AvatarUploadProps {
+  onSaved?: (url: string) => void;
+}
+
 function getAvatarPath(userId: string, file: File): string {
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
   return `${userId}/avatar-${Date.now()}.${ext}`;
 }
 
-export function AvatarUpload() {
+export function AvatarUpload({ onSaved }: AvatarUploadProps) {
   const inputId = useId();
   const { user } = useAuth();
   const updateProfile = useUpdateProfile();
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const avatarUrl = user?.avatarPath;
+  const avatarUrl = previewUrl ?? user?.avatarPath;
   const isBusy = isUploading || updateProfile.isPending;
+  const hasPendingAvatar = !!selectedFile;
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedFile);
+    setPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [selectedFile]);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -42,16 +63,34 @@ export function AvatarUpload() {
     }
 
     setError(null);
+    setSelectedFile(file);
+  }
+
+  function handleCancel() {
+    if (isBusy) {
+      return;
+    }
+
+    setError(null);
+    setSelectedFile(null);
+  }
+
+  async function handleUpload() {
+    if (!selectedFile || !user) {
+      return;
+    }
+
+    setError(null);
     setIsUploading(true);
 
-    const objectPath = getAvatarPath(user.id, file);
+    const objectPath = getAvatarPath(user.id, selectedFile);
 
     try {
       const { error: uploadError } = await supabase.storage
         .from(AVATAR_BUCKET)
-        .upload(objectPath, file, {
+        .upload(objectPath, selectedFile, {
           cacheControl: "3600",
-          contentType: file.type,
+          contentType: selectedFile.type,
           upsert: true,
         });
 
@@ -63,6 +102,8 @@ export function AvatarUpload() {
         .from(AVATAR_BUCKET)
         .getPublicUrl(objectPath);
       await updateProfile.mutateAsync({ avatarPath: data.publicUrl });
+      onSaved?.(data.publicUrl);
+      setSelectedFile(null);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to upload avatar.";
@@ -90,14 +131,14 @@ export function AvatarUpload() {
         <div className="space-y-2">
           <label
             htmlFor={inputId}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className={`inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors ${
+              isBusy || !user
+                ? "cursor-not-allowed opacity-50"
+                : "cursor-pointer hover:bg-primary/90"
+            }`}
           >
-            {isBusy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4" />
-            )}
-            {isBusy ? "Uploading..." : "Upload avatar"}
+            <Upload className="h-4 w-4" />
+            Choose avatar
           </label>
           <input
             id={inputId}
@@ -110,6 +151,36 @@ export function AvatarUpload() {
           <p className="text-xs text-muted-foreground">
             PNG, JPG, or WebP up to 5 MB.
           </p>
+          {hasPendingAvatar ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleUpload}
+                disabled={isBusy || !user}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {isBusy ? "Saving..." : "Save avatar"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={isBusy}
+                className="rounded-md border border-input px-4 py-2 text-sm text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : null}
+          {hasPendingAvatar ? (
+            <p className="text-xs text-muted-foreground">
+              Preview ready. Save to update your profile photo.
+            </p>
+          ) : null}
         </div>
       </div>
 
