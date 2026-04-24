@@ -11,6 +11,7 @@ import { RideDetailPage } from './features/rides/RideDetailPage'
 import { BookingsPage } from './features/bookings/BookingsPage'
 import { BookingCheckoutPage } from './features/bookings/BookingCheckoutPage'
 import { BookingStatusPage } from './features/bookings/BookingStatusPage'
+import { BookingHistoryPage } from './features/bookings/BookingHistoryPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { AdminDashboard } from './features/admin/AdminDashboard'
 import { DriverApprovalPage } from './features/admin/DriverApprovalPage'
@@ -47,7 +48,9 @@ export function App() {
                 <Route path="/rides/:rideId/checkout" element={<BookingCheckoutPage />} />
                 <Route path="/rides/:id" element={<RideDetailPage />} />
                 <Route path="/bookings/:id" element={<BookingStatusPage />} />
-                <Route path="/bookings" element={<BookingsPage />} />
+                <Route path="/bookings/history" element={<BookingHistoryPage />} />
+                <Route path="/bookings" element={<BookingHistoryPage />} />
+                <Route path="/bookings/manage" element={<BookingsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
 
