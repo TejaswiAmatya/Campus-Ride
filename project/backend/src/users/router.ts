@@ -17,4 +17,5 @@ usersRouter.get('/:id/reviews', userController.getDriverReviews)
 // Authenticated routes
 usersRouter.get('/me', requireAuth, userController.getCurrentUser)
 usersRouter.patch('/me', requireAuth, userController.updateCurrentUser)
+usersRouter.post('/me/avatar', requireAuth, upload.single('avatar'), userController.uploadCurrentUserAvatar)
 usersRouter.post('/me/driver', requireAuth, upload.single('licence'), userController.applyAsDriver)

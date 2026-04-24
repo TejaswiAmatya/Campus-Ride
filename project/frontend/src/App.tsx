@@ -1,28 +1,34 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Navbar } from './components/Navbar'
-import { ProtectedRoute, getDefaultAuthenticatedPath } from './components/ProtectedRoute'
-import { LoginPage } from './features/auth/LoginPage'
-import { RegisterPage } from './features/auth/RegisterPage'
-import { DriverRegistrationPage } from './features/auth/DriverRegistrationPage'
-import { SearchRidesPage } from './features/rides/SearchRidesPage'
-import { PostRidePage } from './features/rides/PostRidePage'
-import { RideDetailPage } from './features/rides/RideDetailPage'
-import { BookingsPage } from './features/bookings/BookingsPage'
-import { ProfilePage } from './features/profile/ProfilePage'
-import { AdminDashboard } from './features/admin/AdminDashboard'
-import { DriverApprovalsPage } from './features/admin/DriverApprovalsPage'
-import { useAuth } from './hooks/useAuth'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Navbar } from "./components/Navbar";
+import {
+  ProtectedRoute,
+  getDefaultAuthenticatedPath,
+} from "./components/ProtectedRoute";
+import { LoginPage } from "./features/auth/LoginPage";
+import { RegisterPage } from "./features/auth/RegisterPage";
+import { DriverRegistrationPage } from "./features/auth/DriverRegistrationPage";
+import { SearchRidesPage } from "./features/rides/SearchRidesPage";
+import { PostRidePage } from "./features/rides/PostRidePage";
+import { RideDetailPage } from "./features/rides/RideDetailPage";
+import { MyRidesPage } from "./features/rides/MyRidesPage";
+import { BookingsPage } from "./features/bookings/BookingsPage";
+import { BookingCheckoutPage } from "./features/bookings/BookingCheckoutPage";
+import { BookingStatusPage } from "./features/bookings/BookingStatusPage";
+import { ProfilePage } from "./features/user/ProfilePage";
+import { AdminDashboard } from "./features/admin/AdminDashboard";
+import { DriverApprovalsPage } from "./features/admin/DriverApprovalsPage";
+import { useAuth } from "./hooks/useAuth";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60_000,      // 1 minute
+      staleTime: 60_000, // 1 minute
       retry: 1,
       refetchOnWindowFocus: false,
     },
   },
-})
+});
 
 export function App() {
   return (
@@ -44,17 +50,29 @@ export function App() {
 
               {/* Authenticated (non-admin) */}
               <Route element={<ProtectedRoute blockedRole="ADMIN" />}>
-                <Route path="/driver/register" element={<DriverRegistrationPage />} />
+                <Route
+                  path="/driver/register"
+                  element={<DriverRegistrationPage />}
+                />
                 <Route path="/rides" element={<SearchRidesPage />} />
+                <Route path="/rides/mine" element={<MyRidesPage />} />
                 <Route path="/rides/post" element={<PostRidePage />} />
+                <Route
+                  path="/rides/:rideId/checkout"
+                  element={<BookingCheckoutPage />}
+                />
                 <Route path="/rides/:id" element={<RideDetailPage />} />
+                <Route path="/bookings/:id" element={<BookingStatusPage />} />
                 <Route path="/bookings" element={<BookingsPage />} />
               </Route>
 
               {/* Admin only */}
               <Route element={<ProtectedRoute requiredRole="ADMIN" />}>
                 <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/approvals" element={<DriverApprovalsPage />} />
+                <Route
+                  path="/admin/approvals"
+                  element={<DriverApprovalsPage />}
+                />
               </Route>
 
               {/* Fallback */}
@@ -64,11 +82,11 @@ export function App() {
         </div>
       </BrowserRouter>
     </QueryClientProvider>
-  )
+  );
 }
 
 function HomeRedirect() {
-  const { user } = useAuth()
+  const { user } = useAuth();
 
-  return <Navigate to={getDefaultAuthenticatedPath(user?.role)} replace />
+  return <Navigate to={getDefaultAuthenticatedPath(user?.role)} replace />;
 }

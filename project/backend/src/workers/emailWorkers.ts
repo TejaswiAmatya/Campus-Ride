@@ -4,7 +4,7 @@ import redisConnection from "../config/redis";
 const worker = new Worker(
   "email-notifications",
   async (job) => {
-    if (job.name === "welcome") {
+    if (job.name === "welcomeEmail") {
       const { userId, email } = job.data;
       console.log(`[emailWorker] welcome email → ${email} for user ${userId}`);
       // Later: plug in SendGrid/SES here
@@ -14,10 +14,28 @@ const worker = new Worker(
         `[emailWorker] bookingConfirmed email → bookingId: ${bookingId}`,
       );
       // Later: look up booking details and send email
+    } else if (job.name === "bookingCancelled") {
+      const { bookingId } = job.data;
+      console.log(
+        `[emailWorker] bookingCancelled email → bookingId: ${bookingId}`,
+      );
+      // Later: look up booking details and send cancellation email
     } else if (job.name === "rideStarted") {
       const { rideId } = job.data;
       console.log(`[emailWorker] rideStarted email → rideId: ${rideId}`);
       // Later: look up ride details and send email
+    } else if (job.name === "driverRejected") {
+      const { driverId, email, name } = job.data;
+      console.log(
+        `[emailWorker] driverRejected email → ${email} for driver ${driverId}`,
+      );
+      // Later: plug in SendGrid/SES here
+    } else if (job.name === "driverApproved") {
+      const { driverId, email, name } = job.data;
+      console.log(
+        `[emailWorker] driverApproved email → ${email} for driver ${driverId}`,
+      );
+      // Later: plug in SendGrid/SES here
     } else {
       console.warn(`[emailWorker] unknown job type: ${job.name}`);
     }

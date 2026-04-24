@@ -1,6 +1,6 @@
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { app } from '..'
+import { app } from '../app'
 import { prisma } from '../lib/prisma'
 import { supabaseAdmin } from '../lib/supabase'
 
@@ -31,6 +31,10 @@ type MeResponse = {
     id: string
     email: string
     name: string
+    phone?: string
+    role: string
+    avatarPath?: string
+    isDriverApproved: boolean
   } | null
   error: ApiError | null
 }
@@ -94,6 +98,7 @@ describe.sequential('Users/Auth integration', () => {
     const meBody = meRes.body as MeResponse
     expect(meBody.data).toBeTruthy()
     expect(meBody.data?.email).toBe(email)
+    expect(meBody.data?.isDriverApproved).toBe(false)
     expect(meBody.error ?? null).toBeNull()
   })
 
@@ -121,16 +126,16 @@ describe.sequential('Users/Auth integration', () => {
     expect(secondRes.body.error?.message).toBeTruthy()
   })
 
-  it('returns 400 for non-.edu email registration', async () => {
+  it('returns 422 for non-.edu email registration', async () => {
     const res = await request(app).post('/api/auth/register').send({
       email: 'test@gmail.com',
       name: 'Gmail User',
       password: 'password123',
     })
 
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(422)
     expect(res.body.data ?? null).toBeNull()
     expect(res.body.error?.message).toBeTruthy()
-    expect(res.body.error?.code).toBeTruthy()
+    expect(res.body.error?.code).toBe('VALIDATION_ERROR')
   })
 })

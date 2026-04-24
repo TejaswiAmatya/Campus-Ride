@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from "react-router-dom";
 import {
   Car,
   MapPin,
@@ -6,14 +6,14 @@ import {
   User,
   LayoutDashboard,
   CheckCircle,
-} from 'lucide-react'
-import { useAuth, useLogout } from '@/hooks/useAuth'
-import { cn } from '@/lib/utils'
+} from "lucide-react";
+import { useAuth, useLogout } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 export function Navbar() {
-  const { user, isAuthenticated } = useAuth()
-  const logout = useLogout()
-  const isAdmin = user?.role === 'ADMIN'
+  const { user, isAuthenticated } = useAuth();
+  const logout = useLogout();
+  const isAdmin = user?.role === "ADMIN";
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -42,9 +42,21 @@ export function Navbar() {
               </>
             ) : (
               <>
-                <NavLink to="/rides" icon={<MapPin className="h-4 w-4" />} label="Rides" />
-                <NavLink to="/bookings" icon={<CalendarCheck className="h-4 w-4" />} label="Bookings" />
-                <NavLink to="/profile" icon={<User className="h-4 w-4" />} label={user?.name ?? 'Profile'} />
+                <NavLink
+                  to="/rides"
+                  icon={<MapPin className="h-4 w-4" />}
+                  label="Rides"
+                />
+                <NavLink
+                  to="/bookings"
+                  icon={<CalendarCheck className="h-4 w-4" />}
+                  label="Bookings"
+                />
+                <NavLink
+                  to="/profile"
+                  icon={<User className="h-4 w-4" />}
+                  label={user?.name ?? "Profile"}
+                />
               </>
             )}
             <button
@@ -72,7 +84,7 @@ export function Navbar() {
         )}
       </div>
     </nav>
-  )
+  );
 }
 
 function NavLink({
@@ -80,20 +92,20 @@ function NavLink({
   icon,
   label,
 }: {
-  to: string
-  icon: React.ReactNode
-  label: string
+  to: string;
+  icon: React.ReactNode;
+  label: string;
 }) {
   return (
     <Link
       to={to}
       className={cn(
-        'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
-        'hover:bg-secondary hover:text-secondary-foreground',
+        "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
+        "hover:bg-secondary hover:text-secondary-foreground",
       )}
     >
       {icon}
       <span className="hidden sm:inline">{label}</span>
     </Link>
-  )
+  );
 }

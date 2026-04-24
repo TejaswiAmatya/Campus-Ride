@@ -6,7 +6,7 @@ import {
   type DriverApplicationInput,
 } from './schemas'
 import { prisma } from '../lib/prisma'
-import { uploadLicense } from '../lib/supabase'
+import { uploadAvatar, uploadLicense } from '../lib/supabase'
 import { AppError } from '../middleware/error'
 
 /**
@@ -24,12 +24,29 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
       return
     }
 
-    const user = await prisma.user.findUniqueOrThrow({
+    const { driverProfile, ...userData } = await prisma.user.findUniqueOrThrow({
       where: { id: req.user.id },
-      include: { driverProfile: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        avatarPath: true,
+        driverProfile: {
+          select: {
+            status: true,
+          },
+        },
+      },
     })
 
-    res.json({ data: user })
+    res.json({
+      data: {
+        ...userData,
+        isDriverApproved: driverProfile?.status === 'APPROVED',
+      },
+    })
   } catch (err) {
     next(err)
   }
@@ -38,16 +55,36 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
 /**
  * PATCH /api/users/me
  *
- * Updates name, phone, or avatarPath. Avatar upload to Supabase Storage
- * is handled client-side; this endpoint receives the resulting URL.
+ * Updates name, phone, or avatarPath.
  */
 export async function updateCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = UpdateProfileSchema.parse(req.body)
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: body,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        avatarPath: true,
+        driverProfile: {
+          select: {
+            status: true,
+          },
+        },
+      },
+    })
 
-    // TODO: prisma.user.update({ where: { id: req.user!.id }, data: body })
-
-    res.json({ message: 'TODO: update profile', updates: body })
+    res.json({
+      data: {
+        ...user,
+        isDriverApproved: user.driverProfile?.status === 'APPROVED',
+        driverProfile: undefined
+      },
+    })
   } catch (err) {
     next(err)
   }
@@ -75,16 +112,74 @@ export async function applyAsDriver(req: Request, res: Response, next: NextFunct
 
     const licencePath = await uploadLicense(req.user!.id, req.file.buffer, req.file.mimetype)
 
-    const driverProfile = await prisma.driverProfile.create({
-      data: {
-        userId: req.user!.id,
-        licencePath,
-        vehicleInfo: body.vehicle,
-        status: 'PENDING',
+    const [driverProfile] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id: req.user!.id },
+        data: { role: 'DRIVER' },
+      }),
+      prisma.driverProfile.create({
+        data: {
+          userId: req.user!.id,
+          licencePath,
+          vehicleInfo: body.vehicle,
+          status: 'PENDING',
+        },
+      }),
+    ])
+
+    res.status(201).json({ data: driverProfile })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * POST /api/users/me/avatar
+ *
+ * Uploads the current user's avatar via backend service-role access and
+ * persists the resulting public URL on the user profile.
+ */
+export async function uploadCurrentUserAvatar(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user?.id) {
+      throw new AppError('UNAUTHORIZED', 'Not authenticated', 401)
+    }
+
+    if (!req.file) {
+      throw new AppError('MISSING_FILE', 'Avatar file is required', 400)
+    }
+
+    const avatarPath = await uploadAvatar(req.user.id, req.file.buffer, req.file.mimetype)
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { avatarPath },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        avatarPath: true,
+        driverProfile: {
+          select: {
+            status: true,
+          },
+        },
       },
     })
 
-    res.status(201).json({ data: driverProfile })
+    res.json({
+      data: {
+        ...user,
+        isDriverApproved: user.driverProfile?.status === 'APPROVED',
+        driverProfile: undefined,
+      },
+    })
   } catch (err) {
     next(err)
   }
@@ -98,16 +193,33 @@ export async function applyAsDriver(req: Request, res: Response, next: NextFunct
 export async function getDriverReviews(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params
+    const reviews = await prisma.review.findMany({
+      where: { revieweeId: id },
+      include: {
+        reviewer: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
 
-    // TODO:
-    // const reviews = await prisma.review.findMany({
-    //   where: { revieweeId: id },
-    //   include: { reviewer: { select: { id: true, name: true, avatarUrl: true } } },
-    //   orderBy: { createdAt: 'desc' },
-    // })
-    // res.json({ data: reviews })
-
-    res.json({ message: 'TODO: get driver reviews', driverId: id })
+    res.json({
+      data: reviews.map((review) => ({
+        id: review.id,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt.toISOString(),
+        reviewer: {
+          id: review.reviewer.id,
+          name: review.reviewer.name,
+          avatarPath: review.reviewer.avatarPath,
+        },
+      })),
+    })
   } catch (err) {
     next(err)
   }

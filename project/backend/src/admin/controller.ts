@@ -7,6 +7,8 @@ import {
 } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
+import { emailQueue } from "../lib/emailQueue";
+import { supabaseAdmin } from "../lib/supabase";
 
 type VehicleInfo = {
   make: string;
