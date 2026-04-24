@@ -20,6 +20,8 @@ import { AdminDashboard } from "./features/admin/AdminDashboard";
 import { DriverApprovalsPage } from "./features/admin/DriverApprovalsPage";
 import { ReportsPage } from "./features/admin/ReportsPage";
 import { useAuth } from "./hooks/useAuth";
+import { BookingHistoryPage } from "./features/bookings/BookingHistoryPage";
+import { DriverApprovalPage } from "./features/admin/DriverApprovalPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,7 +66,13 @@ export function App() {
                 />
                 <Route path="/rides/:id" element={<RideDetailPage />} />
                 <Route path="/bookings/:id" element={<BookingStatusPage />} />
-                <Route path="/bookings" element={<BookingsPage />} />
+                <Route
+                  path="/bookings/history"
+                  element={<BookingHistoryPage />}
+                />
+                <Route path="/bookings" element={<BookingHistoryPage />} />
+                <Route path="/bookings/manage" element={<BookingsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
               </Route>
 
               {/* Admin only */}

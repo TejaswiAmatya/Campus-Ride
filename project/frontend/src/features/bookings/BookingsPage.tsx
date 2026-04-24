@@ -12,7 +12,7 @@ export function BookingsPage() {
   const queryClient = useQueryClient()
   const [view, setView] = useState<'passenger' | 'driver'>('passenger')
   const asDriver = view === 'driver'
-  const { data: bookings, isLoading } = useBookings(asDriver)
+  const { data: bookings, isLoading } = useBookings({ asDriver })
 
   const invalidateBookingsAndRides = () => {
     void queryClient.invalidateQueries({ queryKey: ['bookings'] })
