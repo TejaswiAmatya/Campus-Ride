@@ -1,13 +1,24 @@
 import { Link, useParams } from 'react-router-dom'
 import { Clock, MapPin, Users } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { MapView } from '@/components/MapView'
 import { DriverLocationLayer } from './components/DriverLocationLayer'
 import { useDriverLocation, useRide } from './hooks'
+import { useAuth } from '@/hooks/useAuth'
+import { useRide } from './hooks'
 
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
   const { data: ride, isLoading, isError } = useRide(id)
   const driverLocation = useDriverLocation(ride?.status === 'IN_PROGRESS' ? ride.id : undefined)
+
+  const canBook =
+    !!user &&
+    !!ride &&
+    ride.status === 'OPEN' &&
+    ride.availableSeats > 0 &&
+    user.id !== ride.driver.id
 
   if (isLoading) {
     return (
@@ -97,6 +108,14 @@ export function RideDetailPage() {
           </p>
         </div>
       </div>
+
+      {canBook && (
+        <div className="flex justify-end">
+          <Button asChild>
+            <Link to={`/rides/${ride.id}/checkout`}>Book this ride</Link>
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
