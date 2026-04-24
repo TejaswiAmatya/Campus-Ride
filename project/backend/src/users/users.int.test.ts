@@ -31,6 +31,10 @@ type MeResponse = {
     id: string
     email: string
     name: string
+    phone?: string
+    role: string
+    avatarPath?: string
+    isDriverApproved: boolean
   } | null
   error: ApiError | null
 }
@@ -94,6 +98,7 @@ describe.sequential('Users/Auth integration', () => {
     const meBody = meRes.body as MeResponse
     expect(meBody.data).toBeTruthy()
     expect(meBody.data?.email).toBe(email)
+    expect(meBody.data?.isDriverApproved).toBe(false)
     expect(meBody.error ?? null).toBeNull()
   })
 

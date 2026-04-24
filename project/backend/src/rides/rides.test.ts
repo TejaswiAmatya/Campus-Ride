@@ -7,9 +7,10 @@ import {
   UpdateRideStatusSchema,
 } from "./schemas";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { createRide, searchRides } from "./controller";
+import { createRide, searchRides, updateRideStatus } from "./controller";
 import { searchRidesByLocation } from "./location.service";
 import { prisma } from "../lib/prisma";
+import { errorHandler } from "../middleware/error";
 
 const futureDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -60,6 +61,7 @@ type RideSearchWhere = {
   availableSeats?: { gte: number };
   departureTime?: { gte: Date; lt: Date };
   id?: { in: string[] };
+  driverId?: string;
 };
 
 const testState: { users: UserRecord[]; rides: RideRecord[] } = {
@@ -73,6 +75,7 @@ vi.mock("../lib/supabase", () => ({
       getUser: vi.fn(async (token: string) => {
         const userIdByToken: Record<string, string> = {
           "driver-token": "driver-1",
+          "driver-2-token": "driver-2",
           "passenger-token": "passenger-1",
         };
         const userId = userIdByToken[token];
@@ -84,6 +87,16 @@ vi.mock("../lib/supabase", () => ({
         return { data: { user: { id: userId } }, error: null };
       }),
     },
+  },
+}));
+
+const { notifyRideStatusMock } = vi.hoisted(() => ({
+  notifyRideStatusMock: vi.fn(),
+}));
+
+vi.mock("../lib/notify", () => ({
+  notify: {
+    rideStatus: notifyRideStatusMock,
   },
 }));
 
@@ -180,6 +193,10 @@ vi.mock("../lib/prisma", () => ({
               return false;
             }
 
+            if (where.driverId && ride.driverId !== where.driverId) {
+              return false;
+            }
+
             return true;
           })
           .sort((a, b) => a.departureTime.getTime() - b.departureTime.getTime())
@@ -200,7 +217,51 @@ vi.mock("../lib/prisma", () => ({
             };
           });
       }),
-      findUniqueOrThrow: vi.fn(),
+      findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
+        const ride = testState.rides.find((entry) => entry.id === where.id);
+
+        if (!ride) {
+          const error = new Error("Record not found") as Error & { code: string };
+          error.code = "P2025";
+          throw error;
+        }
+
+        const driver = testState.users.find((entry) => entry.id === ride.driverId);
+
+        return {
+          ...ride,
+          driver: driver
+            ? { id: driver.id, name: driver.name, avatarUrl: driver.avatarUrl ?? null }
+            : null,
+        };
+      }),
+      update: vi.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: { id: string };
+          data: { status: RideRecord["status"] };
+        }) => {
+          const ride = testState.rides.find((entry) => entry.id === where.id);
+
+          if (!ride) {
+            const error = new Error("Record not found") as Error & { code: string };
+            error.code = "P2025";
+            throw error;
+          }
+
+          ride.status = data.status;
+          const driver = testState.users.find((entry) => entry.id === ride.driverId);
+
+          return {
+            ...ride,
+            driver: driver
+              ? { id: driver.id, name: driver.name, avatarUrl: driver.avatarUrl ?? null }
+              : null,
+          };
+        },
+      ),
     },
   },
 }));
@@ -222,6 +283,7 @@ beforeEach(() => {
     },
   ];
   testState.rides = [];
+  notifyRideStatusMock.mockReset();
 });
 
 describe("searchRidesByLocation", () => {
@@ -431,10 +493,10 @@ describe("SearchRidesSchema", () => {
 });
 
 describe("UpdateRideStatusSchema", () => {
-  it("accepts IN_PROGRESS", () => {
-    expect(
-      UpdateRideStatusSchema.safeParse({ status: "IN_PROGRESS" }).success,
-    ).toBe(true);
+  it("accepts ACTIVE", () => {
+    expect(UpdateRideStatusSchema.safeParse({ status: "ACTIVE" }).success).toBe(
+      true,
+    );
   });
 
   it("accepts COMPLETED", () => {
@@ -511,6 +573,111 @@ describe("rides API integration", () => {
     expect(response.statusCode).toBe(403);
     expect((response.body.error as { code: string }).code).toBe("FORBIDDEN");
   });
+
+  it("allows the ride driver to start and complete a ride", async () => {
+    const createResponse = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), createRide],
+      {
+        method: "POST",
+        headers: { authorization: "Bearer driver-token" },
+        body: validRide,
+      },
+    );
+
+    const createdRide = createResponse.body.data as RideRecord;
+
+    const startResponse = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), updateRideStatus],
+      {
+        method: "PATCH",
+        headers: { authorization: "Bearer driver-token" },
+        params: { id: createdRide.id },
+        body: { status: "ACTIVE" },
+      },
+    );
+
+    expect(startResponse.statusCode).toBe(200);
+    expect((startResponse.body.data as RideRecord).status).toBe("IN_PROGRESS");
+    expect(notifyRideStatusMock).toHaveBeenCalledWith(createdRide.id, {
+      rideId: createdRide.id,
+      bookingId: "",
+      status: "in_progress",
+    });
+
+    const completeResponse = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), updateRideStatus],
+      {
+        method: "PATCH",
+        headers: { authorization: "Bearer driver-token" },
+        params: { id: createdRide.id },
+        body: { status: "COMPLETED" },
+      },
+    );
+
+    expect(completeResponse.statusCode).toBe(200);
+    expect((completeResponse.body.data as RideRecord).status).toBe("COMPLETED");
+  });
+
+  it("rejects illegal status transitions", async () => {
+    const createResponse = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), createRide],
+      {
+        method: "POST",
+        headers: { authorization: "Bearer driver-token" },
+        body: validRide,
+      },
+    );
+
+    const createdRide = createResponse.body.data as RideRecord;
+
+    const response = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), updateRideStatus],
+      {
+        method: "PATCH",
+        headers: { authorization: "Bearer driver-token" },
+        params: { id: createdRide.id },
+        body: { status: "COMPLETED" },
+      },
+    );
+
+    expect(response.statusCode).toBe(409);
+    expect((response.body.error as { code: string }).code).toBe(
+      "INVALID_STATUS_TRANSITION",
+    );
+  });
+
+  it("rejects status updates from another driver", async () => {
+    testState.users.push({
+      id: "driver-2",
+      name: "Devon Driver",
+      role: "DRIVER",
+      isDriverApproved: true,
+    });
+
+    const createResponse = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), createRide],
+      {
+        method: "POST",
+        headers: { authorization: "Bearer driver-token" },
+        body: validRide,
+      },
+    );
+
+    const createdRide = createResponse.body.data as RideRecord;
+
+    const response = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), updateRideStatus],
+      {
+        method: "PATCH",
+        params: { id: createdRide.id },
+        body: { status: "ACTIVE" },
+        headers: { authorization: "Bearer driver-2-token" },
+      },
+    );
+
+    expect(response.statusCode).toBe(403);
+    expect((response.body.error as { code: string }).code).toBe("FORBIDDEN");
+  });
 });
 
 async function runHandlers(
@@ -547,6 +714,17 @@ async function runHandlers(
     },
   } as Response;
 
+  const reqUser =
+    init.headers?.authorization === "Bearer driver-token"
+      ? { id: "driver-1", role: "DRIVER" }
+      : init.headers?.authorization === "Bearer driver-2-token"
+        ? { id: "driver-2", role: "DRIVER" }
+        : init.headers?.authorization === "Bearer passenger-token"
+          ? { id: "passenger-1", role: "PASSENGER" }
+          : undefined;
+
+  req.user = reqUser;
+
   for (const handler of handlers) {
     let nextCalled = false;
     let nextError: unknown;
@@ -557,7 +735,8 @@ async function runHandlers(
     });
 
     if (nextError) {
-      throw nextError;
+      errorHandler(nextError, req, res, () => {});
+      break;
     }
 
     if (!nextCalled) {

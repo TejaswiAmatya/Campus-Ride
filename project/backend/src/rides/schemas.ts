@@ -18,6 +18,7 @@ export const CreateRideSchema = z.object({
 
 export const SearchRidesSchema = z
   .object({
+    location: z.string().trim().min(1).optional(),
     origin: z.string().trim().min(1).optional(),
     dest: z.string().trim().min(1).optional(),
     date: z
@@ -55,7 +56,7 @@ export const SearchRidesSchema = z
   });
 
 export const UpdateRideStatusSchema = z.object({
-  status: z.enum(["IN_PROGRESS", "COMPLETED", "CANCELLED"]),
+  status: z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]),
 });
 
 export type CreateRideInput = z.infer<typeof CreateRideSchema>;
