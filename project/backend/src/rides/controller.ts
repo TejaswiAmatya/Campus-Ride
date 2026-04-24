@@ -1,75 +1,112 @@
 import type { Request, Response, NextFunction } from 'express'
+import { DriverStatus } from '@prisma/client'
 import { CreateRideSchema, SearchRidesSchema, UpdateRideStatusSchema } from './schemas'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
+import { mapDriverForApi, serializeRideList } from './serialize'
+import { searchRidesByLocation } from "./location.service";
+import { notify } from "../lib/notify";
+
+const rideStatusTransitions = {
+  OPEN: ["ACTIVE", "CANCELLED"],
+  IN_PROGRESS: ["COMPLETED"],
+  COMPLETED: [],
+  CANCELLED: [],
+  FULL: ["ACTIVE", "CANCELLED"],
+} as const;
+
+function mapRequestedRideStatus(status: "ACTIVE" | "COMPLETED" | "CANCELLED") {
+  if (status === "ACTIVE") {
+    return "IN_PROGRESS" as const;
+  }
+
+  return status;
+}
 
 /**
  * POST /api/rides
  *
  * Authenticated driver creates a ride offer.
  * Sets availableSeats = totalSeats initially.
- * Requires user.isDriverApproved = true.
+ * Requires role DRIVER and driverProfile.status = APPROVED.
  */
-export async function createRide(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createRide(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const body = CreateRideSchema.parse(req.body)
+    const body = CreateRideSchema.parse(req.body);
+    const driverId = req.user?.id;
 
-    // TODO:
-    // const driver = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.id } })
-    // if (!driver.isDriverApproved) throw new AppError('FORBIDDEN', 'Driver application not yet approved', 403)
-    //
-    // const ride = await prisma.ride.create({
-    //   data: {
-    //     driverId: req.user!.id,
-    //     ...body,
-    //     departureTime: new Date(body.departureTime),
-    //     availableSeats: body.totalSeats,
-    //   },
-    // })
-    // res.status(201).json({ data: ride })
+    if (!driverId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
 
-    // TODO: add notifications later
-    res.status(201).json({ message: 'TODO: create ride', body })
+    const driver = await prisma.user.findUniqueOrThrow({
+      where: { id: driverId },
+      select: { isDriverApproved: true },
+    });
+
+    if (!driver.isDriverApproved) {
+      throw new AppError(
+        "FORBIDDEN",
+        "Driver application not yet approved",
+        403,
+      );
+    }
+
+    const ride = await prisma.ride.create({
+      data: {
+        driverId,
+        originAddress: body.origin.address,
+        originLat: body.origin.lat,
+        originLng: body.origin.lng,
+        destinationAddress: body.destination.address,
+        destinationLat: body.destination.lat,
+        destinationLng: body.destination.lng,
+        departureTime: new Date(body.departureTime),
+        totalSeats: body.totalSeats,
+        availableSeats: body.totalSeats,
+        pricePerSeat: body.pricePerSeat,
+      },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+      },
+    });
+
+    res.status(201).json({ data: serializeRideList(ride) })
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
 /**
  * GET /api/rides
  *
- * Public search. Filters by date, text address match, available seats.
- * Sprint 2: replace text match with PostGIS bounding-box proximity query.
+ * Public search. Filters by date, seats, and geographic proximity.
  *
- * Query params: origin, destination, date (YYYY-MM-DD), seats, originLat, originLng, radiusKm
+ * Query params: origin, dest, date (YYYY-MM-DD), seats, originLat, originLng, destLat, destLng, radiusKm
  */
-export async function searchRides(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function searchRides(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const query = SearchRidesSchema.parse(req.query)
+    const query = SearchRidesSchema.parse(req.query);
+    const rides = await searchRidesByLocation(query);
 
-    // TODO:
-    // const where: Prisma.RideWhereInput = {
-    //   status: 'OPEN',
-    //   availableSeats: { gte: query.seats ?? 1 },
-    //   ...(query.date && {
-    //     departureTime: {
-    //       gte: new Date(query.date),
-    //       lt: new Date(new Date(query.date).getTime() + 86_400_000),
-    //     },
-    //   }),
-    //   ...(query.origin && { originAddress: { contains: query.origin, mode: 'insensitive' } }),
-    //   ...(query.destination && { destinationAddress: { contains: query.destination, mode: 'insensitive' } }),
-    // }
-    // const rides = await prisma.ride.findMany({
-    //   where,
-    //   include: { driver: { select: { id: true, name: true, avatarUrl: true } } },
-    //   orderBy: { departureTime: 'asc' },
-    // })
-    // res.json({ data: rides })
-
-    res.json({ message: 'TODO: search rides', query })
+    res.json({ data: rides });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -78,19 +115,25 @@ export async function searchRides(req: Request, res: Response, next: NextFunctio
  *
  * Returns all rides posted by the authenticated driver, with booking counts.
  */
-export async function getMyRides(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function getMyRides(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    // TODO:
-    // const rides = await prisma.ride.findMany({
-    //   where: { driverId: req.user!.id },
-    //   include: { _count: { select: { bookings: true } } },
-    //   orderBy: { departureTime: 'desc' },
-    // })
-    // res.json({ data: rides })
+    if (!req.user?.id) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
 
-    res.json({ message: 'TODO: get my rides', driverId: req.user?.id })
+    const rides = await prisma.ride.findMany({
+      where: { driverId: req.user.id },
+      include: { _count: { select: { bookings: true } } },
+      orderBy: { departureTime: "desc" },
+    });
+
+    res.json({ data: rides });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -100,23 +143,46 @@ export async function getMyRides(req: Request, res: Response, next: NextFunction
  * Returns ride detail including driver profile and all bookings (for the driver).
  * Passengers see only seat availability, not other passengers' info.
  */
-export async function getRide(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function getRide(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const { id } = req.params
+    const { id } = req.params;
+    const ride = await prisma.ride.findUniqueOrThrow({
+      where: { id },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+      },
+    });
 
-    // TODO:
-    // const ride = await prisma.ride.findUniqueOrThrow({
-    //   where: { id },
-    //   include: {
-    //     driver: { select: { id: true, name: true, avatarUrl: true } },
-    //     vehicle: true,
-    //   },
-    // })
-    // res.json({ data: ride })
-
-    res.json({ message: 'TODO: get ride detail', rideId: id })
+    res.json({
+      data: {
+        id: ride.id,
+        originAddress: ride.originAddress,
+        originLat: ride.originLat,
+        originLng: ride.originLng,
+        destinationAddress: ride.destinationAddress,
+        destinationLat: ride.destinationLat,
+        destinationLng: ride.destinationLng,
+        departureTime: ride.departureTime.toISOString(),
+        availableSeats: ride.availableSeats,
+        totalSeats: ride.totalSeats,
+        pricePerSeat: ride.pricePerSeat.toString(),
+        status: ride.status,
+        driver: mapDriverForApi(ride.driver),
+      },
+    })
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -129,23 +195,61 @@ export async function getRide(req: Request, res: Response, next: NextFunction): 
  *
  * Emits a ride:status Socket.io event to all participants on change.
  */
-export async function updateRideStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function updateRideStatus(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const { id } = req.params
-    const body = UpdateRideStatusSchema.parse(req.body)
+    if (!req.user?.id) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
 
-    // TODO:
-    // const ride = await prisma.ride.findUniqueOrThrow({ where: { id } })
-    // if (ride.driverId !== req.user!.id) throw new AppError('FORBIDDEN', 'Not the driver of this ride', 403)
-    // const updated = await prisma.ride.update({ where: { id }, data: { status: body.status } })
-    //
-    // notify.rideStatus(id, { status: body.status, updatedAt: new Date().toISOString() })
-    // res.json({ data: updated })
+    const { id } = req.params;
+    const body = UpdateRideStatusSchema.parse(req.body);
+    const ride = await prisma.ride.findUniqueOrThrow({
+      where: { id },
+      include: {
+        driver: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+      },
+    });
 
-    void AppError
-    res.json({ message: 'TODO: update ride status', rideId: id, status: body.status })
+    if (ride.driverId !== req.user.id) {
+      throw new AppError("FORBIDDEN", "Not the driver of this ride", 403);
+    }
+
+    const allowedTransitions = rideStatusTransitions[ride.status];
+    if (!allowedTransitions.includes(body.status)) {
+      throw new AppError(
+        "INVALID_STATUS_TRANSITION",
+        `Cannot change ride status from ${ride.status} to ${body.status}`,
+        409,
+      );
+    }
+
+    const updatedRide = await prisma.ride.update({
+      where: { id },
+      data: { status: mapRequestedRideStatus(body.status) },
+      include: {
+        driver: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+      },
+    });
+
+    if (body.status === "ACTIVE") {
+      await notify.rideStatus(id, {
+        rideId: id,
+        bookingId: "",
+        status: "in_progress",
+      });
+    }
+
+    res.json({ data: updatedRide });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -155,15 +259,19 @@ export async function updateRideStatus(req: Request, res: Response, next: NextFu
  * Soft-cancel: sets status = CANCELLED.
  * Only allowed if no confirmed bookings exist and departure hasn't passed.
  */
-export async function cancelRide(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function cancelRide(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
     // TODO: check ownership, check no confirmed bookings, set status = CANCELLED
     // Cancel all pending bookings and refund if Stripe is integrated
 
-    res.json({ message: 'TODO: cancel ride', rideId: id })
+    res.json({ message: "TODO: cancel ride", rideId: id });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }

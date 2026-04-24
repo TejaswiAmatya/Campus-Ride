@@ -5,11 +5,16 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './features/auth/LoginPage'
 import { RegisterPage } from './features/auth/RegisterPage'
 import { DriverRegistrationPage } from './features/auth/DriverRegistrationPage'
-import { RidesPage } from './features/rides/RidesPage'
+import { SearchRidesPage } from './features/rides/SearchRidesPage'
 import { PostRidePage } from './features/rides/PostRidePage'
+import { RideDetailPage } from './features/rides/RideDetailPage'
+import { MyRidesPage } from './features/rides/MyRidesPage'
 import { BookingsPage } from './features/bookings/BookingsPage'
+import { BookingCheckoutPage } from './features/bookings/BookingCheckoutPage'
+import { BookingStatusPage } from './features/bookings/BookingStatusPage'
 import { ProfilePage } from './features/user/ProfilePage'
 import { AdminDashboard } from './features/admin/AdminDashboard'
+import { DriverApprovalPage } from './features/admin/DriverApprovalPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,8 +42,13 @@ export function App() {
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Navigate to="/rides" replace />} />
                 <Route path="/driver/register" element={<DriverRegistrationPage />} />
-                <Route path="/rides" element={<RidesPage />} />
+              
+                <Route path="/rides" element={<SearchRidesPage />} />
+                <Route path="/rides/mine" element={<MyRidesPage />} />
                 <Route path="/rides/post" element={<PostRidePage />} />
+                <Route path="/rides/:rideId/checkout" element={<BookingCheckoutPage />} />
+                <Route path="/rides/:id" element={<RideDetailPage />} />
+                <Route path="/bookings/:id" element={<BookingStatusPage />} />
                 <Route path="/bookings" element={<BookingsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
@@ -46,6 +56,7 @@ export function App() {
               {/* Admin only */}
               <Route element={<ProtectedRoute requiredRole="ADMIN" />}>
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/drivers" element={<DriverApprovalPage />} />
               </Route>
 
               {/* Fallback */}
