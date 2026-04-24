@@ -176,8 +176,8 @@ export async function driverDecision(
 
     if (
       !existingDriver ||
-      existingDriver.role !== "DRIVER" ||
-      !existingDriver.driverProfile
+      !existingDriver.driverProfile ||
+      existingDriver.driverProfile.status !== "PENDING"
     ) {
       throw new AppError("NOT_FOUND", "Driver application not found", 404);
     }
@@ -185,7 +185,7 @@ export async function driverDecision(
     const updatedDriver = await prisma.user.update({
       where: { id },
       data: {
-        ...(body.approved ? {} : { role: "PASSENGER" }),
+        ...(body.approved ? { role: "DRIVER" } : {}),
         driverProfile: {
           update: {
             status: body.approved ? "APPROVED" : "REJECTED",
