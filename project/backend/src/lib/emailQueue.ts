@@ -21,7 +21,7 @@ async function bookingConfirmed(bookingId: string) {
 
 async function bookingCancelled(bookingId: string) {
   console.log("[emailQueue] bookingCancelled queued", { bookingId });
-  await emailQueueInstance.add("bookingCancelled", { bookingId });
+  await emailQueueInstance.add("bookingCanceled", { bookingId });
 }
 
 async function rideStarted(rideId: string) {
