@@ -7,6 +7,23 @@ import {
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { searchRidesByLocation } from "./location.service";
+import { notify } from "../lib/notify";
+
+const rideStatusTransitions = {
+  OPEN: ["ACTIVE", "CANCELLED"],
+  IN_PROGRESS: ["COMPLETED"],
+  COMPLETED: [],
+  CANCELLED: [],
+  FULL: ["ACTIVE", "CANCELLED"],
+} as const;
+
+function mapRequestedRideStatus(status: "ACTIVE" | "COMPLETED" | "CANCELLED") {
+  if (status === "ACTIVE") {
+    return "IN_PROGRESS" as const;
+  }
+
+  return status;
+}
 
 /**
  * POST /api/rides
@@ -165,23 +182,53 @@ export async function updateRideStatus(
   next: NextFunction,
 ): Promise<void> {
   try {
+    if (!req.user?.id) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
     const { id } = req.params;
     const body = UpdateRideStatusSchema.parse(req.body);
-
-    // TODO:
-    // const ride = await prisma.ride.findUniqueOrThrow({ where: { id } })
-    // if (ride.driverId !== req.user!.id) throw new AppError('FORBIDDEN', 'Not the driver of this ride', 403)
-    // const updated = await prisma.ride.update({ where: { id }, data: { status: body.status } })
-    //
-    // notify.rideStatus(id, { status: body.status, updatedAt: new Date().toISOString() })
-    // res.json({ data: updated })
-
-    void AppError;
-    res.json({
-      message: "TODO: update ride status",
-      rideId: id,
-      status: body.status,
+    const ride = await prisma.ride.findUniqueOrThrow({
+      where: { id },
+      include: {
+        driver: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+      },
     });
+
+    if (ride.driverId !== req.user.id) {
+      throw new AppError("FORBIDDEN", "Not the driver of this ride", 403);
+    }
+
+    const allowedTransitions = rideStatusTransitions[ride.status];
+    if (!allowedTransitions.includes(body.status)) {
+      throw new AppError(
+        "INVALID_STATUS_TRANSITION",
+        `Cannot change ride status from ${ride.status} to ${body.status}`,
+        409,
+      );
+    }
+
+    const updatedRide = await prisma.ride.update({
+      where: { id },
+      data: { status: mapRequestedRideStatus(body.status) },
+      include: {
+        driver: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+      },
+    });
+
+    if (body.status === "ACTIVE") {
+      await notify.rideStatus(id, {
+        rideId: id,
+        bookingId: "",
+        status: "in_progress",
+      });
+    }
+
+    res.json({ data: updatedRide });
   } catch (err) {
     next(err);
   }

@@ -55,7 +55,7 @@ export const SearchRidesSchema = z
   });
 
 export const UpdateRideStatusSchema = z.object({
-  status: z.enum(["IN_PROGRESS", "COMPLETED", "CANCELLED"]),
+  status: z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]),
 });
 
 export type CreateRideInput = z.infer<typeof CreateRideSchema>;
