@@ -7,6 +7,7 @@ import { ridesRouter } from "./rides/router";
 import { bookingsRouter } from "./bookings/router";
 import { adminRouter } from "./admin/router";
 import { errorHandler } from "./middleware/error";
+import { reportRouter } from "./reports/router";
 
 //this initializes the email workers, which will listen for jobs to send emails
 import "./workers/emailWorkers";
@@ -30,6 +31,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/rides", ridesRouter);
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/reports", reportRouter);
 
 app.use(errorHandler);
 

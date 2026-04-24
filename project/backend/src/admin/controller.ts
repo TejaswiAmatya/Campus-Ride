@@ -204,17 +204,27 @@ export async function listReports(
   try {
     const { status } = req.query;
 
-    // TODO:
-    // const reports = await prisma.report.findMany({
-    //   where: status ? { status: status as string } : undefined,
-    //   include: {
-    //     reporter: { select: { id: true, name: true, email: true } },
-    //   },
-    //   orderBy: { createdAt: 'desc' },
-    // })
-    // res.json({ data: reports })
+    const reports = await prisma.report.findMany({
+      where: status ? { status: status as string } : undefined,
+      include: {
+        reporter: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-    res.json({ message: "TODO: list reports", filter: { status } });
+    res.json({
+      data: reports.map((report) => ({
+        id: report.id,
+        reporter: report.reporter,
+        targetUserId: report.targetUserId,
+        targetRideId: report.targetRideId,
+        reason: report.reason,
+        status: report.status,
+        note: report.note,
+        createdAt: report.createdAt,
+        updatedAt: report.updatedAt,
+      })),
+    });
   } catch (err) {
     next(err);
   }
@@ -234,13 +244,12 @@ export async function resolveReport(
     const { id } = req.params;
     const body = ResolveReportSchema.parse(req.body);
 
-    // TODO: prisma.report.update({ where: { id }, data: { status: body.resolution } })
-
-    res.json({
-      message: "TODO: resolve report",
-      reportId: id,
-      resolution: body.resolution,
+    const report = await prisma.report.update({
+      where: { id },
+      data: { status: body.resolution },
     });
+
+    res.json({ data: report });
   } catch (err) {
     next(err);
   }
