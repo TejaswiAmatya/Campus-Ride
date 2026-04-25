@@ -50,6 +50,7 @@ export function BookingStatusPage() {
     paidAt: booking.paidAt ?? null,
     refundedAt: booking.refundedAt ?? null,
   }
+  const cancellation = booking.cancellation
   const refund = booking.refund ?? {
     amount: booking.refundedAmount,
     remainingCharged: String(Number(booking.totalFare) - Number(booking.refundedAmount ?? '0')),
@@ -153,6 +154,11 @@ export function BookingStatusPage() {
                     ? `Captured at ${new Date(payment.paidAt).toLocaleString()}`
                     : 'No capture timestamp available.'}
                 </p>
+                {payment.refundedAt && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Refunded at {new Date(payment.refundedAt).toLocaleString()}
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -173,12 +179,18 @@ export function BookingStatusPage() {
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
                 <p className="flex items-center gap-2 font-medium text-foreground">
                   <Wallet className="h-4 w-4 text-primary" />
-                  Simulated provider boundary
+                  Cancellation refund policy
                 </p>
                 <p className="mt-2 text-muted-foreground">
-                  This payment was captured through the simulated adapter. The booking API now returns the same payment
-                  snapshot shape a future Stripe provider can reuse.
+                  Full refund if cancelled more than {cancellation.rules.fullRefundBeforeHours} hours before departure,
+                  {` ${cancellation.rules.partialRefundPercent}%`} refund within that window, and{' '}
+                  {cancellation.rules.noShowRefundPercent}% refund for no-shows.
                 </p>
+                {cancellation.policyApplied && (
+                  <p className="mt-2 font-medium text-foreground">
+                    Applied policy: {cancellation.policyApplied.replace('_', ' ')}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
