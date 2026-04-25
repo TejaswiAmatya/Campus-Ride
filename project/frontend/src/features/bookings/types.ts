@@ -17,6 +17,17 @@ export interface BookingRefundSnapshot {
   remainingCharged: string
 }
 
+export interface BookingCancellationRules {
+  fullRefundBeforeHours: number
+  partialRefundPercent: number
+  noShowRefundPercent: number
+}
+
+export interface BookingCancellationSnapshot {
+  policyApplied: 'FREE' | 'PARTIAL' | 'NO_REFUND' | null
+  rules: BookingCancellationRules
+}
+
 export interface BookingListItem {
   id: string
   status: BookingStatus
@@ -31,6 +42,7 @@ export interface BookingListItem {
   messageToDriver: string | null
   payment: BookingPaymentSnapshot
   refund: BookingRefundSnapshot
+  cancellation: BookingCancellationSnapshot
   createdAt: string
   passenger?: { id: string; name: string }
   ride: {
@@ -60,6 +72,7 @@ export interface BookingDetail {
   messageToDriver: string | null
   payment?: BookingPaymentSnapshot
   refund?: BookingRefundSnapshot
+  cancellation: BookingCancellationSnapshot
   passenger: { id: string; name: string; avatarUrl: string | null }
   ride: {
     id: string

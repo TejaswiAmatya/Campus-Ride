@@ -62,6 +62,7 @@ function serializeBookingList(b: any) {
         }
       : null,
     messageToDriver: b.messageToDriver ?? null,
+    cancellation: buildCancellationSnapshot(b),
     createdAt: b.createdAt.toISOString(),
     passenger: b.passenger,
     ride: {
@@ -105,6 +106,7 @@ function serializeBookingDetail(b: any) {
         }
       : null,
     messageToDriver: b.messageToDriver ?? null,
+    cancellation: buildCancellationSnapshot(b),
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
     passenger: {
@@ -161,12 +163,45 @@ function buildPaymentSnapshot(
   };
 }
 
+function buildCancellationSnapshot(booking: {
+  status?: string;
+  totalFare: Prisma.Decimal | string | number;
+  refundedAmount?: Prisma.Decimal | string | number | null;
+  noShowMarkedAt?: Date | null;
+}) {
+  const totalFare = new Prisma.Decimal(booking.totalFare?.toString() ?? "0");
+  const refundedAmount = new Prisma.Decimal(
+    booking.refundedAmount?.toString() ?? "0",
+  );
+
+  let policyApplied: "FREE" | "PARTIAL" | "NO_REFUND" | null = null;
+  if (booking.noShowMarkedAt) {
+    policyApplied = "NO_REFUND";
+  } else if (booking.status === "CANCELLED") {
+    if (refundedAmount.gte(totalFare) && totalFare.gt(0)) {
+      policyApplied = "FREE";
+    } else if (refundedAmount.gt(0)) {
+      policyApplied = "PARTIAL";
+    } else {
+      policyApplied = "NO_REFUND";
+    }
+  }
+
+  return {
+    policyApplied,
+    rules: {
+      fullRefundBeforeHours: 2,
+      partialRefundPercent: 50,
+      noShowRefundPercent: 0,
+    },
+  };
+}
+
 function getCancellationRefundResult(
   departureTime: Date,
   totalFare: Prisma.Decimal,
 ): {
   refundAmount: Prisma.Decimal;
-  paymentStatus: string;
   policyWindow: "FREE" | "PARTIAL" | "NO_REFUND";
 } {
   const now = new Date();
@@ -176,7 +211,6 @@ function getCancellationRefundResult(
   if (millisecondsUntilDeparture > twoHoursInMs) {
     return {
       refundAmount: totalFare,
-      paymentStatus: "REFUNDED",
       policyWindow: "FREE",
     };
   }
@@ -184,14 +218,12 @@ function getCancellationRefundResult(
   if (millisecondsUntilDeparture > 0) {
     return {
       refundAmount: totalFare.mul(0.5),
-      paymentStatus: "PARTIALLY_REFUNDED",
       policyWindow: "PARTIAL",
     };
   }
 
   return {
     refundAmount: new Prisma.Decimal(0),
-    paymentStatus: "PAID",
     policyWindow: "NO_REFUND",
   };
 }
@@ -708,6 +740,12 @@ export async function cancelBooking(
         booking.ride.departureTime,
         new Prisma.Decimal(booking.totalFare.toString()),
       );
+      const refundCapture = await payments.refund({
+        bookingId: booking.id,
+        providerPaymentId: booking.stripePaymentIntentId,
+        amount: refundResult.refundAmount,
+        reason: "PASSENGER_CANCELLATION",
+      });
 
       // Update booking status to CANCELLED
       await tx.booking.update({
@@ -716,9 +754,8 @@ export async function cancelBooking(
           status: "CANCELLED",
           cancelledAt: new Date(),
           refundedAmount: refundResult.refundAmount,
-          refundedAt:
-            refundResult.refundAmount.gt(0) ? new Date() : booking.refundedAt,
-          paymentStatus: refundResult.paymentStatus,
+          refundedAt: refundCapture.refundedAt,
+          paymentStatus: refundCapture.status,
           messageToDriver: body.reason ?? booking.messageToDriver,
         } as any,
       });
@@ -747,7 +784,6 @@ export async function cancelBooking(
 
       return {
         booking: updatedBooking,
-        refundPolicy: refundResult.policyWindow,
       };
     });
 
@@ -764,10 +800,6 @@ export async function cancelBooking(
       data: {
         ...serializeBookingList(updated.booking),
         ...buildPaymentSnapshot(updated.booking),
-        cancellation: {
-          policyApplied: updated.refundPolicy,
-          cutoffHours: 2,
-        },
       },
     });
   } catch (err) {
@@ -901,6 +933,13 @@ export async function markBookingNoShow(
         );
       }
 
+      const refundCapture = await payments.refund({
+        bookingId: booking.id,
+        providerPaymentId: booking.stripePaymentIntentId,
+        amount: new Prisma.Decimal(0),
+        reason: "NO_SHOW",
+      });
+
       await tx.booking.update({
         where: { id },
         data: {
@@ -908,7 +947,8 @@ export async function markBookingNoShow(
           cancelledAt: new Date(),
           noShowMarkedAt: new Date(),
           refundedAmount: new Prisma.Decimal(0),
-          paymentStatus: "PAID",
+          refundedAt: refundCapture.refundedAt,
+          paymentStatus: refundCapture.status,
         } as any,
       });
 
@@ -940,10 +980,6 @@ export async function markBookingNoShow(
       data: {
         ...serializeBookingList(updated),
         ...buildPaymentSnapshot(updated),
-        cancellation: {
-          policyApplied: "NO_REFUND",
-          cutoffHours: 2,
-        },
       },
     });
   } catch (err) {
