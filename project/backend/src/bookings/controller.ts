@@ -12,6 +12,8 @@ import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
 import { getStartOfWeek } from "../lib/date";
+import { payments } from "../payments/service";
+import { randomUUID } from "crypto";
 
 function isSerializationFailure(err: unknown): boolean {
   return (
@@ -212,6 +214,7 @@ export async function createBooking(
     }
 
     const maxAttempts = 5;
+    const bookingId = randomUUID();
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -276,9 +279,25 @@ export async function createBooking(
               lat: ride.destinationLat,
               lng: ride.destinationLng,
             };
+            const paymentCapture = await payments.capture({
+              amount: totalFare,
+              currency: "NOK",
+              bookingId,
+              rideId: ride.id,
+              passengerId,
+            });
+
+            if (paymentCapture.status !== "PAID") {
+              throw new AppError(
+                "PAYMENT_CAPTURE_FAILED",
+                "Could not capture payment for this booking",
+                402,
+              );
+            }
 
             const created = await tx.booking.create({
               data: {
+                id: bookingId,
                 rideId: ride.id,
                 passengerId,
                 seatsBooked: body.seatsBooked,
@@ -293,8 +312,9 @@ export async function createBooking(
                 platformFee,
                 driverEarnings,
                 status: "PENDING",
-                paymentStatus: "PAID",
-                paidAt: new Date(),
+                stripePaymentIntentId: paymentCapture.providerPaymentId,
+                paymentStatus: paymentCapture.status,
+                paidAt: paymentCapture.paidAt,
               } as any,
               include: {
                 ride: {

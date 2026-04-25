@@ -6,14 +6,31 @@ export interface BookingLocation {
   lng: number
 }
 
+export interface BookingPaymentSnapshot {
+  status: string
+  paidAt: string | null
+  refundedAt: string | null
+}
+
+export interface BookingRefundSnapshot {
+  amount: string
+  remainingCharged: string
+}
+
 export interface BookingListItem {
   id: string
   status: BookingStatus
   seatsBooked: number
   totalFare: string
+  refundedAmount: string
+  paymentStatus: string
+  paidAt: string | null
+  refundedAt: string | null
   pickup: BookingLocation | null
   dropoff: BookingLocation | null
   messageToDriver: string | null
+  payment: BookingPaymentSnapshot
+  refund: BookingRefundSnapshot
   createdAt: string
   passenger?: { id: string; name: string }
   ride: {
@@ -32,12 +49,17 @@ export interface BookingDetail {
   totalFare: string
   platformFee: string
   driverEarnings: string
+  refundedAmount: string
   paymentStatus: string
+  paidAt?: string | null
+  refundedAt?: string | null
   createdAt: string
   updatedAt: string
   pickup: BookingLocation | null
   dropoff: BookingLocation | null
   messageToDriver: string | null
+  payment?: BookingPaymentSnapshot
+  refund?: BookingRefundSnapshot
   passenger: { id: string; name: string; avatarUrl: string | null }
   ride: {
     id: string
