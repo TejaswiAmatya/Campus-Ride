@@ -7,8 +7,9 @@ export function useAdminConfig() {
   return useQuery<AdminConfig>({
     queryKey: ["adminConfig"],
     queryFn: async (): Promise<AdminConfig> => {
-      const res = await api.get<{ data: AdminConfig }>("/api/config");
+      const res = await api.get<{ data: AdminConfig }>("/api/admin/config");
       return res.data.data ?? {};
     },
+    staleTime: 60_000,
   });
 }

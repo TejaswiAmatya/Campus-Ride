@@ -131,7 +131,11 @@ export function SettingsPage() {
       />
 
       {showSuccessToast ? (
-        <div className="fixed right-4 top-20 z-50 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-lg">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed right-4 top-20 z-50 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-lg"
+        >
           <CheckCircle2 className="h-5 w-5 text-emerald-600" />
           <span>Platform fee saved successfully.</span>
         </div>

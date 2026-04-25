@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ALLOWED_CONFIG_KEYS, PLATFORM_FEE_CONFIG_KEY } from "../config/service";
 
 export const DriverDecisionSchema = z.object({
   approved: z.boolean(),
@@ -6,10 +7,10 @@ export const DriverDecisionSchema = z.object({
 });
 
 export const UpdateConfigSchema = z.object({
-  key: z.string().min(1),
+  key: z.enum(ALLOWED_CONFIG_KEYS),
   value: z.string().min(1),
 }).superRefine((data, ctx) => {
-  if (data.key !== "platformFeePercent") {
+  if (data.key !== PLATFORM_FEE_CONFIG_KEY) {
     return;
   }
 

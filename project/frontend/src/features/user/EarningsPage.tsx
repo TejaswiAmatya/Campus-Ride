@@ -27,7 +27,7 @@ type EarningsResponse = {
 
 function formatCurrency(value: string, currency: string) {
   const amount = Number(value);
-  return new Intl.NumberFormat("en-NO", {
+  return new Intl.NumberFormat("nb-NO", {
     style: "currency",
     currency,
     maximumFractionDigits: 2,
@@ -35,7 +35,7 @@ function formatCurrency(value: string, currency: string) {
 }
 
 function formatRideDate(value: string) {
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("nb-NO", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -48,6 +48,7 @@ export function EarningsPage() {
       const res = await api.get<{ data: EarningsResponse }>("/api/bookings/earnings");
       return res.data.data;
     },
+    staleTime: 60_000,
   });
 
   if (isLoading) {
