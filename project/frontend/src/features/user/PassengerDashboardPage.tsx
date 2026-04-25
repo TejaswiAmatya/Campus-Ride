@@ -6,53 +6,52 @@ import { ProfileSummaryCard } from '@/components/ProfileSummaryCard'
 
 export function PassengerDashboardPage() {
   const { data: user } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  const firstName = user?.name?.split(' ')[0] ?? 'there'
 
   return (
-    <section className="mx-auto max-w-[var(--content-wide)] px-[var(--space-6)] py-[var(--space-8)]">
-      <h1 className="mb-[var(--space-8)] text-[var(--text-xl)] font-bold text-[var(--color-text)]">
-        Welcome back, {user?.name ?? 'there'}
-      </h1>
-
-      <div className="mb-[var(--space-6)]">
-        <ProfileSummaryCard
-          name={user?.name ?? 'Guest User'}
-          email={user?.email ?? 'guest@example.com'}
-          avatarUrl={user?.avatarPath ?? null}
-          role={user?.role ?? 'PASSENGER'}
-        />
+    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
+      <div>
+        <p className="text-xs font-medium uppercase tracking-widest text-slate-400">Dashboard</p>
+        <h1 className="mt-1 text-2xl font-bold text-slate-800">Welcome back, {firstName}</h1>
       </div>
 
-      <div className="grid grid-cols-1 gap-[var(--space-6)] md:[grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr))]">
+      <ProfileSummaryCard
+        name={user?.name ?? 'Guest User'}
+        email={user?.email ?? 'guest@example.com'}
+        avatarUrl={user?.avatarPath ?? null}
+        role={user?.role ?? 'PASSENGER'}
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <DashboardCard
           title="Find a Ride"
           subtitle="Search available rides near you"
           icon={<Search />}
           href="/rides"
-          accent="primary"
+          accent="blue"
         />
-
-        {/* TODO: wire usePassengerDashboardData() hook in step 9 */}
         <DashboardCard
           title="Upcoming Bookings"
-          subtitle="You have no upcoming bookings yet"
+          subtitle="Your confirmed trips"
           icon={<CalendarDays />}
-          accent="primary"
+          href="/bookings"
+          accent="blue"
         />
-
-        {/* TODO: wire usePassengerDashboardData() hook in step 9 */}
         <DashboardCard
-          title="Recent History"
-          subtitle="Your completed rides will appear here"
+          title="Ride History"
+          subtitle="Your completed rides"
           icon={<Clock3 />}
+          href="/bookings"
+          accent="violet"
         />
-
         <DashboardCard
           title="Your Profile"
-          subtitle="Manage your account settings"
+          subtitle="Manage account settings"
           icon={<User />}
           href="/profile"
+          accent="violet"
         />
       </div>
-    </section>
+    </div>
   )
 }

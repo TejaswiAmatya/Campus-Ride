@@ -7,37 +7,47 @@ type ProfileSummaryCardProps = {
   role: AppRole
 }
 
-const roleLabel: Record<AppRole, 'Passenger' | 'Driver' | 'Admin'> = {
-  PASSENGER: 'Passenger',
-  DRIVER: 'Driver',
-  ADMIN: 'Admin',
+const roleMeta: Record<AppRole, { label: string; className: string }> = {
+  PASSENGER: {
+    label: 'Passenger',
+    className: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
+  },
+  DRIVER: {
+    label: 'Driver',
+    className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+  },
+  ADMIN: {
+    label: 'Admin',
+    className: 'bg-violet-50 text-violet-700 ring-1 ring-violet-200',
+  },
 }
 
 export function ProfileSummaryCard({ name, email, avatarUrl, role }: ProfileSummaryCardProps) {
   const initial = (name.trim().charAt(0) || '?').toUpperCase()
+  const { label, className } = roleMeta[role]
 
   return (
-    <section className="flex items-center gap-[var(--space-4)] rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-[var(--space-6)] shadow-[var(--shadow-sm)]">
+    <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white px-6 py-5 shadow-sm">
       {avatarUrl ? (
         <img
           src={avatarUrl}
           alt={`${name} avatar`}
-          className="h-12 w-12 rounded-[var(--radius-full)] object-cover"
+          className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-slate-100"
         />
       ) : (
-        <div className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-full)] bg-[var(--color-primary)] text-[var(--text-sm)] text-white">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-base font-semibold text-white shadow-sm">
           {initial}
         </div>
       )}
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[var(--text-base)] font-semibold text-[var(--color-text)]">{name}</p>
-        <p className="truncate text-[var(--text-sm)] text-[var(--color-text-muted)]">{email}</p>
+        <p className="truncate text-sm font-semibold text-slate-800">{name}</p>
+        <p className="truncate text-xs text-slate-500">{email}</p>
       </div>
 
-      <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1 text-[var(--text-xs)] uppercase text-[var(--color-text)]">
-        {roleLabel[role]}
+      <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${className}`}>
+        {label}
       </span>
-    </section>
+    </div>
   )
 }

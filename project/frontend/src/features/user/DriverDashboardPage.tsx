@@ -8,55 +8,52 @@ import type { AppRole } from '@/features/auth/routing'
 export function DriverDashboardPage() {
   const { data: user } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
   const role: AppRole = user?.role ?? 'DRIVER'
+  const firstName = user?.name?.split(' ')[0] ?? 'Driver'
 
   return (
-    <section className="mx-auto max-w-[var(--content-wide)] px-[var(--space-6)] py-[var(--space-8)]">
-      <h1 className="mb-[var(--space-8)] text-[var(--text-xl)] font-bold text-[var(--color-text)]">
-        Driver Dashboard
-      </h1>
-
-      <div className="mb-[var(--space-6)]">
-        <ProfileSummaryCard
-          name={user?.name ?? 'Driver'}
-          email={user?.email ?? 'driver@example.com'}
-          avatarUrl={user?.avatarPath ?? null}
-          role={role}
-        />
+    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
+      <div>
+        <p className="text-xs font-medium uppercase tracking-widest text-slate-400">Dashboard</p>
+        <h1 className="mt-1 text-2xl font-bold text-slate-800">Welcome back, {firstName}</h1>
       </div>
 
-      <div className="grid grid-cols-1 gap-[var(--space-6)] md:[grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr))]">
+      <ProfileSummaryCard
+        name={user?.name ?? 'Driver'}
+        email={user?.email ?? 'driver@example.com'}
+        avatarUrl={user?.avatarPath ?? null}
+        role={role}
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <DashboardCard
           title="Post a Ride"
           subtitle="Create a new ride for passengers"
           icon={<CirclePlus />}
           href="/driver/rides/new"
-          accent="primary"
+          accent="emerald"
         />
-
         <DashboardCard
           title="My Rides"
-          subtitle="You have no upcoming rides scheduled"
+          subtitle="Manage your scheduled rides"
           icon={<Car />}
           href="/driver/rides"
-          accent="primary"
+          accent="emerald"
         />
-
-        {/* TODO: wire useDriverDashboardData() hook in step 9 */}
         <DashboardCard
           title="Pending Requests"
-          subtitle="No booking requests awaiting action"
+          subtitle="Booking requests awaiting action"
           icon={<Bell />}
-          accent="warning"
+          href="/bookings"
+          accent="amber"
         />
-
         <DashboardCard
           title="Earnings"
-          subtitle="Your earnings summary"
+          subtitle="View your earnings summary"
           icon={<TrendingUp />}
           href="/driver/earnings"
           accent="success"
         />
       </div>
-    </section>
+    </div>
   )
 }
