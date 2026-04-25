@@ -1,41 +1,85 @@
-import { Link } from 'react-router-dom'
-import { Car, MapPin, CalendarCheck, User, LayoutDashboard } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Link, NavLink } from 'react-router-dom'
+import { Car, MapPin, CalendarCheck, User, LayoutDashboard, PlusCircle, Wallet, Bell } from 'lucide-react'
 import { useAuth, useLogout } from '@/hooks/useAuth'
+import { canAccessDriverRoutes, isDriverPending } from '@/features/auth/routing'
 import { cn } from '@/lib/utils'
 
 export function Navbar() {
   const { user, isAuthenticated } = useAuth()
   const logout = useLogout()
+  const isApprovedDriver = !!user && canAccessDriverRoutes(user)
+  const pendingDriver = !!user && isDriverPending(user)
+
+  const passengerNav = [
+    { to: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Dashboard' },
+    { to: '/rides', icon: <MapPin className="h-4 w-4" />, label: 'Rides' },
+    { to: '/bookings', icon: <CalendarCheck className="h-4 w-4" />, label: 'Bookings' },
+    { to: '/profile', icon: <User className="h-4 w-4" />, label: 'Profile' },
+  ]
+
+  const driverNav = [
+    { to: '/driver/dashboard', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Driver Dashboard' },
+    { to: '/driver/rides', icon: <Car className="h-4 w-4" />, label: 'My Rides' },
+    { to: '/driver/rides/new', icon: <PlusCircle className="h-4 w-4" />, label: 'Post Ride' },
+    { to: '/driver/earnings', icon: <Wallet className="h-4 w-4" />, label: 'Earnings' },
+    { to: '/profile', icon: <User className="h-4 w-4" />, label: 'Profile' },
+  ]
+
+  const adminNav = [
+    { to: '/admin', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Admin' },
+    { to: '/profile', icon: <User className="h-4 w-4" />, label: 'Profile' },
+  ]
+
+  const navItems = !user
+    ? []
+    : isApprovedDriver
+      ? driverNav
+      : user.role === 'ADMIN'
+        ? adminNav
+        : passengerNav
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto flex h-14 items-center justify-between px-4">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2 font-bold text-primary">
+        <Link to="/dashboard" className="flex items-center gap-2 font-bold text-primary">
           <Car className="h-5 w-5" />
           <span>Campus Ride</span>
         </Link>
 
         {/* Nav links */}
         {isAuthenticated ? (
-          <div className="flex items-center gap-1">
-            <NavLink to="/rides" icon={<MapPin className="h-4 w-4" />} label="Rides" />
-            <NavLink
-              to={user?.role === 'DRIVER' ? '/bookings/manage' : '/bookings'}
-              icon={<CalendarCheck className="h-4 w-4" />}
-              label="Bookings"
-            />
-            {user?.role === 'ADMIN' && (
-              <NavLink
-                to="/admin"
-                icon={<LayoutDashboard className="h-4 w-4" />}
-                label="Admin"
-              />
-            )}
-            <NavLink to="/profile" icon={<User className="h-4 w-4" />} label={user?.name ?? 'Profile'} />
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-1 lg:flex">
+              {navItems.map((item) => (
+                <RouteNavLink key={item.to} to={item.to} icon={item.icon} label={item.label} />
+              ))}
+            </div>
+
+            {pendingDriver ? (
+              <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                Driver Pending
+              </span>
+            ) : null}
+
+            <Link
+              to="/profile"
+              className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+              aria-label="Profile"
+            >
+              <User className="h-4 w-4" />
+            </Link>
+            <button
+              type="button"
+              className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+              aria-label="Notifications"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
             <button
               onClick={logout}
-              className="ml-2 rounded-md px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+              className="rounded-md px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
             >
               Logout
             </button>
@@ -43,13 +87,13 @@ export function Navbar() {
         ) : (
           <div className="flex items-center gap-2">
             <Link
-              to="/login"
+              to="/auth/login"
               className="rounded-md px-3 py-1.5 text-sm hover:bg-secondary transition-colors"
             >
               Sign in
             </Link>
             <Link
-              to="/register"
+              to="/auth/register"
               className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               Register
@@ -61,25 +105,29 @@ export function Navbar() {
   )
 }
 
-function NavLink({
+function RouteNavLink({
   to,
   icon,
   label,
 }: {
   to: string
-  icon: React.ReactNode
+  icon: ReactNode
   label: string
 }) {
   return (
-    <Link
+    <NavLink
       to={to}
-      className={cn(
-        'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
-        'hover:bg-secondary hover:text-secondary-foreground',
-      )}
+      className={({ isActive }) =>
+        cn(
+          'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+          isActive
+            ? 'bg-primary/10 text-primary'
+            : 'hover:bg-secondary hover:text-secondary-foreground',
+        )
+      }
     >
       {icon}
       <span className="hidden sm:inline">{label}</span>
-    </Link>
+    </NavLink>
   )
 }
