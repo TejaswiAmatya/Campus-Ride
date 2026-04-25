@@ -3,10 +3,11 @@ import { useMemo, useState } from "react";
 import { Clock, MapPin, Users } from "lucide-react";
 import { MapView } from "@/components/MapView";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/api/client";
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
-import { useDriverLocation, useRide } from "./hooks";
+import { useDriverLocation, useDriverLocationEmitter, useRide } from "./hooks";
 
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,14 @@ export function RideDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const driverLocation = useDriverLocation(
     ride?.status === "IN_PROGRESS" ? ride.id : undefined,
+  );
+  const isDriverViewingOwnActiveRide =
+    !!user &&
+    !!ride &&
+    user.id === ride.driver.id &&
+    ride.status === "IN_PROGRESS";
+  const { isSharingLocation } = useDriverLocationEmitter(
+    isDriverViewingOwnActiveRide ? ride?.id : undefined,
   );
 
   const canBook =
@@ -96,12 +105,23 @@ export function RideDetailPage() {
         <h1 className="text-2xl font-bold">
           {ride.originAddress} → {ride.destinationAddress}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Driver: {ride.driver.name}
-          {ride.driver.vehicle
-            ? ` • ${ride.driver.vehicle.colour} ${ride.driver.vehicle.make} ${ride.driver.vehicle.model}`
-            : ""}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            Driver: {ride.driver.name}
+            {ride.driver.vehicle
+              ? ` • ${ride.driver.vehicle.colour} ${ride.driver.vehicle.make} ${ride.driver.vehicle.model}`
+              : ""}
+          </p>
+          {isSharingLocation && (
+            <Badge variant="secondary" className="gap-1.5">
+              <span
+                className="h-2 w-2 rounded-full bg-emerald-500"
+                aria-hidden="true"
+              />
+              Sharing location
+            </Badge>
+          )}
+        </div>
       </div>
 
       <MapView
