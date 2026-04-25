@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
 import { useSocket } from '@/lib/socket'
@@ -71,6 +71,55 @@ export function useDriverLocation(rideId?: string) {
   }, [isConnected, rideId, socket])
 
   return location
+}
+
+export function useDriverLocationEmitter(rideId?: string) {
+  const { socket } = useSocket()
+  const watchIdRef = useRef<number | null>(null)
+  const [isSharingLocation, setIsSharingLocation] = useState(false)
+
+  useEffect(() => {
+    if (!rideId) {
+      setIsSharingLocation(false)
+      return
+    }
+
+    if (!navigator.geolocation) {
+      setIsSharingLocation(false)
+      return
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        socket.emit('driver:locationUpdate', {
+          rideId,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        })
+      },
+      () => {
+        setIsSharingLocation(false)
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10_000,
+        timeout: 10_000,
+      },
+    )
+
+    watchIdRef.current = watchId
+    setIsSharingLocation(true)
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+      setIsSharingLocation(false)
+    }
+  }, [rideId, socket])
+
+  return { isSharingLocation }
 }
 
 export function useMyRides() {
