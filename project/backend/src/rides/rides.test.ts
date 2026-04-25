@@ -8,7 +8,7 @@ import {
 } from "./schemas";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { createRide, getMyRides, searchRides, updateRideStatus } from "./controller";
-import { searchRidesByLocation } from "./location.service";
+import { searchRidesByLocation } from "./location";
 import { prisma } from "../lib/prisma";
 import { errorHandler } from "../middleware/error";
 
@@ -34,7 +34,7 @@ type UserRecord = {
   id: string;
   name: string;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
-  isDriverApproved: boolean;
+  driverProfileStatus?: "PENDING" | "APPROVED" | "REJECTED";
   avatarUrl?: string | null;
 };
 
@@ -127,7 +127,12 @@ vi.mock("../lib/prisma", () => ({
           throw error;
         }
 
-        return { isDriverApproved: user.isDriverApproved };
+        return {
+          role: user.role,
+          driverProfile: user.driverProfileStatus
+            ? { status: user.driverProfileStatus }
+            : null,
+        };
       }),
     },
     $queryRaw: vi.fn(async () => {
@@ -304,13 +309,12 @@ beforeEach(() => {
       id: "driver-1",
       name: "Dana Driver",
       role: "DRIVER",
-      isDriverApproved: true,
+      driverProfileStatus: "APPROVED",
     },
     {
       id: "passenger-1",
       name: "Pat Passenger",
       role: "PASSENGER",
-      isDriverApproved: false,
     },
   ];
   testState.rides = [];
@@ -736,7 +740,7 @@ describe("rides API integration", () => {
       id: "driver-2",
       name: "Devon Driver",
       role: "DRIVER",
-      isDriverApproved: true,
+      driverProfileStatus: "APPROVED",
     });
 
     const createResponse = await runHandlers(
