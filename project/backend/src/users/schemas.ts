@@ -35,7 +35,7 @@ export const UpdateProfileSchema = z
   .object({
     name: z.string().min(2).max(100).optional(),
     phone: z.string().optional(),
-    avatarPath: z.string().url().optional(),
+    avatarPath: z.string().optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'At least one field must be provided',
@@ -70,7 +70,7 @@ export const MeResponseSchema = z.object({
   email: z.string().email(),
   name: z.string(),
   role: z.enum(['PASSENGER', 'DRIVER', 'ADMIN']),
-  avatarUrl: z.string().url().nullable(),
+  avatarPath: z.string().nullable(),
   driverStatus: z.enum(['PENDING', 'APPROVED', 'REJECTED']).nullable(),
   createdAt: z.string().datetime(),
   ...ModerationStateSchema.shape,

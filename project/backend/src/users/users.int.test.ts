@@ -38,7 +38,7 @@ type MeResponse = {
   role: string
   accountStatus: 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED'
   suspendedUntil: string | null
-  avatarUrl: string | null
+  avatarPath: string | null
   driverStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | null
   createdAt: string
 }

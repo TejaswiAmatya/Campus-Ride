@@ -52,7 +52,7 @@ export async function getCurrentUser(
       role: user.role,
       accountStatus: user.accountStatus,
       suspendedUntil: user.suspendedUntil?.toISOString() ?? null,
-      avatarUrl: user.avatarPath ?? null,
+      avatarPath: user.avatarPath ?? null,
       driverStatus: user.driverProfile?.status ?? null,
       createdAt: user.createdAt.toISOString(),
     };
