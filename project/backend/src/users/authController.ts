@@ -1,9 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { RegisterSchema, LoginSchema } from "./schemas";
 import { prisma } from "../lib/prisma";
-import { createAuthUser, deleteAuthUser, supabaseAuth, supabaseAdmin } from "../lib/supabase";
+import { createAuthUser, deleteAuthUser, supabaseAuth } from "../lib/supabase";
 import { AppError } from "../middleware/error";
-import { emailQueue } from "../lib/emailQueue";
 
 // POST /api/auth/register
 export async function register(
@@ -78,9 +77,10 @@ export async function login(
   try {
     // validate the request body
     const body = LoginSchema.parse(req.body);
+    const email = body.email.toLowerCase();
 
     const { data, error } = await supabaseAuth.auth.signInWithPassword({
-      email: body.email,
+      email,
       password: body.password,
     });
 

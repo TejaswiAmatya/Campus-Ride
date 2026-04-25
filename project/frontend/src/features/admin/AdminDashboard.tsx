@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import {
   LayoutDashboard,
   Users,
@@ -10,11 +9,10 @@ import {
   XCircle,
   TrendingUp,
   AlertCircle,
-} from 'lucide-react'
-
-import { Button } from '@/components/ui/button'
-import { StatsCard } from './StatsCard'
-import { useAdminStats } from '@/features/admin/useAdminStats'
+} from "lucide-react";
+import { StatsCard } from "./StatsCard";
+import { useAdminStats } from "@/features/admin/useAdminStats";
+import { Button } from "@/components/ui/button";
 
 export function AdminDashboard() {
   const {
@@ -24,7 +22,7 @@ export function AdminDashboard() {
     error: statsError,
     refetch: refetchStats,
     isFetching: statsFetching,
-  } = useAdminStats()
+  } = useAdminStats();
 
   if (statsLoading) {
     return (
@@ -39,14 +37,14 @@ export function AdminDashboard() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   if (hasStatsError) {
     const statsErrorMessage =
       statsError instanceof Error
         ? statsError.message
-        : 'Unable to load admin dashboard statistics.'
+        : "Unable to load admin dashboard statistics.";
 
     return (
       <div className="space-y-6">
@@ -70,13 +68,13 @@ export function AdminDashboard() {
                 disabled={statsFetching}
                 variant="outline"
               >
-                {statsFetching ? 'Retrying…' : 'Retry'}
+                {statsFetching ? "Retrying…" : "Retry"}
               </Button>
             </div>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -173,24 +171,8 @@ export function AdminDashboard() {
           />
         </div>
       </section>
-
-      <section className="rounded-lg border bg-card p-5 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">Driver Approvals</h2>
-            <p className="text-sm text-muted-foreground">
-              {stats?.pendingDrivers ?? 0} pending applications are waiting for review.
-            </p>
-          </div>
-
-          <Button asChild>
-            <Link to="/admin/drivers">Review applications</Link>
-          </Button>
-        </div>
-      </section>
-
       {/* TODO Sprint 2: Reports table */}
       {/* TODO Sprint 2: Config editor (platform fee) */}
     </div>
-  )
+  );
 }
