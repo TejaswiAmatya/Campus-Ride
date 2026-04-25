@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
 import type { LatLngExpression } from 'leaflet'
 import L from 'leaflet'
 import { cn } from '@/lib/utils'
@@ -27,6 +27,21 @@ interface MapViewProps {
   /** Height override — default is h-64 */
   height?: string
   children?: ReactNode
+  onMapClick?: (position: [number, number]) => void
+}
+
+function MapClickHandler({ onMapClick }: { onMapClick?: (position: [number, number]) => void }) {
+  useMapEvents({
+    click(event) {
+      if (!onMapClick) {
+        return
+      }
+
+      onMapClick([event.latlng.lat, event.latlng.lng])
+    },
+  })
+
+  return null
 }
 
 /**
@@ -46,6 +61,7 @@ export function MapView({
   className,
   height = 'h-64',
   children,
+  onMapClick,
 }: MapViewProps) {
   return (
     <MapContainer
@@ -63,6 +79,7 @@ export function MapView({
           {marker.label && <Popup>{marker.label}</Popup>}
         </Marker>
       ))}
+      <MapClickHandler onMapClick={onMapClick} />
       {children}
     </MapContainer>
   )
