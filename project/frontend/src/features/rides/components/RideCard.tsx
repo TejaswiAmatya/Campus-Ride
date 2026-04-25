@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Clock, MapPin, Users } from 'lucide-react'
+import { Clock, MapPin, Star, Users } from 'lucide-react'
 import type { Ride } from '../types'
 
 export function RideCard({ ride }: { ride: Ride }) {
@@ -28,6 +28,10 @@ export function RideCard({ ride }: { ride: Ride }) {
             {ride.availableSeats} / {ride.totalSeats} seats
           </span>
           <span className="font-medium text-foreground">{ride.pricePerSeat} NOK / seat</span>
+          <span className="flex items-center gap-1">
+            <Star className="h-3.5 w-3.5 text-amber-500" />
+            {ride.driverRating ? `${ride.driverRating.toFixed(1)} / 5` : 'No ratings yet'}
+          </span>
         </div>
         <p className="text-xs text-muted-foreground">Driver: {ride.driver?.name}</p>
       </div>

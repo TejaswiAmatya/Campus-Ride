@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { describe, it, expect } from 'vitest'
 import { CreateBookingSchema, UpdateBookingStatusSchema } from './schemas'
 
@@ -22,25 +23,25 @@ describe('CreateBookingSchema', () => {
 })
 
 describe('Fare split calculation', () => {
-  const PLATFORM_FEE = 0.10
+  const PLATFORM_FEE = new Prisma.Decimal('0.10')
 
   it('driver receives 90% of the total fare', () => {
-    const pricePerSeat = 100
+    const pricePerSeat = new Prisma.Decimal(100)
     const seatsBooked = 2
-    const totalFare = pricePerSeat * seatsBooked
-    const platformFee = totalFare * PLATFORM_FEE
-    const driverEarnings = totalFare - platformFee
+    const totalFare = pricePerSeat.mul(seatsBooked)
+    const platformFee = totalFare.mul(PLATFORM_FEE)
+    const driverEarnings = totalFare.sub(platformFee)
 
-    expect(totalFare).toBe(200)
-    expect(platformFee).toBe(20)
-    expect(driverEarnings).toBe(180)
-    expect(driverEarnings / totalFare).toBe(0.9)
+    expect(totalFare.toNumber()).toBe(200)
+    expect(platformFee.toNumber()).toBe(20)
+    expect(driverEarnings.toNumber()).toBe(180)
+    expect(driverEarnings.div(totalFare).toNumber()).toBe(0.9)
   })
 
   it('platform receives exactly 10% of the total fare', () => {
-    const totalFare = 150
-    const platformFee = totalFare * PLATFORM_FEE
-    expect(platformFee).toBeCloseTo(15)
+    const totalFare = new Prisma.Decimal(150)
+    const platformFee = totalFare.mul(PLATFORM_FEE)
+    expect(platformFee.toNumber()).toBeCloseTo(15)
   })
 })
 

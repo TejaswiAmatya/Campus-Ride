@@ -56,6 +56,7 @@ export interface Ride {
   totalSeats: number;
   pricePerSeat: string;
   status: "OPEN" | "FULL" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  driverRating?: number | null;
   driver: RideDriver;
   bookings?: RideBooking[];
   _count?: {
@@ -74,6 +75,10 @@ export interface SearchRidesParams {
   destLat?: number;
   destLng?: number;
   radiusKm?: number;
+  minPrice?: number;
+  maxPrice?: number;
+  minRating?: number;
+  sortBy?: "departureTime" | "price" | "rating";
 }
 
 export type RideStatusUpdate = "ACTIVE" | "COMPLETED" | "CANCELLED";

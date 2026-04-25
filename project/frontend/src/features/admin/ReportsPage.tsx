@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 import { ReportsTable } from "./ReportsTable";
-import { useReports } from "./useReports";
+import { useReports, useUpdateReportStatus } from "./useReports";
 
 export function ReportsPage() {
   const {
@@ -15,9 +15,17 @@ export function ReportsPage() {
     refetch,
     isFetching,
   } = useReports();
+  const updateReportStatusMutation = useUpdateReportStatus();
 
   const errorMessage =
     error instanceof Error ? error.message : "Unable to load reports.";
+  const updateErrorMessage =
+    updateReportStatusMutation.error instanceof Error
+      ? updateReportStatusMutation.error.message
+      : "Unable to update the report status.";
+  const activeReportId = updateReportStatusMutation.isPending
+    ? updateReportStatusMutation.variables?.id ?? null
+    : null;
 
   return (
     <div className="space-y-6">
@@ -36,6 +44,12 @@ export function ReportsPage() {
           <Link to="/admin">Back to dashboard</Link>
         </Button>
       </div>
+
+      {updateReportStatusMutation.isError ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          {updateErrorMessage}
+        </div>
+      ) : null}
 
       {isLoading ? (
         <div className="rounded-lg border bg-card p-6 shadow-sm">
@@ -70,7 +84,13 @@ export function ReportsPage() {
           </div>
         </div>
       ) : (
-        <ReportsTable reports={reports} />
+        <ReportsTable
+          reports={reports}
+          activeReportId={activeReportId}
+          onUpdateStatus={(id, status) =>
+            updateReportStatusMutation.mutate({ id, status })
+          }
+        />
       )}
     </div>
   );
