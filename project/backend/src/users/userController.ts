@@ -228,9 +228,9 @@ export async function uploadCurrentUserAvatar(
 /**
  * GET /api/users/:id/reviews
  *
- * Returns paginated reviews for a driver profile (publicly accessible).
+ * Returns all received reviews for a user profile (publicly accessible).
  */
-export async function getDriverReviews(
+export async function getUserReviews(
   req: Request,
   res: Response,
   next: NextFunction,
@@ -254,6 +254,8 @@ export async function getDriverReviews(
     res.json({
       data: reviews.map((review) => ({
         id: review.id,
+        rideId: review.rideId,
+        revieweeId: review.revieweeId,
         rating: review.rating,
         comment: review.comment,
         createdAt: review.createdAt.toISOString(),

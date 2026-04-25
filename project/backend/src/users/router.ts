@@ -12,7 +12,7 @@ authRouter.post('/register', authController.register)
 authRouter.post('/login', authController.login)
 
 // Public user routes
-usersRouter.get('/:id/reviews', userController.getDriverReviews)
+usersRouter.get('/:id/reviews', userController.getUserReviews)
 
 // Authenticated routes
 usersRouter.get('/me', requireAuth, userController.getCurrentUser)
