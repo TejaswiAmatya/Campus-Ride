@@ -86,6 +86,7 @@ model Ride {
 
   driver   User      @relation("DriverRides", fields: [driverId], references: [id])
   bookings Booking[]
+  reviews  Review[]
 }
 
 model Booking {
@@ -103,23 +104,26 @@ model Booking {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
-  ride      Ride    @relation(fields: [rideId], references: [id])
-  passenger User    @relation("PassengerBookings", fields: [passengerId], references: [id])
-  review    Review?
+  ride      Ride @relation(fields: [rideId], references: [id])
+  passenger User @relation("PassengerBookings", fields: [passengerId], references: [id])
 }
 
 model Review {
   id         String   @id @default(uuid())
-  bookingId  String   @unique // one review per completed booking
+  rideId     String
   reviewerId String
   revieweeId String
   rating     Int // 1–5; enforced at application layer via Zod
   comment    String?
   createdAt  DateTime @default(now())
 
-  booking  Booking @relation(fields: [bookingId], references: [id])
+  ride     Ride    @relation(fields: [rideId], references: [id])
   reviewer User    @relation("ReviewsGiven", fields: [reviewerId], references: [id])
   reviewee User    @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+
+  @@unique([rideId, reviewerId, revieweeId])
+  @@index([revieweeId, createdAt])
+  @@index([rideId])
 }
 
 // Audit log for emails dispatched through the BullMQ worker.

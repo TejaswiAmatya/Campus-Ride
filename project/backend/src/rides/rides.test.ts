@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import {
   CreateRideSchema,
+  CreateRideReviewSchema,
   SearchRidesSchema,
   UpdateRideStatusSchema,
 } from "./schemas";
@@ -289,7 +290,8 @@ vi.mock("../lib/prisma", () => ({
               ? {
                   id: driver.id,
                   name: driver.name,
-                  avatarUrl: driver.avatarUrl ?? null,
+                  avatarPath: driver.avatarUrl ?? null,
+                  driverProfile: { vehicleInfo: null },
                 }
               : null,
           };
@@ -392,17 +394,25 @@ vi.mock("../lib/prisma", () => ({
         const ride = testState.rides.find((entry) => entry.id === where.id);
 
         if (!ride) {
-          const error = new Error("Record not found") as Error & { code: string };
+          const error = new Error("Record not found") as Error & {
+            code: string;
+          };
           error.code = "P2025";
           throw error;
         }
 
-        const driver = testState.users.find((entry) => entry.id === ride.driverId);
+        const driver = testState.users.find(
+          (entry) => entry.id === ride.driverId,
+        );
 
         return {
           ...ride,
           driver: driver
-            ? { id: driver.id, name: driver.name, avatarUrl: driver.avatarUrl ?? null }
+            ? {
+                id: driver.id,
+                name: driver.name,
+                avatarUrl: driver.avatarUrl ?? null,
+              }
             : null,
         };
       }),
@@ -444,7 +454,9 @@ vi.mock("../lib/prisma", () => ({
           const ride = testState.rides.find((entry) => entry.id === where.id);
 
           if (!ride) {
-            const error = new Error("Record not found") as Error & { code: string };
+            const error = new Error("Record not found") as Error & {
+              code: string;
+            };
             error.code = "P2025";
             throw error;
           }
@@ -869,6 +881,67 @@ describe("SearchRidesSchema", () => {
       SearchRidesSchema.safeParse({
         minPrice: "150",
         maxPrice: "50",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("CreateRideReviewSchema", () => {
+  const validUUID = "550e8400-e29b-41d4-a716-446655440000";
+
+  it("accepts a valid review payload", () => {
+    expect(
+      CreateRideReviewSchema.safeParse({
+        revieweeId: validUUID,
+        rating: 5,
+        comment: "Great rider",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects an invalid revieweeId", () => {
+    expect(
+      CreateRideReviewSchema.safeParse({
+        revieweeId: "not-a-uuid",
+        rating: 5,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects rating 0", () => {
+    expect(
+      CreateRideReviewSchema.safeParse({
+        revieweeId: validUUID,
+        rating: 0,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects rating 6", () => {
+    expect(
+      CreateRideReviewSchema.safeParse({
+        revieweeId: validUUID,
+        rating: 6,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts comment up to 1000 characters", () => {
+    expect(
+      CreateRideReviewSchema.safeParse({
+        revieweeId: validUUID,
+        rating: 4,
+        comment: "x".repeat(1000),
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects comment longer than 1000 characters", () => {
+    expect(
+      CreateRideReviewSchema.safeParse({
+        revieweeId: validUUID,
+        rating: 4,
+        comment: "x".repeat(1001),
       }).success,
     ).toBe(false);
   });
