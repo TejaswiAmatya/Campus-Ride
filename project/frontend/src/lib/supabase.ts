@@ -2,19 +2,22 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const isSupabaseConfigured = !!supabaseUrl && !!supabaseAnonKey;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "Missing required environment variables: VITE_SUPABASE_URL and/or VITE_SUPABASE_ANON_KEY",
+if (!isSupabaseConfigured) {
+  console.warn(
+    "[supabase] Missing VITE_SUPABASE_URL and/or VITE_SUPABASE_ANON_KEY. Supabase session sync is disabled.",
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    })
+  : null;
 
 interface SupabaseSessionTokens {
   access_token: string;
@@ -42,8 +45,8 @@ function parseUrlRef(url: string): string | null {
   }
 }
 
-const keyRef = parseJwtRef(supabaseAnonKey);
-const urlRef = parseUrlRef(supabaseUrl);
+const keyRef = supabaseAnonKey ? parseJwtRef(supabaseAnonKey) : null;
+const urlRef = supabaseUrl ? parseUrlRef(supabaseUrl) : null;
 
 if (keyRef && urlRef && keyRef !== urlRef) {
   console.warn(
@@ -52,6 +55,10 @@ if (keyRef && urlRef && keyRef !== urlRef) {
 }
 
 export async function applySupabaseSession(tokens: SupabaseSessionTokens) {
+  if (!supabase) {
+    return;
+  }
+
   const { error } = await supabase.auth.setSession(tokens);
   if (error) {
     throw error;
@@ -59,6 +66,10 @@ export async function applySupabaseSession(tokens: SupabaseSessionTokens) {
 }
 
 export async function clearSupabaseSession() {
+  if (!supabase) {
+    return;
+  }
+
   const { error } = await supabase.auth.signOut({ scope: "local" });
   if (error) {
     throw error;
