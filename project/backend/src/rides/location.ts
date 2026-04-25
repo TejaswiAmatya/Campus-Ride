@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import type { SearchRidesInput } from "./schemas";
 
+// Backend helpers for ride search proximity queries.
 const DEFAULT_RADIUS_KM = 5;
 const KM_PER_LATITUDE_DEGREE = 110.574;
 const KM_PER_LONGITUDE_DEGREE_AT_EQUATOR = 111.32;
