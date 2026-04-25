@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
+import { getStartOfWeek } from "../lib/date";
 
 function isSerializationFailure(err: unknown): boolean {
   return (
@@ -23,15 +24,6 @@ function sumDecimal(
       total.add(new Prisma.Decimal(value.toString())) as Prisma.Decimal,
     new Prisma.Decimal(0),
   );
-}
-
-function getStartOfWeek(date: Date): Date {
-  const start = new Date(date);
-  const day = start.getDay();
-  const diff = (day + 6) % 7;
-  start.setDate(start.getDate() - diff);
-  start.setHours(0, 0, 0, 0);
-  return start;
 }
 
 function serializeBookingList(
@@ -631,13 +623,66 @@ export async function getEarnings(
       );
     }
 
+    const rawPage = Array.isArray(req.query.page)
+      ? req.query.page[0]
+      : req.query.page;
+    const rawLimit = Array.isArray(req.query.limit)
+      ? req.query.limit[0]
+      : req.query.limit;
+    const parsedPage = Number(rawPage);
+    const parsedLimit = Number(rawLimit);
+    const page =
+      Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const limit =
+      Number.isInteger(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, 100)
+        : 20;
+    const skip = (page - 1) * limit;
+
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
     const startOfWeek = getStartOfWeek(new Date());
 
-    const [platformFeePercent, completedBookings] = await Promise.all([
+    const [
+      platformFeePercent,
+      approvedDriverProfile,
+      thisWeekResult,
+      thisMonthResult,
+      totalCompletedCount,
+      completedBookings,
+    ] = await Promise.all([
       getPlatformFeePercent(),
+      prisma.driverProfile.findFirst({
+        where: { userId, status: "APPROVED" },
+        select: { id: true },
+      }),
+      prisma.booking.aggregate({
+        _sum: { driverEarnings: true },
+        where: {
+          status: "COMPLETED",
+          ride: {
+            driverId: userId,
+            departureTime: { gte: startOfWeek },
+          },
+        },
+      }),
+      prisma.booking.aggregate({
+        _sum: { driverEarnings: true },
+        where: {
+          status: "COMPLETED",
+          ride: {
+            driverId: userId,
+            departureTime: { gte: startOfMonth },
+          },
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          status: "COMPLETED",
+          ride: { driverId: userId },
+        },
+      }),
       prisma.booking.findMany({
         where: {
           status: "COMPLETED",
@@ -657,27 +702,30 @@ export async function getEarnings(
             },
           },
         },
-        orderBy: { updatedAt: "desc" },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        skip,
+        take: limit,
       }),
     ]);
 
-    const thisWeek = sumDecimal(
-      completedBookings
-        .filter((booking) => booking.ride.departureTime >= startOfWeek)
-        .map((booking) => booking.driverEarnings),
-    );
-    const thisMonth = sumDecimal(
-      completedBookings
-        .filter((booking) => booking.ride.departureTime >= startOfMonth)
-        .map((booking) => booking.driverEarnings),
-    );
+    if (!approvedDriverProfile) {
+      throw new AppError(
+        "FORBIDDEN",
+        "Only approved drivers can view earnings",
+        403,
+      );
+    }
 
     res.json({
       data: {
         platformFeePercent: platformFeePercent.toString(),
         totals: {
-          thisWeek: thisWeek.toString(),
-          thisMonth: thisMonth.toString(),
+          thisWeek: (
+            thisWeekResult._sum.driverEarnings ?? new Prisma.Decimal(0)
+          ).toString(),
+          thisMonth: (
+            thisMonthResult._sum.driverEarnings ?? new Prisma.Decimal(0)
+          ).toString(),
           currency: "NOK",
         },
         rides: completedBookings.map((booking) => ({
@@ -690,6 +738,12 @@ export async function getEarnings(
           platformFee: booking.platformFee.toString(),
           driverPayout: booking.driverEarnings.toString(),
         })),
+        pagination: {
+          page,
+          limit,
+          total: totalCompletedCount,
+          totalPages: Math.max(1, Math.ceil(totalCompletedCount / limit)),
+        },
       },
     });
   } catch (err) {

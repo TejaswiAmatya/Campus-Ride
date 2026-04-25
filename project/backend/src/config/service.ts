@@ -3,6 +3,16 @@ import { prisma } from "../lib/prisma";
 
 export const PLATFORM_FEE_CONFIG_KEY = "platformFeePercent";
 export const DEFAULT_PLATFORM_FEE_PERCENT = "10";
+export const ALLOWED_EMAIL_DOMAINS_CONFIG_KEY = "allowedEmailDomains";
+export const MAX_SEATS_PER_RIDE_CONFIG_KEY = "maxSeatsPerRide";
+
+export const ALLOWED_CONFIG_KEYS = [
+  PLATFORM_FEE_CONFIG_KEY,
+  ALLOWED_EMAIL_DOMAINS_CONFIG_KEY,
+  MAX_SEATS_PER_RIDE_CONFIG_KEY,
+] as const;
+
+export const PUBLIC_CONFIG_KEYS = [PLATFORM_FEE_CONFIG_KEY] as const;
 
 type ConfigClient = Pick<typeof prisma, "config">;
 
@@ -12,7 +22,7 @@ function normalizePercentageValue(value: string | null | undefined): string {
   }
 
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) {
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
     return DEFAULT_PLATFORM_FEE_PERCENT;
   }
 
@@ -31,7 +41,7 @@ export async function ensureConfigValue(
   });
 }
 
-export async function getConfigMap(client: ConfigClient = prisma) {
+export async function getAdminConfigMap(client: ConfigClient = prisma) {
   await ensureConfigValue(
     PLATFORM_FEE_CONFIG_KEY,
     DEFAULT_PLATFORM_FEE_PERCENT,
@@ -43,6 +53,16 @@ export async function getConfigMap(client: ConfigClient = prisma) {
   });
 
   return Object.fromEntries(configs.map((config) => [config.key, config.value]));
+}
+
+export async function getPublicConfigMap(client: ConfigClient = prisma) {
+  const config = await getAdminConfigMap(client);
+
+  return Object.fromEntries(
+    PUBLIC_CONFIG_KEYS.map((key) => [key, config[key]]).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
 }
 
 export async function upsertConfigValue(

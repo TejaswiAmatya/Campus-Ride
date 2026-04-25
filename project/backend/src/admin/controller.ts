@@ -10,7 +10,12 @@ import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { createSignedLicenseUrl } from "../lib/supabase";
 import { validateReportTarget } from "../reports/validation";
-import { getConfigMap, upsertConfigValue } from "../config/service";
+import {
+  getAdminConfigMap,
+  getPublicConfigMap,
+  upsertConfigValue,
+} from "../config/service";
+import { getStartOfWeek } from "../lib/date";
 
 type VehicleInfo = {
   make: string;
@@ -41,9 +46,7 @@ export async function getStats(
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
 
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfWeek = getStartOfWeek(now);
 
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -276,7 +279,20 @@ export async function getConfig(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const config = await getConfigMap();
+    const config = await getPublicConfigMap();
+    res.json({ data: config });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAdminConfig(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const config = await getAdminConfigMap();
     res.json({ data: config });
   } catch (err) {
     next(err);

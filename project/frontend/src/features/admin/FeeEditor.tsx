@@ -45,6 +45,7 @@ export function FeeEditor({
             type="number"
             min="0"
             step="0.1"
+            inputMode="decimal"
             value={value}
             onChange={(event) => onChange(event.target.value)}
             placeholder="10"
