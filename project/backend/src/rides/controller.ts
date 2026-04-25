@@ -334,6 +334,14 @@ export async function getMyRides(
                 avatarPath: true,
               },
             },
+            review: {
+              select: {
+                id: true,
+                rating: true,
+                comment: true,
+                createdAt: true,
+              },
+            },
           },
           orderBy: { createdAt: "desc" },
         },
@@ -474,19 +482,35 @@ export async function updateRideStatus(
       );
     }
 
-    const updatedRide = await prisma.ride.update({
-      where: { id },
-      data: { status: mapRequestedRideStatus(body.status) },
-      include: {
-        driver: {
-          select: {
-            id: true,
-            name: true,
-            avatarPath: true,
-            driverProfile: { select: { vehicleInfo: true } },
+    const updatedRide = await prisma.$transaction(async (tx) => {
+      const nextStatus = mapRequestedRideStatus(body.status);
+
+      if (body.status === "COMPLETED") {
+        await tx.booking.updateMany({
+          where: {
+            rideId: id,
+            status: "CONFIRMED",
+          },
+          data: {
+            status: "COMPLETED",
+          },
+        });
+      }
+
+      return tx.ride.update({
+        where: { id },
+        data: { status: nextStatus },
+        include: {
+          driver: {
+            select: {
+              id: true,
+              name: true,
+              avatarPath: true,
+              driverProfile: { select: { vehicleInfo: true } },
+            },
           },
         },
-      },
+      });
     });
 
     if (body.status === "ACTIVE") {
@@ -503,6 +527,14 @@ export async function updateRideStatus(
         rideId: id,
         bookingId: "",
         status: "in_progress",
+      });
+    }
+
+    if (body.status === "COMPLETED") {
+      await notify.rideStatus(id, {
+        rideId: id,
+        bookingId: "",
+        status: "finished",
       });
     }
 

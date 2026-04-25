@@ -10,6 +10,9 @@ import {
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
+import { notify } from "../lib/notify";
+
+const PLATFORM_FEE_PERCENT = 0.1;
 import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
 import { getStartOfWeek } from "../lib/date";
 import { payments } from "../payments/service";
@@ -34,12 +37,30 @@ function sumDecimal(
   );
 }
 
-function serializeBookingList(b: any) {
+function getStartOfWeek(date: Date): Date {
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = (day + 6) % 7;
+  start.setDate(start.getDate() - diff);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function serializeBookingList(
+  b: Prisma.BookingGetPayload<{
+    include: {
+      ride: { include: { driver: { select: { id: true; name: true } } } };
+      passenger: { select: { id: true; name: true } };
+      review: { select: { id: true; rating: true; comment: true; createdAt: true } };
+    };
+  }>,
+) {
   return {
     id: b.id,
     status: b.status,
     seatsBooked: b.seatsBooked,
     totalFare: b.totalFare.toString(),
+    driverEarnings: b.driverEarnings.toString(),
     refundedAmount: b.refundedAmount.toString(),
     paymentStatus: b.paymentStatus,
     paidAt: b.paidAt?.toISOString() ?? null,
@@ -63,18 +84,49 @@ function serializeBookingList(b: any) {
       : null,
     messageToDriver: b.messageToDriver ?? null,
     createdAt: b.createdAt.toISOString(),
+    updatedAt: b.updatedAt.toISOString(),
     passenger: b.passenger,
+    review: b.review
+      ? {
+          id: b.review.id,
+          rating: b.review.rating,
+          comment: b.review.comment,
+          createdAt: b.review.createdAt.toISOString(),
+        }
+      : null,
     ride: {
       id: b.ride.id,
       originAddress: b.ride.originAddress,
       destinationAddress: b.ride.destinationAddress,
       departureTime: b.ride.departureTime.toISOString(),
+      status: b.ride.status,
       driver: { id: b.ride.driver.id, name: b.ride.driver.name },
     },
   };
 }
 
-function serializeBookingDetail(b: any) {
+function serializeBookingDetail(
+  b: Prisma.BookingGetPayload<{
+    include: {
+      ride: {
+        include: {
+          driver: { select: { id: true; name: true; avatarPath: true } };
+        };
+      };
+      passenger: { select: { id: true; name: true; avatarPath: true } };
+      review: {
+        select: {
+          id: true;
+          rating: true;
+          comment: true;
+          createdAt: true;
+          reviewerId: true;
+          revieweeId: true;
+        };
+      };
+    };
+  }>,
+) {
   return {
     id: b.id,
     status: b.status,
@@ -112,6 +164,16 @@ function serializeBookingDetail(b: any) {
       name: b.passenger.name,
       avatarUrl: b.passenger.avatarPath ?? null,
     },
+    review: b.review
+      ? {
+          id: b.review.id,
+          rating: b.review.rating,
+          comment: b.review.comment,
+          createdAt: b.review.createdAt.toISOString(),
+          reviewerId: b.review.reviewerId,
+          revieweeId: b.review.revieweeId,
+        }
+      : null,
     ride: {
       id: b.ride.id,
       originAddress: b.ride.originAddress,
@@ -321,6 +383,9 @@ export async function createBooking(
                   include: { driver: { select: { id: true, name: true } } },
                 },
                 passenger: { select: { id: true, name: true } },
+                review: {
+                  select: { id: true, rating: true, comment: true, createdAt: true },
+                },
               },
             });
 
@@ -404,6 +469,9 @@ export async function listBookings(
         include: {
           passenger: { select: { id: true, name: true } },
           ride: { include: { driver: { select: { id: true, name: true } } } },
+          review: {
+            select: { id: true, rating: true, comment: true, createdAt: true },
+          },
         },
         orderBy: { createdAt: "desc" },
       });
@@ -424,6 +492,9 @@ export async function listBookings(
       include: {
         passenger: { select: { id: true, name: true } },
         ride: { include: { driver: { select: { id: true, name: true } } } },
+        review: {
+          select: { id: true, rating: true, comment: true, createdAt: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -457,6 +528,16 @@ export async function getBooking(
           },
         },
         passenger: { select: { id: true, name: true, avatarPath: true } },
+        review: {
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+            reviewerId: true,
+            revieweeId: true,
+          },
+        },
       },
     });
 
@@ -496,6 +577,7 @@ export async function confirmBooking(
       include: {
         ride: { include: { driver: { select: { id: true; name: true } } } };
         passenger: { select: { id: true; name: true } };
+        review: { select: { id: true; rating: true; comment: true; createdAt: true } };
       };
     }> | null = null;
 
@@ -539,6 +621,9 @@ export async function confirmBooking(
                   include: { driver: { select: { id: true, name: true } } },
                 },
                 passenger: { select: { id: true, name: true } },
+                review: {
+                  select: { id: true, rating: true, comment: true, createdAt: true },
+                },
               },
             });
 
@@ -562,6 +647,11 @@ export async function confirmBooking(
       throw new AppError("INTERNAL_ERROR", "Booking confirmation failed", 500);
     }
 
+    await notify.bookingStatus(updated.passenger.id, {
+      bookingId: updated.id,
+      status: "confirmed",
+      updatedAt: new Date().toISOString(),
+    });
     try {
       await emailQueue.bookingConfirmed(updated.id);
     } catch (queueErr) {
@@ -642,7 +732,16 @@ export async function declineBooking(
       include: {
         ride: { include: { driver: { select: { id: true, name: true } } } },
         passenger: { select: { id: true, name: true } },
+        review: {
+          select: { id: true, rating: true, comment: true, createdAt: true },
+        },
       },
+    });
+
+    await notify.bookingStatus(updated.passenger.id, {
+      bookingId: updated.id,
+      status: "cancelled",
+      updatedAt: new Date().toISOString(),
     });
 
     res.json({ data: serializeBookingList(updated) });
@@ -742,6 +841,9 @@ export async function cancelBooking(
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
           passenger: { select: { id: true, name: true } },
+          review: {
+            select: { id: true, rating: true, comment: true, createdAt: true },
+          },
         },
       });
 
@@ -760,6 +862,13 @@ export async function cancelBooking(
       });
     }
 
+    await notify.bookingStatus(updated.passenger.id, {
+      bookingId: updated.id,
+      status: "cancelled",
+      updatedAt: new Date().toISOString(),
+    });
+
+    res.json({ data: serializeBookingList(updated) });
     res.json({
       data: {
         ...serializeBookingList(updated.booking),
@@ -1166,8 +1275,17 @@ export async function completeBooking(
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
           passenger: { select: { id: true, name: true } },
+          review: {
+            select: { id: true, rating: true, comment: true, createdAt: true },
+          },
         },
       });
+    });
+
+    await notify.bookingStatus(updated.passenger.id, {
+      bookingId: updated.id,
+      status: "completed",
+      updatedAt: new Date().toISOString(),
     });
 
     res.json({ data: serializeBookingList(updated) });
@@ -1187,9 +1305,77 @@ export async function createReview(
   try {
     const body = CreateReviewSchema.parse(req.body);
     const { id } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+    if (body.bookingId !== id) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Booking id in payload must match the route parameter",
+        422,
+      );
+    }
 
-    void body;
-    res.status(201).json({ message: "TODO: create review", bookingId: id });
+    const review = await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id },
+        include: {
+          ride: { select: { driverId: true } },
+          review: true,
+        },
+      });
+
+      if (!booking) {
+        throw new AppError("NOT_FOUND", "Booking not found", 404);
+      }
+      if (booking.status !== "COMPLETED") {
+        throw new AppError(
+          "INVALID_STATE",
+          "A review can only be left after the ride is completed",
+          409,
+        );
+      }
+      if (booking.review) {
+        throw new AppError(
+          "INVALID_STATE",
+          "A review has already been submitted for this booking",
+          409,
+        );
+      }
+
+      const isDriver = booking.ride.driverId === userId;
+      const isPassenger = booking.passengerId === userId;
+      if (!isDriver && !isPassenger) {
+        throw new AppError(
+          "FORBIDDEN",
+          "Only the driver or passenger from this booking can leave a review",
+          403,
+        );
+      }
+
+      return tx.review.create({
+        data: {
+          bookingId: booking.id,
+          reviewerId: userId,
+          revieweeId: isDriver ? booking.passengerId : booking.ride.driverId,
+          rating: body.rating,
+          comment: body.comment,
+        },
+      });
+    });
+
+    res.status(201).json({
+      data: {
+        id: review.id,
+        bookingId: review.bookingId,
+        rating: review.rating,
+        comment: review.comment,
+        reviewerId: review.reviewerId,
+        revieweeId: review.revieweeId,
+        createdAt: review.createdAt.toISOString(),
+      },
+    });
   } catch (err) {
     next(err);
   }
