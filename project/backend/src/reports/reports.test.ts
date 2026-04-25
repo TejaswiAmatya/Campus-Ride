@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextFunction, Request, Response } from "express";
-import { Prisma, RideStatus, Role, type Report, type Ride, type User } from "@prisma/client";
+import {
+  Prisma,
+  RideStatus,
+  Role,
+  type Report,
+  type Ride,
+  type User,
+} from "@prisma/client";
 
 import { createReport } from "./controller";
 import { prisma } from "../lib/prisma";
@@ -38,6 +45,8 @@ describe("createReport", () => {
     name: "Driver Demo",
     phone: null,
     role: Role.DRIVER,
+    accountStatus: "ACTIVE",
+    suspendedUntil: null,
     avatarPath: null,
     createdAt: new Date("2024-01-01T10:00:00.000Z"),
     updatedAt: new Date("2024-01-01T10:00:00.000Z"),
@@ -57,6 +66,15 @@ describe("createReport", () => {
     totalSeats: 4,
     availableSeats: 2,
     pricePerSeat: new Prisma.Decimal("25.00"),
+    detourFlexibilityKm: 0,
+    preferences: [],
+    routePolyline: null,
+    routeDistanceKm: null,
+    routeDurationMinutes: null,
+    rideSeriesId: null,
+    recurrencePattern: "NONE",
+    recurrenceDays: [],
+    recurrenceInstanceAt: null,
     status: RideStatus.OPEN,
     createdAt: new Date("2024-01-01T10:00:00.000Z"),
     updatedAt: new Date("2024-01-01T10:00:00.000Z"),

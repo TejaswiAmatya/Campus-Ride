@@ -1,6 +1,7 @@
 import { AdminDashboard } from "./AdminDashboard";
 import { DriverApprovalPage } from "./DriverApprovalPage";
 import { ReportsPage } from "./ReportsPage";
+import { SettingsPage } from "./SettingsPage";
 import type { AppRoute } from "@/routes/types";
 
 export const adminRoutes: AppRoute[] = [
@@ -19,6 +20,12 @@ export const adminRoutes: AppRoute[] = [
   {
     path: "/admin/reports",
     element: <ReportsPage />,
+    requiresAuth: true,
+    requiredRole: "ADMIN",
+  },
+  {
+    path: "/admin/settings",
+    element: <SettingsPage />,
     requiresAuth: true,
     requiredRole: "ADMIN",
   },

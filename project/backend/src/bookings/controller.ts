@@ -1,12 +1,22 @@
 import type { Request, Response, NextFunction } from "express";
-import { BookingStatus, Prisma } from "@prisma/client";
-import { CreateBookingSchema, CreateReviewSchema } from "./schemas";
+import { Prisma } from "@prisma/client";
+import {
+  CancelBookingSchema,
+  CreateBookingSchema,
+  CreateReviewSchema,
+  ListBookingsSchema,
+  UpdateBookingCheckpointSchema,
+} from "./schemas";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { notify } from "../lib/notify";
 
 const PLATFORM_FEE_PERCENT = 0.1;
+import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
+import { getStartOfWeek } from "../lib/date";
+import { payments } from "../payments/service";
+import { randomUUID } from "crypto";
 
 function isSerializationFailure(err: unknown): boolean {
   return (
@@ -51,6 +61,28 @@ function serializeBookingList(
     seatsBooked: b.seatsBooked,
     totalFare: b.totalFare.toString(),
     driverEarnings: b.driverEarnings.toString(),
+    refundedAmount: b.refundedAmount.toString(),
+    paymentStatus: b.paymentStatus,
+    paidAt: b.paidAt?.toISOString() ?? null,
+    refundedAt: b.refundedAt?.toISOString() ?? null,
+    cancelledAt: b.cancelledAt?.toISOString() ?? null,
+    pickedUpAt: b.pickedUpAt?.toISOString() ?? null,
+    noShowMarkedAt: b.noShowMarkedAt?.toISOString() ?? null,
+    pickup: b.pickupAddress
+      ? {
+          address: b.pickupAddress,
+          lat: b.pickupLat,
+          lng: b.pickupLng,
+        }
+      : null,
+    dropoff: b.dropoffAddress
+      ? {
+          address: b.dropoffAddress,
+          lat: b.dropoffLat,
+          lng: b.dropoffLng,
+        }
+      : null,
+    messageToDriver: b.messageToDriver ?? null,
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
     passenger: b.passenger,
@@ -102,7 +134,29 @@ function serializeBookingDetail(
     totalFare: b.totalFare.toString(),
     platformFee: b.platformFee.toString(),
     driverEarnings: b.driverEarnings.toString(),
+    refundedAmount: b.refundedAmount.toString(),
     paymentStatus: b.paymentStatus,
+    paidAt: b.paidAt?.toISOString() ?? null,
+    refundedAt: b.refundedAt?.toISOString() ?? null,
+    cancelledAt: b.cancelledAt?.toISOString() ?? null,
+    checkedInAt: b.checkedInAt?.toISOString() ?? null,
+    pickedUpAt: b.pickedUpAt?.toISOString() ?? null,
+    noShowMarkedAt: b.noShowMarkedAt?.toISOString() ?? null,
+    pickup: b.pickupAddress
+      ? {
+          address: b.pickupAddress,
+          lat: b.pickupLat,
+          lng: b.pickupLng,
+        }
+      : null,
+    dropoff: b.dropoffAddress
+      ? {
+          address: b.dropoffAddress,
+          lat: b.dropoffLat,
+          lng: b.dropoffLng,
+        }
+      : null,
+    messageToDriver: b.messageToDriver ?? null,
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
     passenger: {
@@ -142,6 +196,68 @@ function serializeBookingDetail(
   };
 }
 
+function buildPaymentSnapshot(
+  booking: {
+    totalFare: Prisma.Decimal | string | number;
+    refundedAmount?: Prisma.Decimal | string | number | null;
+    paymentStatus: string;
+    paidAt?: Date | null;
+    refundedAt?: Date | null;
+  },
+) {
+  const totalFare = new Prisma.Decimal(booking.totalFare?.toString() ?? "0");
+  const refundedAmount = new Prisma.Decimal(
+    booking.refundedAmount?.toString() ?? "0",
+  );
+
+  return {
+    payment: {
+      status: booking.paymentStatus,
+      paidAt: booking.paidAt?.toISOString() ?? null,
+      refundedAt: booking.refundedAt?.toISOString() ?? null,
+    },
+    refund: {
+      amount: refundedAmount.toString(),
+      remainingCharged: totalFare.sub(refundedAmount).toString(),
+    },
+  };
+}
+
+function getCancellationRefundResult(
+  departureTime: Date,
+  totalFare: Prisma.Decimal,
+): {
+  refundAmount: Prisma.Decimal;
+  paymentStatus: string;
+  policyWindow: "FREE" | "PARTIAL" | "NO_REFUND";
+} {
+  const now = new Date();
+  const millisecondsUntilDeparture = departureTime.getTime() - now.getTime();
+  const twoHoursInMs = 2 * 60 * 60 * 1000;
+
+  if (millisecondsUntilDeparture > twoHoursInMs) {
+    return {
+      refundAmount: totalFare,
+      paymentStatus: "REFUNDED",
+      policyWindow: "FREE",
+    };
+  }
+
+  if (millisecondsUntilDeparture > 0) {
+    return {
+      refundAmount: totalFare.mul(0.5),
+      paymentStatus: "PARTIALLY_REFUNDED",
+      policyWindow: "PARTIAL",
+    };
+  }
+
+  return {
+    refundAmount: new Prisma.Decimal(0),
+    paymentStatus: "PAID",
+    policyWindow: "NO_REFUND",
+  };
+}
+
 /**
  * POST /api/bookings
  *
@@ -160,6 +276,7 @@ export async function createBooking(
     }
 
     const maxAttempts = 5;
+    const bookingId = randomUUID();
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -173,6 +290,12 @@ export async function createBooking(
                 status: true,
                 availableSeats: true,
                 pricePerSeat: true,
+                originAddress: true,
+                originLat: true,
+                originLng: true,
+                destinationAddress: true,
+                destinationLat: true,
+                destinationLng: true,
               },
             });
 
@@ -205,21 +328,56 @@ export async function createBooking(
               ride.pricePerSeat.toString(),
             );
             const totalFare = pricePerSeat.mul(body.seatsBooked);
-            const platformFee = totalFare.mul(
-              new Prisma.Decimal(PLATFORM_FEE_PERCENT.toString()),
-            );
+            const platformFeeRate = await getPlatformFeeRate(tx);
+            const platformFee = totalFare.mul(platformFeeRate);
             const driverEarnings = totalFare.sub(platformFee);
+            const pickup = body.pickup ?? {
+              address: ride.originAddress,
+              lat: ride.originLat,
+              lng: ride.originLng,
+            };
+            const dropoff = body.dropoff ?? {
+              address: ride.destinationAddress,
+              lat: ride.destinationLat,
+              lng: ride.destinationLng,
+            };
+            const paymentCapture = await payments.capture({
+              amount: totalFare,
+              currency: "NOK",
+              bookingId,
+              rideId: ride.id,
+              passengerId,
+            });
+
+            if (paymentCapture.status !== "PAID") {
+              throw new AppError(
+                "PAYMENT_CAPTURE_FAILED",
+                "Could not capture payment for this booking",
+                402,
+              );
+            }
 
             const created = await tx.booking.create({
               data: {
+                id: bookingId,
                 rideId: ride.id,
                 passengerId,
                 seatsBooked: body.seatsBooked,
+                pickupAddress: pickup.address,
+                pickupLat: pickup.lat,
+                pickupLng: pickup.lng,
+                dropoffAddress: dropoff.address,
+                dropoffLat: dropoff.lat,
+                dropoffLng: dropoff.lng,
+                messageToDriver: body.messageToDriver,
                 totalFare,
                 platformFee,
                 driverEarnings,
                 status: "PENDING",
-              },
+                stripePaymentIntentId: paymentCapture.providerPaymentId,
+                paymentStatus: paymentCapture.status,
+                paidAt: paymentCapture.paidAt,
+              } as any,
               include: {
                 ride: {
                   include: { driver: { select: { id: true, name: true } } },
@@ -245,7 +403,12 @@ export async function createBooking(
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
 
-        res.status(201).json({ data: serializeBookingList(booking) });
+        res.status(201).json({
+          data: {
+            ...serializeBookingList(booking),
+            ...buildPaymentSnapshot(booking),
+          },
+        });
         return;
       } catch (err) {
         if (isSerializationFailure(err)) {
@@ -287,32 +450,20 @@ export async function listBookings(
       throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
     }
 
-    const asDriver = req.query.asDriver === 'true'
-    const rawStatus = req.query.status
-    const statusValue = Array.isArray(rawStatus) ? undefined : rawStatus
-    const allowedStatuses: ReadonlyArray<BookingStatus> = [
-      'PENDING',
-      'CONFIRMED',
-      'CANCELLED',
-      'COMPLETED',
-    ]
-    const statusFilter =
-      typeof statusValue === 'string' && allowedStatuses.includes(statusValue as BookingStatus)
-        ? (statusValue as BookingStatus)
-        : undefined
-
-    if (rawStatus !== undefined && !statusFilter) {
-      throw new AppError(
-        "VALIDATION_ERROR",
-        `status must be one of: ${allowedStatuses.join(", ")}`,
-        422,
-      );
-    }
+    const query = ListBookingsSchema.parse(req.query);
+    const asDriver = query.asDriver;
+    const statusFilter = query.status;
+    const now = new Date();
 
     if (asDriver) {
       const bookings = await prisma.booking.findMany({
         where: {
-          ride: { driverId: userId },
+          ride: {
+            driverId: userId,
+            ...(query.upcoming && {
+              departureTime: { gte: now },
+            }),
+          },
           ...(statusFilter && { status: statusFilter }),
         },
         include: {
@@ -332,6 +483,11 @@ export async function listBookings(
       where: {
         passengerId: userId,
         ...(statusFilter && { status: statusFilter }),
+        ...(query.upcoming && {
+          ride: {
+            departureTime: { gte: now },
+          },
+        }),
       },
       include: {
         passenger: { select: { id: true, name: true } },
@@ -474,7 +630,6 @@ export async function confirmBooking(
             if (!confirmedBooking) {
               throw new AppError("NOT_FOUND", "Booking not found", 404);
             }
-
             return confirmedBooking;
           },
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -497,6 +652,14 @@ export async function confirmBooking(
       status: "confirmed",
       updatedAt: new Date().toISOString(),
     });
+    try {
+      await emailQueue.bookingConfirmed(updated.id);
+    } catch (queueErr) {
+      console.error("[bookings/confirm] bookingConfirmed queue failed", {
+        bookingId: updated.id,
+        error: queueErr,
+      });
+    }
 
     res.json({ data: serializeBookingList(updated) });
   } catch (err) {
@@ -605,20 +768,22 @@ export async function cancelBooking(
       throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
     }
 
+    const body = CancelBookingSchema.parse(req.body);
     const updated = await prisma.$transaction(async (tx) => {
-      const booking = await tx.booking.findUnique({
+      const booking = (await tx.booking.findUnique({
         where: { id },
         include: {
           ride: {
             select: {
               id: true,
+              departureTime: true,
               availableSeats: true,
               totalSeats: true,
               status: true,
             },
           },
         },
-      });
+      })) as any;
 
       if (!booking) {
         throw new AppError("NOT_FOUND", "Booking not found", 404);
@@ -638,10 +803,23 @@ export async function cancelBooking(
         );
       }
 
+      const refundResult = getCancellationRefundResult(
+        booking.ride.departureTime,
+        new Prisma.Decimal(booking.totalFare.toString()),
+      );
+
       // Update booking status to CANCELLED
       await tx.booking.update({
         where: { id },
-        data: { status: "CANCELLED" },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          refundedAmount: refundResult.refundAmount,
+          refundedAt:
+            refundResult.refundAmount.gt(0) ? new Date() : booking.refundedAt,
+          paymentStatus: refundResult.paymentStatus,
+          messageToDriver: body.reason ?? booking.messageToDriver,
+        } as any,
       });
 
       // Restore seats (PENDING and CONFIRMED bookings hold seats)
@@ -658,7 +836,7 @@ export async function cancelBooking(
             newAvailable > 0 && ride.status === "FULL" ? "OPEN" : ride.status,
         },
       });
-      return tx.booking.findUniqueOrThrow({
+      const updatedBooking = await tx.booking.findUniqueOrThrow({
         where: { id },
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
@@ -668,13 +846,18 @@ export async function cancelBooking(
           },
         },
       });
+
+      return {
+        booking: updatedBooking,
+        refundPolicy: refundResult.policyWindow,
+      };
     });
 
     try {
-      await emailQueue.bookingCancelled(updated.id);
+      await emailQueue.bookingCancelled(updated.booking.id);
     } catch (queueErr) {
       console.error("[bookings/cancel] bookingCancelled queue failed", {
-        bookingId: updated.id,
+        bookingId: updated.booking.id,
         error: queueErr,
       });
     }
@@ -686,6 +869,192 @@ export async function cancelBooking(
     });
 
     res.json({ data: serializeBookingList(updated) });
+    res.json({
+      data: {
+        ...serializeBookingList(updated.booking),
+        ...buildPaymentSnapshot(updated.booking),
+        cancellation: {
+          policyApplied: updated.refundPolicy,
+          cutoffHours: 2,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/bookings/:id/picked-up
+ *
+ * Driver marks a confirmed passenger as picked up after the ride has started.
+ */
+export async function markBookingPickedUp(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    UpdateBookingCheckpointSchema.parse(req.body);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const booking = (await tx.booking.findUnique({
+        where: { id },
+        include: {
+          ride: { select: { driverId: true, status: true } },
+        },
+      })) as any;
+
+      if (!booking) {
+        throw new AppError("NOT_FOUND", "Booking not found", 404);
+      }
+      if (booking.ride.driverId !== userId) {
+        throw new AppError(
+          "FORBIDDEN",
+          "Only the driver can mark passengers as picked up",
+          403,
+        );
+      }
+      if (booking.status !== "CONFIRMED") {
+        throw new AppError(
+          "INVALID_STATE",
+          "Only confirmed bookings can be marked as picked up",
+          409,
+        );
+      }
+
+      await tx.booking.update({
+        where: { id },
+        data: {
+          checkedInAt: booking.checkedInAt ?? new Date(),
+          pickedUpAt: new Date(),
+        } as any,
+      });
+
+      return tx.booking.findUniqueOrThrow({
+        where: { id },
+        include: {
+          ride: { include: { driver: { select: { id: true, name: true } } } },
+          passenger: { select: { id: true, name: true } },
+        },
+      });
+    });
+
+    res.json({
+      data: {
+        ...serializeBookingList(updated),
+        ...buildPaymentSnapshot(updated),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/bookings/:id/no-show
+ *
+ * Driver marks a passenger as a no-show. Refund remains zero by default.
+ */
+export async function markBookingNoShow(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    UpdateBookingCheckpointSchema.parse(req.body);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const booking = (await tx.booking.findUnique({
+        where: { id },
+        include: {
+          ride: {
+            select: {
+              id: true,
+              driverId: true,
+              availableSeats: true,
+              totalSeats: true,
+              status: true,
+            },
+          },
+        },
+      })) as any;
+
+      if (!booking) {
+        throw new AppError("NOT_FOUND", "Booking not found", 404);
+      }
+      if (booking.ride.driverId !== userId) {
+        throw new AppError(
+          "FORBIDDEN",
+          "Only the driver can mark a passenger as a no-show",
+          403,
+        );
+      }
+      if (booking.status !== "CONFIRMED") {
+        throw new AppError(
+          "INVALID_STATE",
+          "Only confirmed bookings can be marked as a no-show",
+          409,
+        );
+      }
+
+      await tx.booking.update({
+        where: { id },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          noShowMarkedAt: new Date(),
+          refundedAmount: new Prisma.Decimal(0),
+          paymentStatus: "PAID",
+        } as any,
+      });
+
+      const newAvailable = Math.min(
+        booking.ride.availableSeats + booking.seatsBooked,
+        booking.ride.totalSeats,
+      );
+      await tx.ride.update({
+        where: { id: booking.ride.id },
+        data: {
+          availableSeats: newAvailable,
+          status:
+            newAvailable > 0 && booking.ride.status === "FULL"
+              ? "OPEN"
+              : booking.ride.status,
+        },
+      });
+
+      return tx.booking.findUniqueOrThrow({
+        where: { id },
+        include: {
+          ride: { include: { driver: { select: { id: true, name: true } } } },
+          passenger: { select: { id: true, name: true } },
+        },
+      });
+    });
+
+    res.json({
+      data: {
+        ...serializeBookingList(updated),
+        ...buildPaymentSnapshot(updated),
+        cancellation: {
+          policyApplied: "NO_REFUND",
+          cutoffHours: 2,
+        },
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -700,7 +1069,142 @@ export async function getEarnings(
   next: NextFunction,
 ): Promise<void> {
   try {
-    res.json({ message: "TODO: get earnings", driverId: req.user?.id });
+    const userId = req.user?.id;
+    const role = req.user?.role;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+    if (role !== "DRIVER") {
+      throw new AppError(
+        "FORBIDDEN",
+        "Only approved drivers can view earnings",
+        403,
+      );
+    }
+
+    const rawPage = Array.isArray(req.query.page)
+      ? req.query.page[0]
+      : req.query.page;
+    const rawLimit = Array.isArray(req.query.limit)
+      ? req.query.limit[0]
+      : req.query.limit;
+    const parsedPage = Number(rawPage);
+    const parsedLimit = Number(rawLimit);
+    const page =
+      Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const limit =
+      Number.isInteger(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, 100)
+        : 20;
+    const skip = (page - 1) * limit;
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const startOfWeek = getStartOfWeek(new Date());
+
+    const [
+      platformFeePercent,
+      approvedDriverProfile,
+      thisWeekResult,
+      thisMonthResult,
+      totalCompletedCount,
+      completedBookings,
+    ] = await Promise.all([
+      getPlatformFeePercent(),
+      prisma.driverProfile.findFirst({
+        where: { userId, status: "APPROVED" },
+        select: { id: true },
+      }),
+      prisma.booking.aggregate({
+        _sum: { driverEarnings: true },
+        where: {
+          status: "COMPLETED",
+          ride: {
+            driverId: userId,
+            departureTime: { gte: startOfWeek },
+          },
+        },
+      }),
+      prisma.booking.aggregate({
+        _sum: { driverEarnings: true },
+        where: {
+          status: "COMPLETED",
+          ride: {
+            driverId: userId,
+            departureTime: { gte: startOfMonth },
+          },
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          status: "COMPLETED",
+          ride: { driverId: userId },
+        },
+      }),
+      prisma.booking.findMany({
+        where: {
+          status: "COMPLETED",
+          ride: { driverId: userId },
+        },
+        select: {
+          id: true,
+          totalFare: true,
+          platformFee: true,
+          driverEarnings: true,
+          ride: {
+            select: {
+              id: true,
+              departureTime: true,
+              originAddress: true,
+              destinationAddress: true,
+            },
+          },
+        },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    if (!approvedDriverProfile) {
+      throw new AppError(
+        "FORBIDDEN",
+        "Only approved drivers can view earnings",
+        403,
+      );
+    }
+
+    res.json({
+      data: {
+        platformFeePercent: platformFeePercent.toString(),
+        totals: {
+          thisWeek: (
+            thisWeekResult._sum.driverEarnings ?? new Prisma.Decimal(0)
+          ).toString(),
+          thisMonth: (
+            thisMonthResult._sum.driverEarnings ?? new Prisma.Decimal(0)
+          ).toString(),
+          currency: "NOK",
+        },
+        rides: completedBookings.map((booking) => ({
+          bookingId: booking.id,
+          rideId: booking.ride.id,
+          rideDate: booking.ride.departureTime.toISOString(),
+          originAddress: booking.ride.originAddress,
+          destinationAddress: booking.ride.destinationAddress,
+          totalPrice: booking.totalFare.toString(),
+          platformFee: booking.platformFee.toString(),
+          driverPayout: booking.driverEarnings.toString(),
+        })),
+        pagination: {
+          page,
+          limit,
+          total: totalCompletedCount,
+          totalPages: Math.max(1, Math.ceil(totalCompletedCount / limit)),
+        },
+      },
+    });
   } catch (err) {
     next(err);
   }

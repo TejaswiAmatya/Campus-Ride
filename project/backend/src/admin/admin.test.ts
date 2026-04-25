@@ -55,9 +55,42 @@ describe("UpdateConfigSchema", () => {
         .success,
     ).toBe(false);
   });
+
+  it("rejects a non-numeric platform fee percentage", () => {
+    expect(
+      UpdateConfigSchema.safeParse({
+        key: "platformFeePercent",
+        value: "ten",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a platform fee percentage above 100", () => {
+    expect(
+      UpdateConfigSchema.safeParse({
+        key: "platformFeePercent",
+        value: "150",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects unknown config keys", () => {
+    expect(
+      UpdateConfigSchema.safeParse({
+        key: "secretInternalFlag",
+        value: "enabled",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("ResolveReportSchema", () => {
+  it("accepts OPEN", () => {
+    expect(ResolveReportSchema.safeParse({ resolution: "OPEN" }).success).toBe(
+      true,
+    );
+  });
+
   it("accepts RESOLVED", () => {
     expect(
       ResolveReportSchema.safeParse({ resolution: "RESOLVED" }).success,

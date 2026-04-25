@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import {
+  CreateModerationActionSchema,
   DriverDecisionSchema,
   UpdateConfigSchema,
   ResolveReportSchema,
@@ -10,6 +11,12 @@ import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { createSignedLicenseUrl } from "../lib/supabase";
 import { validateReportTarget } from "../reports/validation";
+import {
+  getAdminConfigMap,
+  getPublicConfigMap,
+  upsertConfigValue,
+} from "../config/service";
+import { getStartOfWeek } from "../lib/date";
 
 type VehicleInfo = {
   make: string;
@@ -17,6 +24,8 @@ type VehicleInfo = {
   year: number;
   plateNumber: string;
 };
+
+const prismaUntyped = prisma as any;
 
 /**
  * GET /api/admin/stats
@@ -40,9 +49,7 @@ export async function getStats(
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
 
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfWeek = getStartOfWeek(now);
 
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -183,6 +190,29 @@ export async function driverDecision(
       return { profile, user };
     });
 
+    try {
+      if (body.approved) {
+        await emailQueue.driverApproved(
+          updatedDriver.user.id,
+          updatedDriver.user.email,
+          updatedDriver.user.name,
+        );
+      } else {
+        await emailQueue.driverRejected(
+          updatedDriver.user.id,
+          updatedDriver.user.email,
+          updatedDriver.user.name,
+          body.reason,
+        );
+      }
+    } catch (queueErr) {
+      console.error("[admin/driverDecision] driver decision queue failed", {
+        driverId: updatedDriver.user.id,
+        approved: body.approved,
+        error: queueErr,
+      });
+    }
+
     res.json({
       data: {
         id: updatedDriver.user.id,
@@ -239,6 +269,92 @@ export async function listReports(
 }
 
 /**
+ * GET /api/admin/reports/:id
+ *
+ * Returns one report plus lightweight target history needed by other tracks.
+ */
+export async function getReportDetail(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    const report = await prismaUntyped.report.findUnique({
+      where: { id },
+      include: {
+        reporter: { select: { id: true, name: true, email: true } },
+        moderationActions: {
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    if (!report) {
+      throw new AppError("NOT_FOUND", "Report not found", 404);
+    }
+
+    const [targetUser, targetUserReviews, targetRide] = await Promise.all([
+      prismaUntyped.user.findUnique({
+        where: { id: report.targetUserId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          accountStatus: true,
+          suspendedUntil: true,
+          createdAt: true,
+        },
+      }),
+      prisma.review.findMany({
+        where: { revieweeId: report.targetUserId },
+        select: { rating: true },
+      }),
+      prisma.ride.findUnique({
+        where: { id: report.targetRideId },
+        select: {
+          id: true,
+          departureTime: true,
+          originAddress: true,
+          destinationAddress: true,
+          status: true,
+        },
+      }),
+    ]);
+
+    const averageRating =
+      targetUserReviews.length > 0
+        ? targetUserReviews.reduce((sum, review) => sum + review.rating, 0) /
+          targetUserReviews.length
+        : null;
+
+    res.json({
+      data: {
+        id: report.id,
+        reporter: report.reporter,
+        targetUser,
+        targetRide,
+        targetUserRole: report.targetUserRole,
+        reason: report.reason,
+        status: report.status,
+        note: report.note,
+        createdAt: report.createdAt,
+        updatedAt: report.updatedAt,
+        targetUserRatings: {
+          average: averageRating,
+          count: targetUserReviews.length,
+        },
+        moderationActions: report.moderationActions,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * PATCH /api/admin/reports/:id
  *
  * Admin resolves or dismisses a report.
@@ -254,10 +370,91 @@ export async function resolveReport(
 
     const report = await prisma.report.update({
       where: { id },
-      data: { status: body.resolution },
+      data: {
+        status: body.resolution,
+        note: body.note,
+      },
     });
 
     res.json({ data: report });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/admin/users/:id/moderation-actions
+ *
+ * Creates an audit record and applies a basic account-state stub.
+ */
+export async function createModerationAction(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const { id: targetUserId } = req.params;
+    const body = CreateModerationActionSchema.parse(req.body);
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true },
+    });
+    if (!targetUser) {
+      throw new AppError("NOT_FOUND", "Target user not found", 404);
+    }
+
+    const accountState =
+      body.actionType === "WARNING"
+        ? { accountStatus: "WARNED" as const, suspendedUntil: null }
+        : body.actionType === "SUSPENSION"
+          ? {
+              accountStatus: "SUSPENDED" as const,
+              suspendedUntil: body.suspendedUntil
+                ? new Date(body.suspendedUntil)
+                : null,
+            }
+          : body.actionType === "BAN"
+            ? { accountStatus: "BANNED" as const, suspendedUntil: null }
+            : { accountStatus: "ACTIVE" as const, suspendedUntil: null };
+
+    const result = await prisma.$transaction(async (tx) => {
+      const action = await (tx as any).moderationAction.create({
+        data: {
+          adminId,
+          targetUserId,
+          reportId: body.reportId,
+          actionType: body.actionType,
+          reason: body.reason,
+          note: body.note,
+          expiresAt: body.suspendedUntil ? new Date(body.suspendedUntil) : null,
+        },
+      });
+
+      const user = await (tx as any).user.update({
+        where: { id: targetUserId },
+        data: accountState as any,
+        select: {
+          id: true,
+          accountStatus: true,
+          suspendedUntil: true,
+        },
+      });
+
+      return { action, user };
+    });
+
+    res.status(201).json({
+      data: {
+        action: result.action,
+        user: result.user,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -275,12 +472,21 @@ export async function getConfig(
   next: NextFunction,
 ): Promise<void> {
   try {
-    // TODO:
-    // const configs = await prisma.config.findMany()
-    // const map = Object.fromEntries(configs.map((c) => [c.key, c.value]))
-    // res.json({ data: map })
+    const config = await getPublicConfigMap();
+    res.json({ data: config });
+  } catch (err) {
+    next(err);
+  }
+}
 
-    res.json({ message: "TODO: get config" });
+export async function getAdminConfig(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const config = await getAdminConfigMap();
+    res.json({ data: config });
   } catch (err) {
     next(err);
   }
@@ -298,20 +504,8 @@ export async function updateConfig(
 ): Promise<void> {
   try {
     const body = UpdateConfigSchema.parse(req.body);
-
-    // TODO:
-    // const config = await prisma.config.upsert({
-    //   where: { key: body.key },
-    //   create: { key: body.key, value: body.value },
-    //   update: { value: body.value },
-    // })
-    // res.json({ data: config })
-
-    res.json({
-      message: "TODO: update config",
-      key: body.key,
-      value: body.value,
-    });
+    const config = await upsertConfigValue(body.key, body.value);
+    res.json({ data: config });
   } catch (err) {
     next(err);
   }

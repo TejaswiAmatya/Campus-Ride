@@ -8,6 +8,10 @@ import { useAuth } from '@/hooks/useAuth'
 import { useBooking, useCancelBooking, useCreateReview } from './hooks'
 import { StatusBadge } from './StatusBadge'
 
+function formatMoney(value: string | undefined) {
+  return `${value ?? '0'} NOK`
+}
+
 export function BookingStatusPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()

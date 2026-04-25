@@ -743,5 +743,121 @@ describeLiveIntegration('Bookings integration (book → confirm / decline)', () 
     const res = await request(app).get('/api/bookings?status=DECLINED').set('Authorization', `Bearer ${token}`)
     expect(res.status).toBe(422)
     expect((res.body as ApiEnvelope<unknown>).error?.code).toBe('VALIDATION_ERROR')
+  }, 15000)
+
+  it('driver earnings returns weekly/monthly totals and completed ride payouts only for approved drivers', async () => {
+    const dEmail = `${prefix}earnings-driver@university.edu`
+    const pEmail = `${prefix}earnings-passenger@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Earnings',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const regP = await request(app).post('/api/auth/register').send({
+      email: pEmail,
+      name: 'Passenger Earnings',
+      password,
+    })
+    const passengerId = (regP.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!passengerId) throw new Error('missing passenger id')
+
+    await promoteToApprovedDriver(driverId)
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    const createRide = await request(app)
+      .post('/api/rides')
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({
+        origin: { address: 'Campus East', lat: 58.9, lng: 5.71 },
+        destination: { address: 'City Library', lat: 58.95, lng: 5.72 },
+        departureTime: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+        totalSeats: 4,
+        pricePerSeat: 50,
+      })
+    const rideId = (createRide.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!rideId) throw new Error('missing ride')
+
+    const loginP = await request(app).post('/api/auth/login').send({ email: pEmail, password })
+    const passengerToken = (loginP.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!passengerToken) throw new Error('missing passenger token')
+
+    const bookRes = await request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ rideId, seatsBooked: 2 })
+    const bookingId = (bookRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!bookingId) throw new Error('missing booking id')
+
+    const confirmRes = await request(app)
+      .patch(`/api/bookings/${bookingId}/confirm`)
+      .set('Authorization', `Bearer ${driverToken}`)
+    expect(confirmRes.status).toBe(200)
+
+    const completeRes = await request(app)
+      .patch(`/api/bookings/${bookingId}/complete`)
+      .set('Authorization', `Bearer ${driverToken}`)
+    expect(completeRes.status).toBe(200)
+
+    const earningsRes = await request(app)
+      .get('/api/bookings/earnings')
+      .set('Authorization', `Bearer ${driverToken}`)
+    expect(earningsRes.status).toBe(200)
+
+    const payload = (earningsRes.body as ApiEnvelope<{
+      totals: { thisWeek: string; thisMonth: string; currency: string }
+      rides: Array<{
+        bookingId: string
+        totalPrice: string
+        platformFee: string
+        driverPayout: string
+      }>
+      pagination: { page: number; limit: number; total: number; totalPages: number }
+    }>).data
+
+    expect(payload?.totals.currency).toBe('NOK')
+    expect(payload?.totals.thisWeek).toBe('90')
+    expect(payload?.totals.thisMonth).toBe('90')
+    expect(payload?.rides).toHaveLength(1)
+    expect(payload?.rides[0]).toMatchObject({
+      bookingId,
+      totalPrice: '100',
+      platformFee: '10',
+      driverPayout: '90',
+    })
+    expect(payload?.pagination.total).toBe(1)
+  }, 15000)
+
+  it('driver earnings rejects drivers without an approved driver profile', async () => {
+    const email = `${prefix}earnings-unapproved@university.edu`
+
+    const registerRes = await request(app).post('/api/auth/register').send({
+      email,
+      name: 'Unapproved Driver',
+      password,
+    })
+    const userId = (registerRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!userId) throw new Error('missing user id')
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { role: 'DRIVER' },
+    })
+
+    const loginRes = await request(app).post('/api/auth/login').send({ email, password })
+    const token = (loginRes.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!token) throw new Error('missing token')
+
+    const earningsRes = await request(app)
+      .get('/api/bookings/earnings')
+      .set('Authorization', `Bearer ${token}`)
+    expect(earningsRes.status).toBe(403)
+    expect((earningsRes.body as ApiEnvelope<unknown>).error?.code).toBe('FORBIDDEN')
   })
 })

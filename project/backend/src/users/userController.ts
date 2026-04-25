@@ -8,15 +8,14 @@ import {
 import { prisma } from "../lib/prisma";
 import { uploadAvatar, uploadLicense } from "../lib/supabase";
 import { AppError } from "../middleware/error";
-
 interface MeResponse {
-  id: string
-  email: string
-  name: string
-  role: 'PASSENGER' | 'DRIVER' | 'ADMIN'
-  avatarUrl: string | null
-  driverStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | null
-  createdAt: string
+  id: string;
+  email: string;
+  name: string;
+  role: "PASSENGER" | "DRIVER" | "ADMIN";
+  avatarUrl: string | null;
+  driverStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
+  createdAt: string;
 }
 
 /**
@@ -50,8 +49,8 @@ export async function getCurrentUser(
     });
 
     if (!user) {
-      res.status(404).json({ error: 'User not found' })
-      return
+      res.status(404).json({ error: "User not found" });
+      return;
     }
 
     const response: MeResponse = {
@@ -62,11 +61,11 @@ export async function getCurrentUser(
       avatarUrl: user.avatarPath ?? null,
       driverStatus: user.driverProfile?.status ?? null,
       createdAt: user.createdAt.toISOString(),
-    }
+    };
 
-    res.json(response)
-  } catch(err) {
-    next(err)
+    res.json(response);
+  } catch (err) {
+    next(err);
   }
 }
 
@@ -228,9 +227,9 @@ export async function uploadCurrentUserAvatar(
 /**
  * GET /api/users/:id/reviews
  *
- * Returns paginated reviews for a driver profile (publicly accessible).
+ * Returns all received reviews for a user profile (publicly accessible).
  */
-export async function getDriverReviews(
+export async function getUserReviews(
   req: Request,
   res: Response,
   next: NextFunction,
@@ -254,6 +253,8 @@ export async function getDriverReviews(
     res.json({
       data: reviews.map((review) => ({
         id: review.id,
+        rideId: review.rideId,
+        revieweeId: review.revieweeId,
         rating: review.rating,
         comment: review.comment,
         createdAt: review.createdAt.toISOString(),

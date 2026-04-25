@@ -14,6 +14,10 @@ import { MapView } from "@/components/MapView";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  useDriverRideReviewPassengers,
+  useUserReviews,
+} from "@/hooks/useProfile";
 import { api } from "@/api/client";
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
 import { useDriverLocation, useDriverLocationEmitter, useRide } from "./hooks";
@@ -39,6 +43,27 @@ export function RideDetailPage() {
   const driverLocation = useDriverLocation(
     ride?.status === "IN_PROGRESS" ? ride.id : undefined,
   );
+  const { data: driverReviews = [] } = useUserReviews(ride?.driver.id);
+  const { data: myBookings = [] } = useQuery({
+    queryKey: ["bookings", "ride-detail-review-check"],
+    queryFn: async () => {
+      const res = await api.get<{
+        data: Array<{
+          id: string;
+          status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+          ride: { id: string };
+        }>;
+      }>("/api/bookings");
+      return res.data.data ?? [];
+    },
+    enabled: !!user,
+  });
+  const { data: pendingDriverReviewPassengers = [] } =
+    useDriverRideReviewPassengers(
+      ride?.id,
+      user?.id === ride?.driver.id ? user?.id : undefined,
+      ride?.status,
+    );
   const isDriverViewingOwnActiveRide =
     !!user &&
     !!ride &&
@@ -101,6 +126,29 @@ export function RideDetailPage() {
     return participants.filter((participant) => participant.id !== user?.id);
   }, [ride?.participants, user?.id]);
 
+  const isPassengerParticipant = useMemo(() => {
+    if (!user || !ride || user.id === ride.driver.id) {
+      return false;
+    }
+
+    return myBookings.some(
+      (booking) =>
+        booking.ride.id === ride.id &&
+        (booking.status === "CONFIRMED" || booking.status === "COMPLETED"),
+    );
+  }, [myBookings, ride, user]);
+
+  const hasReviewedDriver = useMemo(() => {
+    if (!user || !ride) {
+      return false;
+    }
+
+    return driverReviews.some(
+      (review) =>
+        review.rideId === ride.id && review.reviewer.id === user.id,
+    );
+  }, [driverReviews, ride, user]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -129,6 +177,16 @@ export function RideDetailPage() {
 
   const canSubmitReport =
     selectedUserId && reason.trim().length >= 10 && !isSubmitting;
+  const showLeaveReviewSection =
+    !!user &&
+    ride.status === "COMPLETED" &&
+    isPassengerParticipant &&
+    !hasReviewedDriver;
+  const showDriverReviewSection =
+    !!user &&
+    ride.status === "COMPLETED" &&
+    user.id === ride.driver.id &&
+    pendingDriverReviewPassengers.length > 0;
 
   const handleReportSubmit = async (
     event: React.FormEvent<HTMLFormElement>,
@@ -313,6 +371,77 @@ export function RideDetailPage() {
           </p>
         </div>
       </div>
+
+      {showLeaveReviewSection && (
+        <div className="rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(255,255,255,0.98))] p-2 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
+          <LeaveReviewSection
+            rideId={ride.id}
+            revieweeId={ride.driver.id}
+            revieweeName={ride.driver.name}
+            revieweeProfileHref={`/profile/${ride.driver.id}`}
+            title="Leave a Review"
+            description="Your feedback helps future passengers understand what the ride experience is actually like."
+          />
+        </div>
+      )}
+
+      {!!user &&
+        ride.status !== "COMPLETED" &&
+        (isPassengerParticipant || user.id === ride.driver.id) && (
+          <section className="rounded-[30px] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.98),rgba(255,255,255,0.96))] p-6 shadow-[0_18px_50px_-42px_rgba(120,53,15,0.35)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
+              Reviews locked
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">
+              Ride must be completed before reviews are available.
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Once this ride reaches completed status, review forms will appear
+              here for eligible riders and the driver.
+            </p>
+          </section>
+        )}
+
+      {showDriverReviewSection && (
+        <section className="space-y-4 rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+              Completed ride follow-up
+            </p>
+            <h2 className="text-2xl font-semibold text-slate-950">
+              Review your passengers
+            </h2>
+            <p className="text-sm text-slate-600">
+              Leave one short review for each confirmed passenger from this completed ride.
+            </p>
+          </div>
+
+          <div className="space-y-5">
+            {pendingDriverReviewPassengers.map((passenger) => (
+              <div key={passenger.id} className="space-y-3">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-600">
+                  Passenger:{" "}
+                  <Link
+                    to={`/profile/${passenger.id}`}
+                    className="font-medium text-slate-900 underline decoration-sky-300 underline-offset-4 transition hover:text-sky-700"
+                  >
+                    {passenger.name}
+                  </Link>
+                </div>
+                <LeaveReviewSection
+                  rideId={ride.id}
+                  revieweeId={passenger.id}
+                  revieweeName={passenger.name}
+                  revieweeProfileHref={`/profile/${passenger.id}`}
+                  title={`Review ${passenger.name}`}
+                  description="Keep it practical and specific so future riders and drivers get useful context."
+                  submitLabel={`Submit review for ${passenger.name}`}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="rounded-lg border p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
