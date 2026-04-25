@@ -207,8 +207,36 @@ export async function getRide(
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
+        bookings: {
+          where: { status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] } },
+          include: {
+            passenger: {
+              select: {
+                id: true,
+                name: true,
+                avatarPath: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    const participants = [
+      {
+        id: ride.driver.id,
+        name: ride.driver.name,
+        avatarUrl: ride.driver.avatarPath ?? null,
+      },
+      ...ride.bookings.map((booking) => ({
+        id: booking.passenger.id,
+        name: booking.passenger.name,
+        avatarUrl: booking.passenger.avatarPath ?? null,
+      })),
+    ].filter(
+      (participant, index, all) =>
+        all.findIndex((candidate) => candidate.id === participant.id) === index,
+    );
 
     res.json({
       data: {
@@ -225,6 +253,7 @@ export async function getRide(
         pricePerSeat: ride.pricePerSeat.toString(),
         status: ride.status,
         driver: mapDriverForApi(ride.driver),
+        participants,
       },
     });
   } catch (err) {

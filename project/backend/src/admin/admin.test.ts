@@ -58,6 +58,12 @@ describe("UpdateConfigSchema", () => {
 });
 
 describe("ResolveReportSchema", () => {
+  it("accepts OPEN", () => {
+    expect(ResolveReportSchema.safeParse({ resolution: "OPEN" }).success).toBe(
+      true,
+    );
+  });
+
   it("accepts RESOLVED", () => {
     expect(
       ResolveReportSchema.safeParse({ resolution: "RESOLVED" }).success,
