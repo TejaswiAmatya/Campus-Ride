@@ -384,6 +384,14 @@ export function BookingCheckoutPage() {
                 </div>
               </div>
             </div>
+
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+              <p className="font-medium text-foreground">Simulated payment capture</p>
+              <p className="text-muted-foreground">
+                This checkout uses a simulated payment provider for now. Your booking response will include captured
+                payment status and refund details, while keeping the backend ready for a future Stripe swap.
+              </p>
+            </div>
           </CardContent>
         </Card>
 
