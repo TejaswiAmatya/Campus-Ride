@@ -10,6 +10,7 @@ import {
   PlusCircle,
   Wallet,
   Bell,
+  Settings,
 } from "lucide-react";
 import { useAuth, useLogout } from "@/hooks/useAuth";
 import {
@@ -112,6 +113,11 @@ export function Navbar() {
                   to="/admin/reports"
                   icon={<FileWarning className="h-4 w-4" />}
                   label="Reports"
+                />
+                <RouteNavLink
+                  to="/admin/settings"
+                  icon={<Settings className="h-4 w-4" />}
+                  label="Settings"
                 />
               </div>
             ) : (

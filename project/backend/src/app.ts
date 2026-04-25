@@ -5,6 +5,7 @@ import { ridesRouter } from "./rides/router";
 import { bookingsRouter } from "./bookings/router";
 import { adminRouter } from "./admin/router";
 import { reportRouter } from "./reports/router";
+import { configRouter } from "./config/router";
 import { errorHandler } from "./middleware/error";
 
 const app = express();
@@ -26,6 +27,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/rides", ridesRouter);
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/reports", reportRouter);
+app.use("/api/config", configRouter);
 app.use("/api/admin", adminRouter);
 
 app.use(errorHandler);
