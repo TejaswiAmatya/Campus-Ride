@@ -82,7 +82,7 @@ export function App() {
 
               {/* Driver only */}
               <Route element={<RequireDriverApproved />}>
-                <Route path="/driver/dashboard" element={<DriverDashboardPage />} />
+                <Route path="/driver/dashboard" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/driver/rides" element={<MyRidesPage />} />
                 <Route path="/driver/rides/new" element={<PostRidePage />} />
                 <Route path="/driver/rides/:id" element={<ManageRidePage />} />
