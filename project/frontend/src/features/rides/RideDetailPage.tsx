@@ -171,6 +171,14 @@ export function RideDetailPage() {
         </div>
       </div>
 
+      {canBook && (
+        <div className="flex justify-end rounded-lg border border-primary/20 bg-primary/5 p-4">
+          <Button asChild size="lg">
+            <Link to={`/rides/${ride.id}/book`}>Book Ride</Link>
+          </Button>
+        </div>
+      )}
+
       <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-2">
         <div>
           <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
