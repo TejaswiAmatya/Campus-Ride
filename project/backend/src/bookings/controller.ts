@@ -587,17 +587,14 @@ export async function cancelBooking(
             newAvailable > 0 && ride.status === "FULL" ? "OPEN" : ride.status,
         },
       });
-    });
-
-      // Fetch updated booking for response
       return tx.booking.findUniqueOrThrow({
         where: { id },
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
           passenger: { select: { id: true, name: true } },
         },
-      })
-    })
+      });
+    });
 
     try {
       await emailQueue.bookingCancelled(updated.id);
