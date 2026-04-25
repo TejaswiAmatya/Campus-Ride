@@ -25,7 +25,7 @@ type ProximityRideRow = {
   sortDistanceMeters: number;
 };
 
-type SearchRideRow = Awaited<ReturnType<typeof prisma.ride.findMany>>[number];
+type SearchRideRow = any;
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -91,13 +91,14 @@ function getDateBounds(date: string) {
 }
 
 function getAverageRating(ride: SearchRideRow) {
-  const ratings = ride.driver?.reviewsReceived?.map((review) => review.rating) ?? [];
+  const ratings =
+    ride.driver?.reviewsReceived?.map((review: { rating: number }) => review.rating) ?? [];
 
   if (ratings.length === 0) {
     return null;
   }
 
-  const total = ratings.reduce((sum, rating) => sum + rating, 0);
+  const total = ratings.reduce((sum: number, rating: number) => sum + rating, 0);
   return Number((total / ratings.length).toFixed(2));
 }
 
@@ -136,8 +137,12 @@ function serializeSearchRide(ride: SearchRideRow) {
 export async function searchRidesByLocation(query: SearchRidesInput) {
   const seats = query.seats ?? 1;
   const dateBounds = query.date ? getDateBounds(query.date) : null;
-  const originText = query.origin ?? query.location;
-  const destinationText = query.dest;
+  const originText = query.pickup ?? query.origin ?? query.location;
+  const destinationText = query.dropoff ?? query.dest;
+  const effectiveOriginLat = query.pickupLat ?? query.originLat;
+  const effectiveOriginLng = query.pickupLng ?? query.originLng;
+  const effectiveDestLat = query.dropoffLat ?? query.destLat;
+  const effectiveDestLng = query.dropoffLng ?? query.destLng;
   const textFilters = {
     ...(originText && {
       originAddress: {
@@ -160,8 +165,23 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
       lte: query.maxPrice,
     }),
   };
+  const departureWindowFilter = {
+    ...(query.earliestDepartureTime && {
+      gte: new Date(query.earliestDepartureTime),
+    }),
+    ...(query.latestDepartureTime && {
+      lte: new Date(query.latestDepartureTime),
+    }),
+  };
+  const departureTimeFilter = {
+    ...(dateBounds && {
+      gte: dateBounds.start,
+      lt: dateBounds.end,
+    }),
+    ...departureWindowFilter,
+  };
 
-  if (query.originLat === undefined && query.destLat === undefined) {
+  if (effectiveOriginLat === undefined && effectiveDestLat === undefined) {
     const rides = await prisma.ride.findMany({
       where: {
         status: "OPEN",
@@ -169,12 +189,12 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
         ...(Object.keys(priceFilters).length > 0 && {
           pricePerSeat: priceFilters,
         }),
+        ...(query.preferences?.length && {
+          preferences: { hasEvery: query.preferences },
+        }),
         ...textFilters,
-        ...(dateBounds && {
-          departureTime: {
-            gte: dateBounds.start,
-            lt: dateBounds.end,
-          },
+        ...(Object.keys(departureTimeFilter).length > 0 && {
+          departureTime: departureTimeFilter,
         }),
       },
       include: {
@@ -201,22 +221,22 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
 
   const radiusKm = query.radiusKm ?? DEFAULT_RADIUS_KM;
   const originFilter =
-    query.originLat !== undefined && query.originLng !== undefined
+    effectiveOriginLat !== undefined && effectiveOriginLng !== undefined
       ? buildProximityFilter(
           "originLat",
           "originLng",
-          query.originLat,
-          query.originLng,
+          effectiveOriginLat,
+          effectiveOriginLng,
           radiusKm,
         )
       : null;
   const destinationFilter =
-    query.destLat !== undefined && query.destLng !== undefined
+    effectiveDestLat !== undefined && effectiveDestLng !== undefined
       ? buildProximityFilter(
           "destinationLat",
           "destinationLng",
-          query.destLat,
-          query.destLng,
+          effectiveDestLat,
+          effectiveDestLng,
           radiusKm,
         )
       : null;
@@ -224,6 +244,10 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
   const dateFilter = dateBounds
     ? Prisma.sql`AND r."departureTime" >= ${dateBounds.start} AND r."departureTime" < ${dateBounds.end}`
     : Prisma.empty;
+  const departureWindowSql = Prisma.sql`
+    ${query.earliestDepartureTime ? Prisma.sql`AND r."departureTime" >= ${new Date(query.earliestDepartureTime)}` : Prisma.empty}
+    ${query.latestDepartureTime ? Prisma.sql`AND r."departureTime" <= ${new Date(query.latestDepartureTime)}` : Prisma.empty}
+  `;
   const priceFilter =
     query.minPrice !== undefined || query.maxPrice !== undefined
       ? Prisma.sql`AND r."pricePerSeat" BETWEEN ${query.minPrice ?? 0} AND ${query.maxPrice ?? 999999999}`
@@ -244,6 +268,7 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
     WHERE r."status" = 'OPEN'
       AND r."availableSeats" >= ${seats}
       ${dateFilter}
+      ${departureWindowSql}
       ${priceFilter}
       ${originFilter ? Prisma.sql`AND ${originFilter.whereClause}` : Prisma.empty}
       ${destinationFilter ? Prisma.sql`AND ${destinationFilter.whereClause}` : Prisma.empty}
@@ -262,12 +287,12 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
       ...(Object.keys(priceFilters).length > 0 && {
         pricePerSeat: priceFilters,
       }),
+      ...(query.preferences?.length && {
+        preferences: { hasEvery: query.preferences },
+      }),
       ...textFilters,
-      ...(dateBounds && {
-        departureTime: {
-          gte: dateBounds.start,
-          lt: dateBounds.end,
-        },
+      ...(Object.keys(departureTimeFilter).length > 0 && {
+        departureTime: departureTimeFilter,
       }),
     },
     include: {

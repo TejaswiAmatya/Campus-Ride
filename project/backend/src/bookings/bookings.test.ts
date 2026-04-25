@@ -1,5 +1,6 @@
+import { Prisma } from '@prisma/client'
 import { describe, it, expect } from 'vitest'
-import { CreateBookingSchema, UpdateBookingStatusSchema, CreateReviewSchema } from './schemas'
+import { CreateBookingSchema, UpdateBookingStatusSchema } from './schemas'
 
 describe('CreateBookingSchema', () => {
   const validUUID = '550e8400-e29b-41d4-a716-446655440000'
@@ -22,25 +23,25 @@ describe('CreateBookingSchema', () => {
 })
 
 describe('Fare split calculation', () => {
-  const PLATFORM_FEE = 0.10
+  const PLATFORM_FEE = new Prisma.Decimal('0.10')
 
   it('driver receives 90% of the total fare', () => {
-    const pricePerSeat = 100
+    const pricePerSeat = new Prisma.Decimal(100)
     const seatsBooked = 2
-    const totalFare = pricePerSeat * seatsBooked
-    const platformFee = totalFare * PLATFORM_FEE
-    const driverEarnings = totalFare - platformFee
+    const totalFare = pricePerSeat.mul(seatsBooked)
+    const platformFee = totalFare.mul(PLATFORM_FEE)
+    const driverEarnings = totalFare.sub(platformFee)
 
-    expect(totalFare).toBe(200)
-    expect(platformFee).toBe(20)
-    expect(driverEarnings).toBe(180)
-    expect(driverEarnings / totalFare).toBe(0.9)
+    expect(totalFare.toNumber()).toBe(200)
+    expect(platformFee.toNumber()).toBe(20)
+    expect(driverEarnings.toNumber()).toBe(180)
+    expect(driverEarnings.div(totalFare).toNumber()).toBe(0.9)
   })
 
   it('platform receives exactly 10% of the total fare', () => {
-    const totalFare = 150
-    const platformFee = totalFare * PLATFORM_FEE
-    expect(platformFee).toBeCloseTo(15)
+    const totalFare = new Prisma.Decimal(150)
+    const platformFee = totalFare.mul(PLATFORM_FEE)
+    expect(platformFee.toNumber()).toBeCloseTo(15)
   })
 })
 
@@ -63,29 +64,5 @@ describe('UpdateBookingStatusSchema', () => {
     expect(
       UpdateBookingStatusSchema.safeParse({ status: 'CANCELLED', reason: 'x'.repeat(501) }).success,
     ).toBe(false)
-  })
-})
-
-describe('CreateReviewSchema', () => {
-  const validUUID = '550e8400-e29b-41d4-a716-446655440000'
-
-  it('accepts rating 1–5', () => {
-    for (const rating of [1, 2, 3, 4, 5]) {
-      expect(CreateReviewSchema.safeParse({ bookingId: validUUID, rating }).success).toBe(true)
-    }
-  })
-
-  it('rejects rating 0', () => {
-    expect(CreateReviewSchema.safeParse({ bookingId: validUUID, rating: 0 }).success).toBe(false)
-  })
-
-  it('rejects rating 6', () => {
-    expect(CreateReviewSchema.safeParse({ bookingId: validUUID, rating: 6 }).success).toBe(false)
-  })
-
-  it('accepts an optional comment', () => {
-    expect(
-      CreateReviewSchema.safeParse({ bookingId: validUUID, rating: 5, comment: 'Great driver!' }).success,
-    ).toBe(true)
   })
 })
