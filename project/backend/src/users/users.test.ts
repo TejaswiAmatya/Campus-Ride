@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { RegisterSchema, LoginSchema, UpdateProfileSchema, DriverApplicationSchema } from './schemas'
+import {
+  RegisterSchema,
+  LoginSchema,
+  UpdateProfileSchema,
+  DriverApplicationSchema,
+  AccountStatusSchema,
+  MeResponseSchema,
+  BlockedAuthErrorSchema,
+} from './schemas'
 
 describe('RegisterSchema', () => {
   const valid = { email: 'alice@university.edu', password: 'Password1!', name: 'Alice' }
@@ -59,6 +67,64 @@ describe('LoginSchema', () => {
   })
 })
 
+describe('AccountStatusSchema', () => {
+  it('accepts the supported moderation states', () => {
+    expect(AccountStatusSchema.safeParse('ACTIVE').success).toBe(true)
+    expect(AccountStatusSchema.safeParse('WARNED').success).toBe(true)
+    expect(AccountStatusSchema.safeParse('SUSPENDED').success).toBe(true)
+    expect(AccountStatusSchema.safeParse('BANNED').success).toBe(true)
+  })
+
+  it('rejects unsupported moderation states', () => {
+    expect(AccountStatusSchema.safeParse('DISABLED').success).toBe(false)
+  })
+})
+
+describe('MeResponseSchema', () => {
+  it('accepts the flat hydration payload with moderation fields', () => {
+    expect(
+      MeResponseSchema.safeParse({
+        id: 'user-1',
+        email: 'alice@university.edu',
+        name: 'Alice',
+        role: 'PASSENGER',
+        accountStatus: 'ACTIVE',
+        suspendedUntil: null,
+        avatarPath: null,
+        driverStatus: null,
+        createdAt: '2026-04-26T12:00:00.000Z',
+      }).success,
+    ).toBe(true)
+  })
+})
+
+describe('BlockedAuthErrorSchema', () => {
+  it('accepts the suspended account error shape', () => {
+    expect(
+      BlockedAuthErrorSchema.safeParse({
+        error: {
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account is suspended.',
+          details: {
+            suspendedUntil: '2026-05-01T12:00:00.000Z',
+          },
+        },
+      }).success,
+    ).toBe(true)
+  })
+
+  it('accepts the banned account error shape', () => {
+    expect(
+      BlockedAuthErrorSchema.safeParse({
+        error: {
+          code: 'ACCOUNT_BANNED',
+          message: 'Your account has been banned.',
+        },
+      }).success,
+    ).toBe(true)
+  })
+})
+
 describe('UpdateProfileSchema', () => {
   it('accepts a name-only update', () => {
     expect(UpdateProfileSchema.safeParse({ name: 'Alice B' }).success).toBe(true)
@@ -68,8 +134,8 @@ describe('UpdateProfileSchema', () => {
     expect(UpdateProfileSchema.safeParse({}).success).toBe(false)
   })
 
-  it('rejects an invalid avatar path URL', () => {
-    expect(UpdateProfileSchema.safeParse({ avatarPath: 'not-a-url' }).success).toBe(false)
+  it('accepts a non-URL avatar path', () => {
+    expect(UpdateProfileSchema.safeParse({ avatarPath: 'user-1/avatar-123.jpg' }).success).toBe(true)
   })
 })
 

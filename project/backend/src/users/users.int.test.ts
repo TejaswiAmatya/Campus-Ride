@@ -32,16 +32,15 @@ type LoginResponse = {
 }
 
 type MeResponse = {
-  data: {
-    id: string
-    email: string
-    name: string
-    phone?: string
-    role: string
-    avatarPath?: string
-    isDriverApproved: boolean
-  } | null
-  error: ApiError | null
+  id: string
+  email: string
+  name: string
+  role: string
+  accountStatus: 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED'
+  suspendedUntil: string | null
+  avatarPath: string | null
+  driverStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | null
+  createdAt: string
 }
 
 describeLiveIntegration('Users/Auth integration', () => {
@@ -101,10 +100,10 @@ describeLiveIntegration('Users/Auth integration', () => {
 
     expect(meRes.status).toBe(200)
     const meBody = meRes.body as MeResponse
-    expect(meBody.data).toBeTruthy()
-    expect(meBody.data?.email).toBe(email)
-    expect(meBody.data?.isDriverApproved).toBe(false)
-    expect(meBody.error ?? null).toBeNull()
+    expect(meBody.email).toBe(email)
+    expect(meBody.accountStatus).toBe('ACTIVE')
+    expect(meBody.suspendedUntil).toBeNull()
+    expect(meBody.driverStatus).toBeNull()
   })
 
   it('returns 409 when registering the same email twice', async () => {
