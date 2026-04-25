@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAuth } from '@/hooks/useAuth'
-import { useDriverLocationEmitter, useMyRides, useUpdateRideStatus } from './hooks'
+import { useCancelRide, useDriverLocationEmitter, useMyRides, useUpdateRideStatus } from './hooks'
 import type { Ride, RideBooking, RideStatusUpdate } from './types'
 
 const statusLabels: Record<Ride['status'], string> = {
@@ -40,7 +40,7 @@ const bookingStatusVariants: Record<RideBooking['status'], 'default' | 'secondar
 
 function availableActions(status: Ride['status']) {
   if (status === 'OPEN' || status === 'FULL') {
-    return ['ACTIVE', 'CANCELLED'] as const
+    return ['ACTIVE'] as const
   }
 
   if (status === 'IN_PROGRESS') {
@@ -53,7 +53,7 @@ function availableActions(status: Ride['status']) {
 function actionLabel(status: RideStatusUpdate) {
   if (status === 'ACTIVE') return 'Start Ride'
   if (status === 'COMPLETED') return 'Complete Ride'
-  return 'Cancel'
+  return 'Cancel Ride'
 }
 
 function actionVariant(status: RideStatusUpdate): 'default' | 'outline' | 'destructive' {
@@ -66,14 +66,25 @@ interface MyRideCardProps {
   ride: Ride
   isExpanded: boolean
   isUpdatingStatus: boolean
+  isCancellingRide: boolean
   onToggleExpanded: () => void
   onUpdateStatus: (status: RideStatusUpdate) => void
+  onRequestCancel: () => void
 }
 
-function MyRideCard({ ride, isExpanded, isUpdatingStatus, onToggleExpanded, onUpdateStatus }: MyRideCardProps) {
+function MyRideCard({
+  ride,
+  isExpanded,
+  isUpdatingStatus,
+  isCancellingRide,
+  onToggleExpanded,
+  onUpdateStatus,
+  onRequestCancel,
+}: MyRideCardProps) {
   const actions = availableActions(ride.status)
   const bookings = ride.bookings ?? []
   const { isSharingLocation } = useDriverLocationEmitter(ride.status === 'IN_PROGRESS' ? ride.id : undefined)
+  const canCancelRide = ride.status === 'OPEN' || ride.status === 'FULL'
 
   return (
     <div className="rounded-xl border p-4 shadow-sm">
@@ -127,6 +138,11 @@ function MyRideCard({ ride, isExpanded, isUpdatingStatus, onToggleExpanded, onUp
               {actionLabel(status)}
             </Button>
           ))}
+          {canCancelRide && (
+            <Button variant="destructive" disabled={isCancellingRide} onClick={onRequestCancel}>
+              {isCancellingRide ? 'Cancelling…' : 'Cancel Ride'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -165,11 +181,58 @@ function MyRideCard({ ride, isExpanded, isUpdatingStatus, onToggleExpanded, onUp
   )
 }
 
+function CancelRideDialog({
+  ride,
+  isOpen,
+  isCancelling,
+  onConfirm,
+  onClose,
+}: {
+  ride: Ride | null
+  isOpen: boolean
+  isCancelling: boolean
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  if (!isOpen || !ride) {
+    return null
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" role="dialog" aria-modal="true" aria-labelledby="cancel-ride-title">
+      <div className="w-full max-w-md rounded-xl border bg-background p-6 shadow-xl">
+        <div className="space-y-2">
+          <h2 id="cancel-ride-title" className="text-lg font-semibold">
+            Cancel this ride?
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {ride.originAddress} → {ride.destinationAddress}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Any confirmed passenger bookings will be cancelled and their seats will be restored automatically.
+          </p>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" disabled={isCancelling} onClick={onClose}>
+            Keep Ride
+          </Button>
+          <Button variant="destructive" disabled={isCancelling} onClick={onConfirm}>
+            {isCancelling ? 'Cancelling…' : 'Confirm Cancel'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function MyRidesPage() {
   const { user } = useAuth()
   const { data: rides, isLoading } = useMyRides()
   const updateRideStatus = useUpdateRideStatus()
+  const cancelRide = useCancelRide()
   const [expandedRideId, setExpandedRideId] = useState<string | null>(null)
+  const [rideToCancel, setRideToCancel] = useState<Ride | null>(null)
 
   if (!user || user.role !== 'DRIVER') {
     return (
@@ -214,13 +277,31 @@ export function MyRidesPage() {
                 ride={ride}
                 isExpanded={expandedRideId === ride.id}
                 isUpdatingStatus={updateRideStatus.isPending}
+                isCancellingRide={cancelRide.isPending && rideToCancel?.id === ride.id}
                 onToggleExpanded={() => setExpandedRideId((current) => (current === ride.id ? null : ride.id))}
                 onUpdateStatus={(status) => updateRideStatus.mutate({ rideId: ride.id, status })}
+                onRequestCancel={() => setRideToCancel(ride)}
               />
             )
           })}
         </div>
       )}
+
+      <CancelRideDialog
+        ride={rideToCancel}
+        isOpen={!!rideToCancel}
+        isCancelling={cancelRide.isPending}
+        onClose={() => setRideToCancel(null)}
+        onConfirm={() => {
+          if (!rideToCancel) {
+            return
+          }
+
+          cancelRide.mutate(rideToCancel.id, {
+            onSuccess: () => setRideToCancel(null),
+          })
+        }}
+      />
     </div>
   )
 }
