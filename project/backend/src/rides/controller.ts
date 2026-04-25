@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { DriverStatus } from "@prisma/client";
 import {
   CreateRideSchema,
+  CreateRideReviewSchema,
   SearchRidesSchema,
   UpdateRideStatusSchema,
 } from "./schemas";
@@ -39,6 +40,8 @@ type VehicleInfo = {
   colour: string;
   plateNumber: string;
 };
+
+const participatedBookingStatuses = new Set(["CONFIRMED", "COMPLETED"]);
 
 /**
  * POST /api/rides
@@ -326,6 +329,144 @@ export async function cancelRide(
     // Cancel all pending bookings and refund if Stripe is integrated
 
     res.json({ message: "TODO: cancel ride", rideId: id });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/rides/:rideId/reviews
+ */
+export async function createReview(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const body = CreateRideReviewSchema.parse(req.body);
+    const reviewerId = req.user?.id;
+    const { rideId } = req.params;
+
+    if (!reviewerId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const reviewer = await prisma.user.findUnique({
+      where: { id: reviewerId },
+      select: {
+        id: true,
+        name: true,
+        avatarPath: true,
+      },
+    });
+
+    if (!reviewer) {
+      throw new AppError("UNAUTHORIZED", "Authenticated user not found", 401);
+    }
+
+    const ride = await prisma.ride.findUnique({
+      where: { id: rideId },
+      include: {
+        bookings: {
+          select: {
+            passengerId: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!ride) {
+      throw new AppError("NOT_FOUND", "Ride not found", 404);
+    }
+
+    if (ride.status !== "COMPLETED") {
+      throw new AppError(
+        "INVALID_RIDE_STATUS",
+        "Reviews can only be created for completed rides",
+        409,
+      );
+    }
+
+    const requesterParticipated =
+      ride.driverId === reviewerId ||
+      ride.bookings.some(
+        (booking) =>
+          booking.passengerId === reviewerId &&
+          participatedBookingStatuses.has(booking.status),
+      );
+
+    if (!requesterParticipated) {
+      throw new AppError(
+        "FORBIDDEN",
+        "Only ride participants can leave reviews",
+        403,
+      );
+    }
+
+    const revieweeParticipated =
+      ride.driverId === body.revieweeId ||
+      ride.bookings.some(
+        (booking) =>
+          booking.passengerId === body.revieweeId &&
+          participatedBookingStatuses.has(booking.status),
+      );
+
+    if (!revieweeParticipated) {
+      throw new AppError(
+        "INVALID_REVIEWEE",
+        "Reviewee must be a participant in this ride",
+        400,
+      );
+    }
+
+    if (reviewerId === body.revieweeId) {
+      throw new AppError("INVALID_REVIEWEE", "You cannot review yourself", 400);
+    }
+
+    const existingReview = await prisma.review.findUnique({
+      where: {
+        rideId_reviewerId_revieweeId: {
+          rideId,
+          reviewerId,
+          revieweeId: body.revieweeId,
+        },
+      },
+    });
+
+    if (existingReview) {
+      throw new AppError(
+        "DUPLICATE_REVIEW",
+        "You have already reviewed this participant for this ride",
+        409,
+      );
+    }
+
+    const review = await prisma.review.create({
+      data: {
+        rideId,
+        reviewerId,
+        revieweeId: body.revieweeId,
+        rating: body.rating,
+        comment: body.comment,
+      },
+    });
+
+    res.status(201).json({
+      data: {
+        id: review.id,
+        rideId: review.rideId,
+        revieweeId: review.revieweeId,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt.toISOString(),
+        reviewer: {
+          id: reviewer.id,
+          name: reviewer.name,
+          avatarPath: reviewer.avatarPath,
+        },
+      },
+    });
   } catch (err) {
     next(err);
   }

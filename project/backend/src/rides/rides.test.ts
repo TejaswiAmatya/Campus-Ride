@@ -7,7 +7,7 @@ import {
   UpdateRideStatusSchema,
 } from "./schemas";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { createRide, getMyRides, searchRides, updateRideStatus } from "./controller";
+import { createRide,getMyRides, searchRides,updateRideStatus,} from "./controller";
 import { searchRidesByLocation } from "./location.service";
 import { prisma } from "../lib/prisma";
 import { errorHandler } from "../middleware/error";
@@ -73,7 +73,11 @@ type RideSearchWhere = {
   driverId?: string;
 };
 
-const testState: { users: UserRecord[]; rides: RideRecord[]; bookings: BookingRecord[] } = {
+const testState: {
+  users: UserRecord[];
+  rides: RideRecord[];
+  bookings: BookingRecord[];
+} = {
   users: [],
   rides: [],
   bookings: [],
@@ -252,17 +256,25 @@ vi.mock("../lib/prisma", () => ({
         const ride = testState.rides.find((entry) => entry.id === where.id);
 
         if (!ride) {
-          const error = new Error("Record not found") as Error & { code: string };
+          const error = new Error("Record not found") as Error & {
+            code: string;
+          };
           error.code = "P2025";
           throw error;
         }
 
-        const driver = testState.users.find((entry) => entry.id === ride.driverId);
+        const driver = testState.users.find(
+          (entry) => entry.id === ride.driverId,
+        );
 
         return {
           ...ride,
           driver: driver
-            ? { id: driver.id, name: driver.name, avatarUrl: driver.avatarUrl ?? null }
+            ? {
+                id: driver.id,
+                name: driver.name,
+                avatarUrl: driver.avatarUrl ?? null,
+              }
             : null,
         };
       }),
@@ -277,18 +289,26 @@ vi.mock("../lib/prisma", () => ({
           const ride = testState.rides.find((entry) => entry.id === where.id);
 
           if (!ride) {
-            const error = new Error("Record not found") as Error & { code: string };
+            const error = new Error("Record not found") as Error & {
+              code: string;
+            };
             error.code = "P2025";
             throw error;
           }
 
           ride.status = data.status;
-          const driver = testState.users.find((entry) => entry.id === ride.driverId);
+          const driver = testState.users.find(
+            (entry) => entry.id === ride.driverId,
+          );
 
           return {
             ...ride,
             driver: driver
-              ? { id: driver.id, name: driver.name, avatarUrl: driver.avatarUrl ?? null }
+              ? {
+                  id: driver.id,
+                  name: driver.name,
+                  avatarUrl: driver.avatarUrl ?? null,
+                }
               : null,
           };
         },
