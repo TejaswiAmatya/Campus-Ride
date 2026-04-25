@@ -46,8 +46,8 @@ export function usePassengerDashboardData() {
 
 type EarningsSnapshot = {
   totalEarnings: number
+  thisWeek: number
   thisMonth: number
-  pendingPayout: number
   currency: string
 }
 
@@ -62,15 +62,24 @@ function toNumber(value: unknown): number {
 
 function normalizeEarnings(payload: unknown): EarningsSnapshot {
   if (!payload || typeof payload !== 'object') {
-    return { totalEarnings: 0, thisMonth: 0, pendingPayout: 0, currency: 'NOK' }
+    return { totalEarnings: 0, thisWeek: 0, thisMonth: 0, currency: 'NOK' }
   }
 
   const data = payload as Record<string, unknown>
+  const totals =
+    data.totals && typeof data.totals === 'object'
+      ? (data.totals as Record<string, unknown>)
+      : data
+  const rides = Array.isArray(data.rides) ? data.rides : []
+
   return {
-    totalEarnings: toNumber(data.totalEarnings),
-    thisMonth: toNumber(data.thisMonth),
-    pendingPayout: toNumber(data.pendingPayout),
-    currency: typeof data.currency === 'string' ? data.currency : 'NOK',
+    totalEarnings: rides.reduce((sum, ride) => {
+      if (!ride || typeof ride !== 'object') return sum
+      return sum + toNumber((ride as Record<string, unknown>).driverPayout)
+    }, 0),
+    thisWeek: toNumber(totals.thisWeek),
+    thisMonth: toNumber(totals.thisMonth),
+    currency: typeof totals.currency === 'string' ? totals.currency : 'NOK',
   }
 }
 
@@ -111,7 +120,7 @@ export function useDriverDashboardData() {
   return {
     rides: ridesQuery.data ?? [],
     pendingRequests: pendingRequestsQuery.data ?? [],
-    earnings: earningsQuery.data ?? { totalEarnings: 0, thisMonth: 0, pendingPayout: 0, currency: 'NOK' },
+    earnings: earningsQuery.data ?? { totalEarnings: 0, thisWeek: 0, thisMonth: 0, currency: 'NOK' },
     isLoading: ridesQuery.isLoading || pendingRequestsQuery.isLoading || earningsQuery.isLoading,
     isError: ridesQuery.isError || pendingRequestsQuery.isError || earningsQuery.isError,
     errors: {

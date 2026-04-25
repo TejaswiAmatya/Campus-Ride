@@ -634,50 +634,62 @@ export async function getEarnings(
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
+    const startOfWeek = getStartOfWeek(new Date());
 
-    const [platformFeePercent, completedBookings, pendingBookings] =
-      await Promise.all([
-        getPlatformFeePercent(),
-        prisma.booking.findMany({
-          where: {
-            status: "COMPLETED",
-            ride: { driverId: userId },
+    const [platformFeePercent, completedBookings] = await Promise.all([
+      getPlatformFeePercent(),
+      prisma.booking.findMany({
+        where: {
+          status: "COMPLETED",
+          ride: { driverId: userId },
+        },
+        select: {
+          id: true,
+          totalFare: true,
+          platformFee: true,
+          driverEarnings: true,
+          ride: {
+            select: {
+              id: true,
+              departureTime: true,
+              originAddress: true,
+              destinationAddress: true,
+            },
           },
-          select: {
-            driverEarnings: true,
-            updatedAt: true,
-          },
-        }),
-        prisma.booking.findMany({
-          where: {
-            status: "CONFIRMED",
-            ride: { driverId: userId },
-          },
-          select: {
-            driverEarnings: true,
-          },
-        }),
-      ]);
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
+    ]);
 
-    const totalEarnings = sumDecimal(
-      completedBookings.map((booking) => booking.driverEarnings),
+    const thisWeek = sumDecimal(
+      completedBookings
+        .filter((booking) => booking.ride.departureTime >= startOfWeek)
+        .map((booking) => booking.driverEarnings),
     );
     const thisMonth = sumDecimal(
       completedBookings
-        .filter((booking) => booking.updatedAt >= startOfMonth)
+        .filter((booking) => booking.ride.departureTime >= startOfMonth)
         .map((booking) => booking.driverEarnings),
-    );
-    const pendingPayout = sumDecimal(
-      pendingBookings.map((booking) => booking.driverEarnings),
     );
 
     res.json({
       data: {
-        totalEarnings: totalEarnings.toString(),
-        thisMonth: thisMonth.toString(),
-        pendingPayout: pendingPayout.toString(),
         platformFeePercent: platformFeePercent.toString(),
-        currency: "NOK",
+        totals: {
+          thisWeek: thisWeek.toString(),
+          thisMonth: thisMonth.toString(),
+          currency: "NOK",
+        },
+        rides: completedBookings.map((booking) => ({
+          bookingId: booking.id,
+          rideId: booking.ride.id,
+          rideDate: booking.ride.departureTime.toISOString(),
+          originAddress: booking.ride.originAddress,
+          destinationAddress: booking.ride.destinationAddress,
+          totalPrice: booking.totalFare.toString(),
+          platformFee: booking.platformFee.toString(),
+          driverPayout: booking.driverEarnings.toString(),
+        })),
       },
     });
   } catch (err) {
