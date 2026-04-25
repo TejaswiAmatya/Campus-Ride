@@ -28,3 +28,15 @@ export interface RideStatusPayload {
     | "finished";
   estimatedArrivalMinutes?: number;
 }
+
+export interface DriverLocationUpdatePayload {
+  rideId: string;
+  lat: number;
+  lng: number;
+}
+
+export interface DriverLocationPayload {
+  lat: number;
+  lng: number;
+  updatedAt: string;
+}

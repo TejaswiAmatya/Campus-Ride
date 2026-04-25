@@ -25,6 +25,17 @@ export interface RideDriver {
   } | null
 }
 
+export interface RideBooking {
+  id: string
+  seatsBooked: number
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
+  passenger: {
+    id: string
+    name: string
+    avatarUrl?: string | null
+  }
+}
+
 export interface Ride {
   id: string
   originAddress: string
@@ -39,6 +50,7 @@ export interface Ride {
   pricePerSeat: string
   status: 'OPEN' | 'FULL' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
   driver: RideDriver
+  bookings?: RideBooking[]
   _count?: {
     bookings: number
   }

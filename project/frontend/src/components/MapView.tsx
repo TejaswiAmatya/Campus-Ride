@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import type { LatLngExpression } from 'leaflet'
 import L from 'leaflet'
@@ -25,6 +26,7 @@ interface MapViewProps {
   className?: string
   /** Height override — default is h-64 */
   height?: string
+  children?: ReactNode
 }
 
 /**
@@ -43,6 +45,7 @@ export function MapView({
   markers = [],
   className,
   height = 'h-64',
+  children,
 }: MapViewProps) {
   return (
     <MapContainer
@@ -60,6 +63,7 @@ export function MapView({
           {marker.label && <Popup>{marker.label}</Popup>}
         </Marker>
       ))}
+      {children}
     </MapContainer>
   )
 }

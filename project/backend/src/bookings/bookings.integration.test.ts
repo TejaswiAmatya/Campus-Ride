@@ -399,4 +399,344 @@ describe.sequential('Bookings integration (book → confirm / decline)', () => {
     expect(cancelRes.status).toBe(404)
     expect((cancelRes.body as ApiEnvelope<{ error: { code: string } }>).error?.code).toBe('NOT_FOUND')
   })
+
+  it('driver can complete a confirmed booking after departure', async () => {
+    const dEmail = `${prefix}d7@university.edu`
+    const pEmail = `${prefix}p7@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Seven',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const regP = await request(app).post('/api/auth/register').send({
+      email: pEmail,
+      name: 'Pass Seven',
+      password,
+    })
+    const passengerId = (regP.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!passengerId) throw new Error('missing passenger id')
+
+    await promoteToApprovedDriver(driverId)
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    // Create ride with departure time in the past (so completion is valid)
+    const pastDepart = new Date(Date.now() - 3600_000).toISOString() // 1 hour ago
+    const createRide = await request(app)
+      .post('/api/rides')
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({
+        origin: { address: 'Campus Gate A', lat: 58.9, lng: 5.71 },
+        destination: { address: 'City Centre', lat: 58.95, lng: 5.72 },
+        departureTime: pastDepart,
+        totalSeats: 4,
+        pricePerSeat: 50,
+      })
+    const rideId = (createRide.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!rideId) throw new Error('missing ride')
+
+    const loginP = await request(app).post('/api/auth/login').send({ email: pEmail, password })
+    const passengerToken = (loginP.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!passengerToken) throw new Error('missing passenger token')
+
+    const bookRes = await request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ rideId, seatsBooked: 1 })
+    const bookingId = (bookRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!bookingId) throw new Error('missing booking')
+
+    // Driver confirms the booking
+    const confirmRes = await request(app)
+      .patch(`/api/bookings/${bookingId}/confirm`)
+      .set('Authorization', `Bearer ${driverToken}`)
+    expect(confirmRes.status).toBe(200)
+    expect((confirmRes.body as ApiEnvelope<{ status: string }>).data?.status).toBe('CONFIRMED')
+
+    // Driver completes the booking
+    const completeRes = await request(app)
+      .patch(`/api/bookings/${bookingId}/complete`)
+      .set('Authorization', `Bearer ${driverToken}`)
+    expect(completeRes.status).toBe(200)
+    expect((completeRes.body as ApiEnvelope<{ status: string }>).data?.status).toBe('COMPLETED')
+  })
+
+  it('cannot complete booking before departure', async () => {
+    const dEmail = `${prefix}d8@university.edu`
+    const pEmail = `${prefix}p8@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Eight',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const regP = await request(app).post('/api/auth/register').send({
+      email: pEmail,
+      name: 'Pass Eight',
+      password,
+    })
+    const passengerId = (regP.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!passengerId) throw new Error('missing passenger id')
+
+    await promoteToApprovedDriver(driverId)
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    // Create ride with future departure
+    const futureDepart = new Date(Date.now() + 3600_000).toISOString() // 1 hour from now
+    const createRide = await request(app)
+      .post('/api/rides')
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({
+        origin: { address: 'Campus Gate A', lat: 58.9, lng: 5.71 },
+        destination: { address: 'City Centre', lat: 58.95, lng: 5.72 },
+        departureTime: futureDepart,
+        totalSeats: 4,
+        pricePerSeat: 50,
+      })
+    const rideId = (createRide.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!rideId) throw new Error('missing ride')
+
+    const loginP = await request(app).post('/api/auth/login').send({ email: pEmail, password })
+    const passengerToken = (loginP.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!passengerToken) throw new Error('missing passenger token')
+
+    const bookRes = await request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ rideId, seatsBooked: 1 })
+    const bookingId = (bookRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!bookingId) throw new Error('missing booking')
+
+    // Confirm the booking
+    await request(app)
+      .patch(`/api/bookings/${bookingId}/confirm`)
+      .set('Authorization', `Bearer ${driverToken}`)
+
+    // Try to complete before departure
+    const completeRes = await request(app)
+      .patch(`/api/bookings/${bookingId}/complete`)
+      .set('Authorization', `Bearer ${driverToken}`)
+    expect(completeRes.status).toBe(409)
+    expect((completeRes.body as ApiEnvelope<{ error: { code: string } }>).error?.code).toBe('INVALID_STATE')
+  })
+
+  it('non-driver cannot complete booking', async () => {
+    const dEmail = `${prefix}d9@university.edu`
+    const pEmail = `${prefix}p9@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Nine',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const regP = await request(app).post('/api/auth/register').send({
+      email: pEmail,
+      name: 'Pass Nine',
+      password,
+    })
+    const passengerId = (regP.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!passengerId) throw new Error('missing passenger id')
+
+    await promoteToApprovedDriver(driverId)
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    const pastDepart = new Date(Date.now() - 3600_000).toISOString()
+    const createRide = await request(app)
+      .post('/api/rides')
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({
+        origin: { address: 'Campus Gate A', lat: 58.9, lng: 5.71 },
+        destination: { address: 'City Centre', lat: 58.95, lng: 5.72 },
+        departureTime: pastDepart,
+        totalSeats: 4,
+        pricePerSeat: 50,
+      })
+    const rideId = (createRide.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!rideId) throw new Error('missing ride')
+
+    const loginP = await request(app).post('/api/auth/login').send({ email: pEmail, password })
+    const passengerToken = (loginP.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!passengerToken) throw new Error('missing passenger token')
+
+    const bookRes = await request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ rideId, seatsBooked: 1 })
+    const bookingId = (bookRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!bookingId) throw new Error('missing booking')
+
+    // Confirm with actual driver
+    await request(app)
+      .patch(`/api/bookings/${bookingId}/confirm`)
+      .set('Authorization', `Bearer ${driverToken}`)
+
+    // Passenger (not driver) tries to complete
+    const completeRes = await request(app)
+      .patch(`/api/bookings/${bookingId}/complete`)
+      .set('Authorization', `Bearer ${passengerToken}`)
+    expect(completeRes.status).toBe(403)
+    expect((completeRes.body as ApiEnvelope<{ error: { code: string } }>).error?.code).toBe('FORBIDDEN')
+  })
+
+  it('cannot complete non-CONFIRMED booking', async () => {
+    const dEmail = `${prefix}d10@university.edu`
+    const pEmail = `${prefix}p10@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Ten',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const regP = await request(app).post('/api/auth/register').send({
+      email: pEmail,
+      name: 'Pass Ten',
+      password,
+    })
+    const passengerId = (regP.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!passengerId) throw new Error('missing passenger id')
+
+    await promoteToApprovedDriver(driverId)
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    const pastDepart = new Date(Date.now() - 3600_000).toISOString()
+    const createRide = await request(app)
+      .post('/api/rides')
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send({
+        origin: { address: 'Campus Gate A', lat: 58.9, lng: 5.71 },
+        destination: { address: 'City Centre', lat: 58.95, lng: 5.72 },
+        departureTime: pastDepart,
+        totalSeats: 4,
+        pricePerSeat: 50,
+      })
+    const rideId = (createRide.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!rideId) throw new Error('missing ride')
+
+    const loginP = await request(app).post('/api/auth/login').send({ email: pEmail, password })
+    const passengerToken = (loginP.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!passengerToken) throw new Error('missing passenger token')
+
+    const bookRes = await request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ rideId, seatsBooked: 1 })
+    const bookingId = (bookRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!bookingId) throw new Error('missing booking')
+
+    // Passenger cancels instead of driver confirming
+    await request(app)
+      .patch(`/api/bookings/${bookingId}/cancel`)
+      .set('Authorization', `Bearer ${passengerToken}`)
+
+    // Try to complete a CANCELLED booking
+    const completeRes = await request(app)
+      .patch(`/api/bookings/${bookingId}/complete`)
+      .set('Authorization', `Bearer ${driverToken}`)
+    expect(completeRes.status).toBe(409)
+    expect((completeRes.body as ApiEnvelope<{ error: { code: string } }>).error?.code).toBe('INVALID_STATE')
+  })
+
+  it('passenger can filter booking history by status', async () => {
+    const dEmail = `${prefix}d11@university.edu`
+    const pEmail = `${prefix}p11@university.edu`
+
+    const regD = await request(app).post('/api/auth/register').send({
+      email: dEmail,
+      name: 'Driver Eleven',
+      password,
+    })
+    const driverId = (regD.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!driverId) throw new Error('missing driver id')
+
+    const regP = await request(app).post('/api/auth/register').send({
+      email: pEmail,
+      name: 'Pass Eleven',
+      password,
+    })
+    const passengerId = (regP.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!passengerId) throw new Error('missing passenger id')
+
+    await promoteToApprovedDriver(driverId)
+
+    const loginD = await request(app).post('/api/auth/login').send({ email: dEmail, password })
+    const driverToken = (loginD.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!driverToken) throw new Error('missing driver token')
+
+    const createRide = await request(app)
+      .post('/api/rides')
+      .set('Authorization', `Bearer ${driverToken}`)
+      .send(ridePayload())
+    const rideId = (createRide.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!rideId) throw new Error('missing ride')
+
+    const loginP = await request(app).post('/api/auth/login').send({ email: pEmail, password })
+    const passengerToken = (loginP.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!passengerToken) throw new Error('missing passenger token')
+
+    const bookRes = await request(app)
+      .post('/api/bookings')
+      .set('Authorization', `Bearer ${passengerToken}`)
+      .send({ rideId, seatsBooked: 1 })
+    const bookingId = (bookRes.body as ApiEnvelope<{ id: string }>).data?.id
+    if (!bookingId) throw new Error('missing booking')
+
+    await request(app)
+      .patch(`/api/bookings/${bookingId}/confirm`)
+      .set('Authorization', `Bearer ${driverToken}`)
+
+    const confirmedRes = await request(app)
+      .get('/api/bookings?status=CONFIRMED')
+      .set('Authorization', `Bearer ${passengerToken}`)
+    expect(confirmedRes.status).toBe(200)
+    expect(Array.isArray((confirmedRes.body as ApiEnvelope<unknown[]>).data)).toBe(true)
+    const confirmed = (confirmedRes.body as ApiEnvelope<Array<{ id: string; status: string }>>).data ?? []
+    expect(confirmed.some((b) => b.id === bookingId && b.status === 'CONFIRMED')).toBe(true)
+
+    const pendingRes = await request(app)
+      .get('/api/bookings?status=PENDING')
+      .set('Authorization', `Bearer ${passengerToken}`)
+    expect(pendingRes.status).toBe(200)
+    const pending = (pendingRes.body as ApiEnvelope<Array<{ id: string }>>).data ?? []
+    expect(pending.some((b) => b.id === bookingId)).toBe(false)
+  })
+
+  it('returns 422 for invalid status filter', async () => {
+    const email = `${prefix}badstatus@university.edu`
+    await request(app).post('/api/auth/register').send({
+      email,
+      name: 'Status User',
+      password,
+    })
+    const loginRes = await request(app).post('/api/auth/login').send({ email, password })
+    const token = (loginRes.body as ApiEnvelope<{ access_token: string }>).data?.access_token
+    if (!token) throw new Error('missing token')
+
+    const res = await request(app).get('/api/bookings?status=DECLINED').set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(422)
+    expect((res.body as ApiEnvelope<unknown>).error?.code).toBe('VALIDATION_ERROR')
+  })
 })
