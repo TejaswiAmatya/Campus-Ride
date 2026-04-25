@@ -149,3 +149,22 @@ export function useUpdateRideStatus() {
     },
   })
 }
+
+export function useCancelRide() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (rideId: string): Promise<Ride> => {
+      const response = await api.delete<{ data: Ride }>(`/api/rides/${rideId}`)
+      return response.data.data
+    },
+    onSuccess: async (ride) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] }),
+        queryClient.invalidateQueries({ queryKey: ['rides', 'detail', ride.id] }),
+        queryClient.invalidateQueries({ queryKey: ['rides', 'search'] }),
+        queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+      ])
+    },
+  })
+}

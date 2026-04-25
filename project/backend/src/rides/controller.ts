@@ -321,11 +321,122 @@ export async function cancelRide(
 ): Promise<void> {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
 
-    // TODO: check ownership, check no confirmed bookings, set status = CANCELLED
-    // Cancel all pending bookings and refund if Stripe is integrated
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
 
-    res.json({ message: "TODO: cancel ride", rideId: id });
+    const { ride, notifiedPassengerIds } = await prisma.$transaction(
+      async (tx) => {
+        const ride = await tx.ride.findUnique({
+          where: { id },
+          include: {
+            driver: {
+              select: {
+                id: true,
+                name: true,
+                avatarPath: true,
+                driverProfile: { select: { vehicleInfo: true } },
+              },
+            },
+            bookings: {
+              select: {
+                id: true,
+                passengerId: true,
+                seatsBooked: true,
+                status: true,
+              },
+            },
+          },
+        });
+
+        if (!ride) {
+          throw new AppError("NOT_FOUND", "Ride not found", 404);
+        }
+
+        if (ride.driverId !== userId) {
+          throw new AppError("FORBIDDEN", "Not the driver of this ride", 403);
+        }
+
+        if (ride.status !== "OPEN" && ride.status !== "FULL") {
+          throw new AppError(
+            "INVALID_STATE",
+            "Only scheduled rides can be cancelled",
+            409,
+          );
+        }
+
+        const confirmedBookings = ride.bookings.filter(
+          (booking) => booking.status === "CONFIRMED",
+        );
+        const pendingBookings = ride.bookings.filter(
+          (booking) => booking.status === "PENDING",
+        );
+        const restoredSeats = confirmedBookings.reduce(
+          (total, booking) => total + booking.seatsBooked,
+          0,
+        );
+
+        if (confirmedBookings.length > 0) {
+          await tx.booking.updateMany({
+            where: {
+              rideId: id,
+              status: "CONFIRMED",
+            },
+            data: { status: "CANCELLED" },
+          });
+        }
+
+        if (pendingBookings.length > 0) {
+          await tx.booking.updateMany({
+            where: {
+              rideId: id,
+              status: "PENDING",
+            },
+            data: { status: "CANCELLED" },
+          });
+        }
+
+        const updatedRide = await tx.ride.update({
+          where: { id },
+          data: {
+            status: "CANCELLED",
+            availableSeats: Math.min(
+              ride.availableSeats + restoredSeats,
+              ride.totalSeats,
+            ),
+          },
+          include: {
+            driver: {
+              select: {
+                id: true,
+                name: true,
+                avatarPath: true,
+                driverProfile: { select: { vehicleInfo: true } },
+              },
+            },
+          },
+        });
+
+        return {
+          ride: updatedRide,
+          notifiedPassengerIds: confirmedBookings.map(
+            (booking) => booking.passengerId,
+          ),
+        };
+      },
+    );
+
+    if (notifiedPassengerIds.length > 0) {
+      await notify.rideStatus(id, {
+        rideId: id,
+        bookingId: "",
+        status: "cancelled",
+      });
+    }
+
+    res.json({ data: serializeRideList(ride) });
   } catch (err) {
     next(err);
   }
