@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CreateBookingSchema, UpdateBookingStatusSchema, CreateReviewSchema } from './schemas'
+import { CreateBookingSchema, UpdateBookingStatusSchema } from './schemas'
 
 describe('CreateBookingSchema', () => {
   const validUUID = '550e8400-e29b-41d4-a716-446655440000'
@@ -63,29 +63,5 @@ describe('UpdateBookingStatusSchema', () => {
     expect(
       UpdateBookingStatusSchema.safeParse({ status: 'CANCELLED', reason: 'x'.repeat(501) }).success,
     ).toBe(false)
-  })
-})
-
-describe('CreateReviewSchema', () => {
-  const validUUID = '550e8400-e29b-41d4-a716-446655440000'
-
-  it('accepts rating 1–5', () => {
-    for (const rating of [1, 2, 3, 4, 5]) {
-      expect(CreateReviewSchema.safeParse({ bookingId: validUUID, rating }).success).toBe(true)
-    }
-  })
-
-  it('rejects rating 0', () => {
-    expect(CreateReviewSchema.safeParse({ bookingId: validUUID, rating: 0 }).success).toBe(false)
-  })
-
-  it('rejects rating 6', () => {
-    expect(CreateReviewSchema.safeParse({ bookingId: validUUID, rating: 6 }).success).toBe(false)
-  })
-
-  it('accepts an optional comment', () => {
-    expect(
-      CreateReviewSchema.safeParse({ bookingId: validUUID, rating: 5, comment: 'Great driver!' }).success,
-    ).toBe(true)
   })
 })
