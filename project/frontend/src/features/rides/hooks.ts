@@ -186,6 +186,7 @@ export function useUpdateRideStatus() {
         queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] }),
         queryClient.invalidateQueries({ queryKey: ['rides', 'detail', ride.id] }),
         queryClient.invalidateQueries({ queryKey: ['rides', 'search'] }),
+        queryClient.invalidateQueries({ queryKey: ['bookings'] }),
       ])
     },
   })
