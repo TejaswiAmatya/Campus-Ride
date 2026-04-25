@@ -10,6 +10,12 @@ import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { createSignedLicenseUrl } from "../lib/supabase";
 import { validateReportTarget } from "../reports/validation";
+import {
+  getAdminConfigMap,
+  getPublicConfigMap,
+  upsertConfigValue,
+} from "../config/service";
+import { getStartOfWeek } from "../lib/date";
 
 type VehicleInfo = {
   make: string;
@@ -40,9 +46,7 @@ export async function getStats(
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
 
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfWeek = getStartOfWeek(now);
 
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -298,12 +302,21 @@ export async function getConfig(
   next: NextFunction,
 ): Promise<void> {
   try {
-    // TODO:
-    // const configs = await prisma.config.findMany()
-    // const map = Object.fromEntries(configs.map((c) => [c.key, c.value]))
-    // res.json({ data: map })
+    const config = await getPublicConfigMap();
+    res.json({ data: config });
+  } catch (err) {
+    next(err);
+  }
+}
 
-    res.json({ message: "TODO: get config" });
+export async function getAdminConfig(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const config = await getAdminConfigMap();
+    res.json({ data: config });
   } catch (err) {
     next(err);
   }
@@ -321,20 +334,8 @@ export async function updateConfig(
 ): Promise<void> {
   try {
     const body = UpdateConfigSchema.parse(req.body);
-
-    // TODO:
-    // const config = await prisma.config.upsert({
-    //   where: { key: body.key },
-    //   create: { key: body.key, value: body.value },
-    //   update: { value: body.value },
-    // })
-    // res.json({ data: config })
-
-    res.json({
-      message: "TODO: update config",
-      key: body.key,
-      value: body.value,
-    });
+    const config = await upsertConfigValue(body.key, body.value);
+    res.json({ data: config });
   } catch (err) {
     next(err);
   }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ALLOWED_CONFIG_KEYS, PLATFORM_FEE_CONFIG_KEY } from "../config/service";
 
 export const DriverDecisionSchema = z.object({
   approved: z.boolean(),
@@ -6,12 +7,25 @@ export const DriverDecisionSchema = z.object({
 });
 
 export const UpdateConfigSchema = z.object({
-  key: z.string().min(1),
+  key: z.enum(ALLOWED_CONFIG_KEYS),
   value: z.string().min(1),
+}).superRefine((data, ctx) => {
+  if (data.key !== PLATFORM_FEE_CONFIG_KEY) {
+    return;
+  }
+
+  const parsed = Number(data.value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["value"],
+      message: "platformFeePercent must be a number between 0 and 100",
+    });
+  }
 });
 
 export const ResolveReportSchema = z.object({
-  resolution: z.enum(["RESOLVED", "DISMISSED"]),
+  resolution: z.enum(["OPEN", "RESOLVED", "DISMISSED"]),
   note: z.string().max(1000).optional(),
 });
 

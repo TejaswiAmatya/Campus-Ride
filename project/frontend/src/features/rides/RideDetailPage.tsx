@@ -1,8 +1,8 @@
 import { Link, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, MapPin, Users } from "lucide-react";
 import { LeaveReviewSection } from "@/components/LeaveReviewSection";
+import { ArrowRight, Clock, MapPin, ShieldCheck, Ticket, Users } from "lucide-react";
 import { MapView } from "@/components/MapView";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -232,10 +232,37 @@ export function RideDetailPage() {
       </div>
 
       {canBook && (
-        <div className="flex justify-end rounded-lg border border-primary/20 bg-primary/5 p-4">
-          <Button asChild size="lg">
-            <Link to={`/rides/${ride.id}/book`}>Book Ride</Link>
-          </Button>
+        <div className="overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-background">
+          <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                <Ticket className="h-4 w-4" />
+                Reserve your seat
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Book this ride in a couple of taps</h2>
+                <p className="text-sm text-muted-foreground">
+                  {ride.availableSeats} seat{ride.availableSeats === 1 ? "" : "s"} left at {ride.pricePerSeat} NOK each.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                  Driver-reviewed flow
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5 text-primary" />
+                  Instant seat request
+                </span>
+              </div>
+            </div>
+            <Button asChild size="lg" className="min-w-[180px] justify-center text-base">
+              <Link to={`/rides/${ride.id}/book`}>
+                Book Ride
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
       )}
 

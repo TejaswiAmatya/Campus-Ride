@@ -25,6 +25,8 @@ import { canAccessDriverRoutes } from "./features/auth/routing";
 import { DashboardRoutingPage } from "./features/user/DashboardRoutingPage";
 import { ProfilePage } from "./features/user/ProfilePage";
 import { DriverDashboardPage } from "./features/user/DriverDashboardPage";
+import { SettingsPage } from "./features/admin/SettingsPage";
+import { EarningsPage } from "./features/user/EarningsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,7 +42,6 @@ const DashboardEntryPage = DashboardRoutingPage;
 const BookingHistoryPage = BookingsPage;
 const BookingDetailPage = BookingStatusPage;
 const ManageRidePage = RideDetailPage;
-const EarningsPage = DriverDashboardPage;
 const AdminDashboardPage = AdminDashboard;
 const AdminDriversPage = DriverApprovalPage;
 const AdminUsersPage = AdminDashboard;
@@ -117,6 +118,7 @@ export function App() {
                   element={<DriverApprovalsPage />}
                 />
                 <Route path="/admin/reports" element={<ReportsPage />} />
+                <Route path="/admin/settings" element={<SettingsPage />} />
               </Route>
 
               {/* Legacy redirects */}
