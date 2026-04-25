@@ -5,6 +5,8 @@ export interface PendingDriverVehicle {
   plateNumber: string;
 }
 
+export type AdminReportStatus = "OPEN" | "RESOLVED" | "DISMISSED";
+
 export interface PendingDriver {
   id: string;
   name: string;
@@ -25,7 +27,7 @@ export interface AdminReport {
   targetRideId: string | null;
   targetUserRole: "PASSENGER" | "DRIVER" | "ADMIN" | null;
   reason: string;
-  status: "OPEN" | "RESOLVED" | "DISMISSED";
+  status: AdminReportStatus;
   note: string | null;
   createdAt: string;
   updatedAt: string;

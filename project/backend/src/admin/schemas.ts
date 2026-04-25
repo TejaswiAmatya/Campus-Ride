@@ -25,7 +25,7 @@ export const UpdateConfigSchema = z.object({
 });
 
 export const ResolveReportSchema = z.object({
-  resolution: z.enum(["RESOLVED", "DISMISSED"]),
+  resolution: z.enum(["OPEN", "RESOLVED", "DISMISSED"]),
   note: z.string().max(1000).optional(),
 });
 
