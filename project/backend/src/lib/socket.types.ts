@@ -25,7 +25,8 @@ export interface RideStatusPayload {
     | "en_route"
     | "arrived"
     | "in_progress"
-    | "finished";
+    | "finished"
+    | "cancelled";
   estimatedArrivalMinutes?: number;
 }
 
