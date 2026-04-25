@@ -225,6 +225,12 @@ export async function createBooking(
                 status: true,
                 availableSeats: true,
                 pricePerSeat: true,
+                originAddress: true,
+                originLat: true,
+                originLng: true,
+                destinationAddress: true,
+                destinationLat: true,
+                destinationLng: true,
               },
             });
 
@@ -260,18 +266,28 @@ export async function createBooking(
             const platformFeeRate = await getPlatformFeeRate(tx);
             const platformFee = totalFare.mul(platformFeeRate);
             const driverEarnings = totalFare.sub(platformFee);
+            const pickup = body.pickup ?? {
+              address: ride.originAddress,
+              lat: ride.originLat,
+              lng: ride.originLng,
+            };
+            const dropoff = body.dropoff ?? {
+              address: ride.destinationAddress,
+              lat: ride.destinationLat,
+              lng: ride.destinationLng,
+            };
 
             const created = await tx.booking.create({
               data: {
                 rideId: ride.id,
                 passengerId,
                 seatsBooked: body.seatsBooked,
-                pickupAddress: body.pickup?.address,
-                pickupLat: body.pickup?.lat,
-                pickupLng: body.pickup?.lng,
-                dropoffAddress: body.dropoff?.address,
-                dropoffLat: body.dropoff?.lat,
-                dropoffLng: body.dropoff?.lng,
+                pickupAddress: pickup.address,
+                pickupLat: pickup.lat,
+                pickupLng: pickup.lng,
+                dropoffAddress: dropoff.address,
+                dropoffLat: dropoff.lat,
+                dropoffLng: dropoff.lng,
                 messageToDriver: body.messageToDriver,
                 totalFare,
                 platformFee,
