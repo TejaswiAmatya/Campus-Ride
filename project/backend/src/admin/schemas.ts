@@ -8,6 +8,19 @@ export const DriverDecisionSchema = z.object({
 export const UpdateConfigSchema = z.object({
   key: z.string().min(1),
   value: z.string().min(1),
+}).superRefine((data, ctx) => {
+  if (data.key !== "platformFeePercent") {
+    return;
+  }
+
+  const parsed = Number(data.value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["value"],
+      message: "platformFeePercent must be a number between 0 and 100",
+    });
+  }
 });
 
 export const ResolveReportSchema = z.object({
