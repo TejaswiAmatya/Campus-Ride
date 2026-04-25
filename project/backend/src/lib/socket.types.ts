@@ -2,25 +2,32 @@
 export interface BookingNewPayload {
   bookingId: string;
   passengerId: string;
+  rideId: string;
   passengerName?: string; // optional, can be filled in later for richer notifications
-  pickupLocation: { lat: number; lng: number };
-  dropoffLocation: { lat: number; lng: number };
-  requestedAt: string; // ISO timestamp
+  pickupLocation?: { lat: number; lng: number };
+  dropoffLocation?: { lat: number; lng: number };
+  requestedAt?: string; // ISO timestamp
 }
 
 // Data sent when a booking's status changes
 export interface BookingStatusPayload {
   bookingId: string;
-  status: "pending" | "confirmed" | "cancelled" | "completed";
-  updatedAt: string;
+  status: "pending" | "confirmed" | "cancelled" | "declined" | "completed";
+  rideId?: string;
+  updatedAt?: string;
 }
 
 // Data sent when a ride's real-time status changes
 export interface RideStatusPayload {
   rideId: string;
-  bookingId: string;
+  bookingId?: string;
   driverLocation?: { lat: number; lng: number };
   status:
+    | "OPEN"
+    | "FULL"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | "CANCELLED"
     | "driver_assigned"
     | "en_route"
     | "arrived"

@@ -17,8 +17,8 @@ import {
   serializeRideList,
 } from "./serialize";
 import { searchRidesByLocation } from "./location";
-import { notify } from "../lib/notify";
 import { emailQueue } from "../lib/emailQueue";
+import { notify } from "../lib/notify";
 
 const rideStatusTransitions = {
   OPEN: ["ACTIVE", "CANCELLED"],
@@ -489,6 +489,15 @@ export async function updateRideStatus(
       },
     });
 
+    try {
+      await notify.rideStatus(id, {
+        rideId: id,
+        status: updatedRide.status,
+      });
+    } catch (err) {
+      console.warn("[socket] notifyRideStatus failed", err);
+    }
+
     if (body.status === "ACTIVE") {
       try {
         await emailQueue.rideStarted(updatedRide.id);
@@ -498,12 +507,6 @@ export async function updateRideStatus(
           error: queueErr,
         });
       }
-
-      await notify.rideStatus(id, {
-        rideId: id,
-        bookingId: "",
-        status: "in_progress",
-      });
     }
 
     res.json({ data: serializeRideList(updatedRide) });
@@ -633,11 +636,14 @@ export async function cancelRide(
     );
 
     if (notifiedPassengerIds.length > 0) {
-      await notify.rideStatus(id, {
-        rideId: id,
-        bookingId: "",
-        status: "cancelled",
-      });
+      try {
+        await notify.rideStatus(id, {
+          rideId: id,
+          status: ride.status,
+        });
+      } catch (err) {
+        console.warn("[socket] notifyRideStatus failed", err);
+      }
     }
 
     res.json({ data: serializeRideList(ride) });

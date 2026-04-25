@@ -12,6 +12,7 @@ import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
 import { getStartOfWeek } from "../lib/date";
+import { notify } from "../lib/notify";
 
 function isSerializationFailure(err: unknown): boolean {
   return (
@@ -132,15 +133,13 @@ function serializeBookingDetail(b: any) {
   };
 }
 
-function buildPaymentSnapshot(
-  booking: {
-    totalFare: Prisma.Decimal | string | number;
-    refundedAmount?: Prisma.Decimal | string | number | null;
-    paymentStatus: string;
-    paidAt?: Date | null;
-    refundedAt?: Date | null;
-  },
-) {
+function buildPaymentSnapshot(booking: {
+  totalFare: Prisma.Decimal | string | number;
+  refundedAmount?: Prisma.Decimal | string | number | null;
+  paymentStatus: string;
+  paidAt?: Date | null;
+  refundedAt?: Date | null;
+}) {
   const totalFare = new Prisma.Decimal(booking.totalFare?.toString() ?? "0");
   const refundedAmount = new Prisma.Decimal(
     booking.refundedAmount?.toString() ?? "0",
@@ -301,6 +300,18 @@ export async function createBooking(
           },
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
+
+        // TODO: add notifications later
+        try {
+          const ride = booking.ride;
+          await notify.bookingNew(ride.driverId, {
+            bookingId: booking.id,
+            passengerId: booking.passengerId,
+            rideId: booking.rideId,
+          });
+        } catch (err) {
+          console.warn("[socket] notifyBookingNew failed", err);
+        }
 
         res.status(201).json({
           data: {
@@ -526,6 +537,17 @@ export async function confirmBooking(
       throw new AppError("INTERNAL_ERROR", "Booking confirmation failed", 500);
     }
 
+    // TODO: add notifications later
+    try {
+      await notify.bookingStatus(updated.passengerId, {
+        bookingId: updated.id,
+        status: "confirmed",
+        rideId: updated.rideId,
+      });
+    } catch (err) {
+      console.warn("[socket] notifyBookingStatus failed", err);
+    }
+
     try {
       await emailQueue.bookingConfirmed(updated.id);
     } catch (queueErr) {
@@ -609,6 +631,17 @@ export async function declineBooking(
       },
     });
 
+    // TODO: add notifications later
+    try {
+      await notify.bookingStatus(updated.passengerId, {
+        bookingId: updated.id,
+        status: "declined",
+        rideId: updated.rideId,
+      });
+    } catch (err) {
+      console.warn("[socket] notifyBookingStatus failed", err);
+    }
+
     res.json({ data: serializeBookingList(updated) });
   } catch (err) {
     next(err);
@@ -680,8 +713,9 @@ export async function cancelBooking(
           status: "CANCELLED",
           cancelledAt: new Date(),
           refundedAmount: refundResult.refundAmount,
-          refundedAt:
-            refundResult.refundAmount.gt(0) ? new Date() : booking.refundedAt,
+          refundedAt: refundResult.refundAmount.gt(0)
+            ? new Date()
+            : booking.refundedAt,
           paymentStatus: refundResult.paymentStatus,
           messageToDriver: body.reason ?? booking.messageToDriver,
         } as any,
