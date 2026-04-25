@@ -4,6 +4,8 @@ import {
   CreateRideSchema,
   CreateRideReviewSchema,
   SearchRidesSchema,
+  StartRideSchema,
+  UpdateRideSchema,
   UpdateRideStatusSchema,
 } from "./schemas";
 import { prisma } from "../lib/prisma";
@@ -110,6 +112,166 @@ export async function createRide(
     });
 
     res.status(201).json({ data: serializeRideList(ride) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/rides/:id
+ *
+ * Contract-stub for editing an upcoming ride offer.
+ */
+export async function updateRide(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const driverId = req.user?.id;
+    if (!driverId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const body = UpdateRideSchema.parse(req.body);
+    const ride = await prisma.ride.findUnique({
+      where: { id },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+        bookings: {
+          where: { status: "CONFIRMED" },
+          select: { id: true, passengerId: true },
+        },
+      },
+    });
+
+    if (!ride) {
+      throw new AppError("NOT_FOUND", "Ride not found", 404);
+    }
+    if (ride.driverId !== driverId) {
+      throw new AppError("FORBIDDEN", "Not the driver of this ride", 403);
+    }
+
+    const updated = await prisma.ride.update({
+      where: { id },
+      data: {
+        ...(body.origin?.address && { originAddress: body.origin.address }),
+        ...(body.origin?.lat !== undefined && { originLat: body.origin.lat }),
+        ...(body.origin?.lng !== undefined && { originLng: body.origin.lng }),
+        ...(body.destination?.address && {
+          destinationAddress: body.destination.address,
+        }),
+        ...(body.destination?.lat !== undefined && {
+          destinationLat: body.destination.lat,
+        }),
+        ...(body.destination?.lng !== undefined && {
+          destinationLng: body.destination.lng,
+        }),
+        ...(body.departureTime && {
+          departureTime: new Date(body.departureTime),
+        }),
+        ...(body.totalSeats !== undefined && { totalSeats: body.totalSeats }),
+        ...(body.pricePerSeat !== undefined && {
+          pricePerSeat: body.pricePerSeat,
+        }),
+        ...(body.detourFlexibilityKm !== undefined && {
+          detourFlexibilityKm: body.detourFlexibilityKm,
+        }),
+        ...(body.preferences && { preferences: body.preferences }),
+      },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+      },
+    });
+
+    res.json({
+      data: serializeRideList(updated),
+      meta: {
+        notificationRequired: ride.bookings.length > 0,
+        confirmedPassengers: ride.bookings.length,
+        updateMessage: body.updateMessage ?? null,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/rides/:id/start
+ *
+ * Contract-stub for explicit ride start.
+ */
+export async function startRide(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const driverId = req.user?.id;
+    if (!driverId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const body = StartRideSchema.parse(req.body);
+    const ride = await prisma.ride.findUnique({
+      where: { id },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+      },
+    });
+
+    if (!ride) {
+      throw new AppError("NOT_FOUND", "Ride not found", 404);
+    }
+    if (ride.driverId !== driverId) {
+      throw new AppError("FORBIDDEN", "Not the driver of this ride", 403);
+    }
+
+    const updated = await prisma.ride.update({
+      where: { id },
+      data: { status: "IN_PROGRESS" },
+      include: {
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+          },
+        },
+      },
+    });
+
+    res.json({
+      data: serializeRideList(updated),
+      meta: {
+        startedAt: body.startedAt ?? new Date().toISOString(),
+      },
+    });
   } catch (err) {
     next(err);
   }
