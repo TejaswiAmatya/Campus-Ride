@@ -8,7 +8,15 @@ import {
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
-import { supabaseAdmin } from "../lib/supabase";
+import { createSignedLicenseUrl } from "../lib/supabase";
+import { validateReportTarget } from "../reports/validation";
+
+type VehicleInfo = {
+  make: string;
+  model: string;
+  year: number;
+  plateNumber: string;
+};
 
 /**
  * GET /api/admin/stats
@@ -58,13 +66,9 @@ export async function getStats(
       prisma.booking.count({ where: { createdAt: { gte: startOfMonth } } }),
       prisma.ride.count({ where: { status: "COMPLETED" } }),
       prisma.ride.count({ where: { status: "CANCELLED" } }),
-      prisma.driverProfile.count({
-        where: { status: "PENDING" },
-      }),
+      prisma.driverProfile.count({ where: { status: "PENDING" } }),
       prisma.report.count({ where: { status: "OPEN" } }),
-      prisma.driverProfile.count({
-        where: { status: "APPROVED" },
-      }),
+      prisma.driverProfile.count({ where: { status: "APPROVED" } }),
       prisma.user.count({ where: { role: "PASSENGER" } }),
       prisma.booking.aggregate({
         _sum: { platformFee: true },
@@ -95,7 +99,7 @@ export async function getStats(
 /**
  * GET /api/admin/drivers/pending
  *
- * Lists all users with a pending driver application,
+ * Lists all pending driver applications,
  * including their uploaded licence URL and vehicle info.
  */
 export async function listPendingDrivers(
@@ -104,47 +108,30 @@ export async function listPendingDrivers(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const drivers = await prisma.user.findMany({
-      where: { driverProfile: { status: "PENDING" } },
-      include: { driverProfile: true },
+    const drivers = await prisma.driverProfile.findMany({
+      where: { status: "PENDING" },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
       orderBy: { createdAt: "asc" },
     });
 
-    const signedUrlExpirySeconds = 60 * 60;
-
-    const mappedDrivers = await Promise.all(
-      drivers.map(async (driver) => {
-        const licencePath = driver.driverProfile?.licencePath ?? null;
-        let licenceUrl: string | null = null;
-
-        if (licencePath) {
-          const { data, error } = await supabaseAdmin.storage
-            .from("DriversInfo")
-            .createSignedUrl(licencePath, signedUrlExpirySeconds);
-
-          if (!error) {
-            licenceUrl = data.signedUrl;
-          }
-        }
-
-        return {
-          id: driver.id,
-          name: driver.name,
-          email: driver.email,
-          licenceUrl,
-          vehicle:
-            (driver.driverProfile?.vehicleInfo as {
-              make: string;
-              model: string;
-              year: number;
-              plateNumber: string;
-            } | null) ?? null,
-          createdAt: driver.createdAt,
-        };
-      }),
+    const serializedDrivers = await Promise.all(
+      drivers.map(async (driver) => ({
+        id: driver.user.id,
+        name: driver.user.name,
+        email: driver.user.email,
+        licenceUrl: await createSignedLicenseUrl(driver.licencePath),
+        vehicle: driver.vehicleInfo as VehicleInfo,
+        createdAt: driver.createdAt,
+      })),
     );
 
-    res.json({ data: mappedDrivers });
+    res.json({
+      data: serializedDrivers,
+    });
   } catch (err) {
     next(err);
   }
@@ -154,8 +141,8 @@ export async function listPendingDrivers(
  * PATCH /api/admin/drivers/:id/decision
  *
  * Approve or reject a driver application.
- * On approval: sets isDriverApproved = true, enqueues driver-approved email.
- * On rejection: sets role = PASSENGER (reverts), enqueues rejection email with reason.
+ * On approval: marks the driver profile APPROVED and promotes the user role to DRIVER.
+ * On rejection: marks the driver profile REJECTED and reverts the user role to PASSENGER.
  */
 export async function driverDecision(
   req: Request,
@@ -165,52 +152,47 @@ export async function driverDecision(
   try {
     const { id } = req.params;
     const body = DriverDecisionSchema.parse(req.body);
-    const existingDriver = await prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        role: true,
-        driverProfile: { select: { id: true, status: true } },
+    const existingDriver = await prisma.driverProfile.findUnique({
+      where: { userId: id },
+      include: {
+        user: {
+          select: { id: true, role: true, name: true, email: true },
+        },
       },
     });
 
-    if (
-      !existingDriver ||
-      !existingDriver.driverProfile ||
-      existingDriver.driverProfile.status !== "PENDING"
-    ) {
+    if (!existingDriver) {
       throw new AppError("NOT_FOUND", "Driver application not found", 404);
     }
 
-    const updatedDriver = await prisma.user.update({
-      where: { id },
-      data: {
-        ...(body.approved ? { role: "DRIVER" } : {}),
-        driverProfile: {
-          update: {
-            status: body.approved ? "APPROVED" : "REJECTED",
-            ...(body.approved ? { approvedAt: new Date() } : {}),
-          },
+    const updatedDriver = await prisma.$transaction(async (tx) => {
+      const profile = await tx.driverProfile.update({
+        where: { userId: id },
+        data: {
+          status: body.approved ? "APPROVED" : "REJECTED",
+          approvedAt: body.approved ? new Date() : null,
         },
-      },
-      include: { driverProfile: true },
+      });
+
+      const user = await tx.user.update({
+        where: { id },
+        data: { role: body.approved ? "DRIVER" : "PASSENGER" },
+        select: { id: true, name: true, email: true, role: true },
+      });
+
+      return { profile, user };
     });
 
-    //sending email
-    if (body.approved) {
-      await emailQueue.driverApproved(
-        updatedDriver.id,
-        updatedDriver.email,
-        updatedDriver.name,
-      );
-    } else {
-      await emailQueue.driverRejected(
-        updatedDriver.id,
-        updatedDriver.email,
-        updatedDriver.name,
-      );
-    }
-    res.json({ data: updatedDriver });
+    res.json({
+      data: {
+        id: updatedDriver.user.id,
+        name: updatedDriver.user.name,
+        email: updatedDriver.user.email,
+        role: updatedDriver.user.role,
+        status: updatedDriver.profile.status,
+        approvedAt: updatedDriver.profile.approvedAt,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -229,17 +211,28 @@ export async function listReports(
   try {
     const { status } = req.query;
 
-    // TODO:
-    // const reports = await prisma.report.findMany({
-    //   where: status ? { status: status as string } : undefined,
-    //   include: {
-    //     reporter: { select: { id: true, name: true, email: true } },
-    //   },
-    //   orderBy: { createdAt: 'desc' },
-    // })
-    // res.json({ data: reports })
+    const reports = await prisma.report.findMany({
+      where: status ? { status: status as string } : undefined,
+      include: {
+        reporter: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-    res.json({ message: "TODO: list reports", filter: { status } });
+    res.json({
+      data: reports.map((report) => ({
+        id: report.id,
+        reporter: report.reporter,
+        targetUserId: report.targetUserId,
+        targetRideId: report.targetRideId,
+        targetUserRole: report.targetUserRole,
+        reason: report.reason,
+        status: report.status,
+        note: report.note,
+        createdAt: report.createdAt,
+        updatedAt: report.updatedAt,
+      })),
+    });
   } catch (err) {
     next(err);
   }
@@ -259,13 +252,12 @@ export async function resolveReport(
     const { id } = req.params;
     const body = ResolveReportSchema.parse(req.body);
 
-    // TODO: prisma.report.update({ where: { id }, data: { status: body.resolution } })
-
-    res.json({
-      message: "TODO: resolve report",
-      reportId: id,
-      resolution: body.resolution,
+    const report = await prisma.report.update({
+      where: { id },
+      data: { status: body.resolution },
     });
+
+    res.json({ data: report });
   } catch (err) {
     next(err);
   }
@@ -336,15 +328,28 @@ export async function createReport(
   next: NextFunction,
 ): Promise<void> {
   try {
+    if (!req.user?.id) {
+      throw new AppError("UNAUTHORIZED", "Authentication required", 401);
+    }
+
     const body = CreateReportSchema.parse(req.body);
+    const targetUser = await validateReportTarget(
+      req.user.id,
+      body.targetUserId,
+      body.targetRideId,
+    );
 
-    // TODO:
-    // const report = await prisma.report.create({
-    //   data: { ...body, reporterId: req.user!.id },
-    // })
-    // res.status(201).json({ data: report })
+    const report = await prisma.report.create({
+      data: {
+        reporterId: req.user.id,
+        targetUserId: body.targetUserId,
+        targetRideId: body.targetRideId,
+        targetUserRole: targetUser.role,
+        reason: body.reason,
+      },
+    });
 
-    res.status(201).json({ message: "TODO: create report", body });
+    res.status(201).json({ data: report });
   } catch (err) {
     next(err);
   }

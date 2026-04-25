@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -15,18 +15,18 @@ enum Role {
 }
 
 enum RideStatus {
-  OPEN        // accepting bookings
-  FULL        // no seats left
+  OPEN // accepting bookings
+  FULL // no seats left
   IN_PROGRESS // driver has started the ride
-  COMPLETED   // ride finished
-  CANCELLED   // cancelled by driver or admin
+  COMPLETED // ride finished
+  CANCELLED // cancelled by driver or admin
 }
 
 enum BookingStatus {
-  PENDING    // waiting for driver to accept
-  CONFIRMED  // driver accepted
-  CANCELLED  // cancelled by passenger, driver, or admin
-  COMPLETED  // ride finished, earnings settled
+  PENDING // waiting for driver to accept
+  CONFIRMED // driver accepted
+  CANCELLED // cancelled by passenger, driver, or admin
+  COMPLETED // ride finished, earnings settled
 }
 
 enum DriverStatus {
@@ -38,14 +38,14 @@ enum DriverStatus {
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  name          String
-  phone         String?
-  role          Role           @default(PASSENGER)
-  avatarPath    String?        // Supabase Storage URL for profile picture
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id         String   @id @default(uuid())
+  email      String   @unique
+  name       String
+  phone      String?
+  role       Role     @default(PASSENGER)
+  avatarPath String? // Supabase Storage URL for profile picture
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   driverProfile   DriverProfile?
   ridesAsDriver   Ride[]         @relation("DriverRides")
@@ -89,19 +89,19 @@ model Ride {
 }
 
 model Booking {
-  id             String        @id @default(uuid())
-  rideId         String
-  passengerId    String
-  seatsBooked    Int
-  totalFare      Decimal       @db.Decimal(10, 2)
-  platformFee    Decimal       @db.Decimal(10, 2) // 10% of totalFare
-  driverEarnings Decimal       @db.Decimal(10, 2) // 90% of totalFare
-  status         BookingStatus @default(PENDING)
+  id                    String        @id @default(uuid())
+  rideId                String
+  passengerId           String
+  seatsBooked           Int
+  totalFare             Decimal       @db.Decimal(10, 2)
+  platformFee           Decimal       @db.Decimal(10, 2) // 10% of totalFare
+  driverEarnings        Decimal       @db.Decimal(10, 2) // 90% of totalFare
+  status                BookingStatus @default(PENDING)
   // Sprint 3: Stripe fields
   stripePaymentIntentId String?
-  paymentStatus         String  @default("UNPAID") // UNPAID | PAID | REFUNDED
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  paymentStatus         String        @default("UNPAID") // UNPAID | PAID | REFUNDED
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   ride      Ride    @relation(fields: [rideId], references: [id])
   passenger User    @relation("PassengerBookings", fields: [passengerId], references: [id])
@@ -113,7 +113,7 @@ model Review {
   bookingId  String   @unique // one review per completed booking
   reviewerId String
   revieweeId String
-  rating     Int      // 1–5; enforced at application layer via Zod
+  rating     Int // 1–5; enforced at application layer via Zod
   comment    String?
   createdAt  DateTime @default(now())
 
@@ -126,7 +126,7 @@ model Review {
 // The actual queue lives in Redis; this table is for debugging and admin visibility.
 model EmailJob {
   id             String    @id @default(uuid())
-  type           String    // welcome | booking-confirmed | ride-started | etc.
+  type           String // welcome | booking-confirmed | ride-started | etc.
   recipientEmail String
   payload        Json
   sentAt         DateTime? // null until the worker processes the job
@@ -143,15 +143,16 @@ model Config {
 
 // User-filed reports about other users or rides.
 model Report {
-  id           String   @id @default(uuid())
-  reporterId   String
-  targetUserId String?
-  targetRideId String?
-  reason       String
-  status       String   @default("OPEN") // OPEN | RESOLVED | DISMISSED
-  note         String?  // admin resolution note
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(uuid())
+  reporterId     String
+  targetUserId   String
+  targetRideId   String
+  targetUserRole Role // "DRIVER" | "PASSENGER" 
+  reason         String
+  status         String   @default("OPEN") // OPEN | RESOLVED | DISMISSED
+  note           String? // admin resolution note
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   reporter User @relation("FiledReports", fields: [reporterId], references: [id])
 }
