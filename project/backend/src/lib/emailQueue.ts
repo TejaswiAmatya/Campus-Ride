@@ -62,7 +62,12 @@ async function driverApproved(driverId: string, email: string, name: string) {
   await enqueue("driverApproved", { driverId, email, name });
 }
 
-async function driverRejected(driverId: string, email: string, name: string) {
+async function driverRejected(
+  driverId: string,
+  email: string,
+  name: string,
+  reason?: string,
+) {
   console.log("[emailQueue] driverRejected queued", { driverId, email });
   await enqueue("driverRejected", { driverId, email, name });
 }
