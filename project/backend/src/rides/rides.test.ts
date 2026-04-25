@@ -8,8 +8,14 @@ import {
   UpdateRideStatusSchema,
 } from "./schemas";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { createRide,getMyRides, searchRides,updateRideStatus,} from "./controller";
-import { searchRidesByLocation } from "./location.service";
+import {
+  cancelRide,
+  createRide,
+  getMyRides,
+  searchRides,
+  updateRideStatus,
+} from "./controller";
+import { searchRidesByLocation } from "./location";
 import { prisma } from "../lib/prisma";
 import { errorHandler } from "../middleware/error";
 
@@ -35,7 +41,7 @@ type UserRecord = {
   id: string;
   name: string;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
-  isDriverApproved: boolean;
+  driverProfileStatus?: "PENDING" | "APPROVED" | "REJECTED";
   avatarUrl?: string | null;
 };
 
@@ -117,6 +123,101 @@ vi.mock("../lib/notify", () => ({
 
 vi.mock("../lib/prisma", () => ({
   prisma: {
+    $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        ride: {
+          findUnique: async ({ where }: { where: { id: string } }) => {
+            const ride = testState.rides.find((entry) => entry.id === where.id);
+
+            if (!ride) {
+              return null;
+            }
+
+            const driver = testState.users.find(
+              (entry) => entry.id === ride.driverId,
+            );
+
+            return {
+              ...ride,
+              driver: driver
+                ? {
+                    id: driver.id,
+                    name: driver.name,
+                    avatarPath: driver.avatarUrl ?? null,
+                    driverProfile: { vehicleInfo: null },
+                  }
+                : null,
+              bookings: testState.bookings
+                .filter((booking) => booking.rideId === ride.id)
+                .map((booking) => ({ ...booking })),
+            };
+          },
+          update: async ({
+            where,
+            data,
+          }: {
+            where: { id: string };
+            data: Partial<Pick<RideRecord, "status" | "availableSeats">>;
+          }) => {
+            const ride = testState.rides.find((entry) => entry.id === where.id);
+
+            if (!ride) {
+              const error = new Error("Record not found") as Error & {
+                code: string;
+              };
+              error.code = "P2025";
+              throw error;
+            }
+
+            if (data.status) {
+              ride.status = data.status;
+            }
+            if (typeof data.availableSeats === "number") {
+              ride.availableSeats = data.availableSeats;
+            }
+
+            const driver = testState.users.find(
+              (entry) => entry.id === ride.driverId,
+            );
+
+            return {
+              ...ride,
+              driver: driver
+                ? {
+                    id: driver.id,
+                    name: driver.name,
+                    avatarPath: driver.avatarUrl ?? null,
+                    driverProfile: { vehicleInfo: null },
+                  }
+                : null,
+            };
+          },
+        },
+        booking: {
+          updateMany: async ({
+            where,
+            data,
+          }: {
+            where: { rideId: string; status: BookingRecord["status"] };
+            data: { status: BookingRecord["status"] };
+          }) => {
+            let count = 0;
+
+            testState.bookings.forEach((booking) => {
+              if (
+                booking.rideId === where.rideId &&
+                booking.status === where.status
+              ) {
+                booking.status = data.status;
+                count += 1;
+              }
+            });
+
+            return { count };
+          },
+        },
+      }),
+    ),
     user: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => {
         const user = testState.users.find((entry) => entry.id === where.id);
@@ -134,9 +235,9 @@ vi.mock("../lib/prisma", () => ({
 
         return {
           role: user.role,
-          driverProfile: {
-            status: user.isDriverApproved ? "APPROVED" : "PENDING",
-          },
+          driverProfile: user.driverProfileStatus
+            ? { status: user.driverProfileStatus }
+            : null,
         };
       }),
     },
@@ -285,13 +386,37 @@ vi.mock("../lib/prisma", () => ({
             : null,
         };
       }),
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => {
+        const ride = testState.rides.find((entry) => entry.id === where.id);
+
+        if (!ride) {
+          return null;
+        }
+
+        const driver = testState.users.find((entry) => entry.id === ride.driverId);
+
+        return {
+          ...ride,
+          driver: driver
+            ? {
+                id: driver.id,
+                name: driver.name,
+                avatarPath: driver.avatarUrl ?? null,
+                driverProfile: { vehicleInfo: null },
+              }
+            : null,
+          bookings: testState.bookings
+            .filter((booking) => booking.rideId === ride.id)
+            .map((booking) => ({ ...booking })),
+        };
+      }),
       update: vi.fn(
         async ({
           where,
           data,
         }: {
           where: { id: string };
-          data: { status: RideRecord["status"] };
+          data: Partial<Pick<RideRecord, "status" | "availableSeats">>;
         }) => {
           const ride = testState.rides.find((entry) => entry.id === where.id);
 
@@ -303,10 +428,13 @@ vi.mock("../lib/prisma", () => ({
             throw error;
           }
 
-          ride.status = data.status;
-          const driver = testState.users.find(
-            (entry) => entry.id === ride.driverId,
-          );
+          if (data.status) {
+            ride.status = data.status;
+          }
+          if (typeof data.availableSeats === "number") {
+            ride.availableSeats = data.availableSeats;
+          }
+          const driver = testState.users.find((entry) => entry.id === ride.driverId);
 
           return {
             ...ride,
@@ -322,6 +450,9 @@ vi.mock("../lib/prisma", () => ({
         },
       ),
     },
+    booking: {
+      updateMany: vi.fn(),
+    },
   },
 }));
 
@@ -332,13 +463,12 @@ beforeEach(() => {
       id: "driver-1",
       name: "Dana Driver",
       role: "DRIVER",
-      isDriverApproved: true,
+      driverProfileStatus: "APPROVED",
     },
     {
       id: "passenger-1",
       name: "Pat Passenger",
       role: "PASSENGER",
-      isDriverApproved: false,
     },
   ];
   testState.rides = [];
@@ -825,7 +955,7 @@ describe("rides API integration", () => {
       id: "driver-2",
       name: "Devon Driver",
       role: "DRIVER",
-      isDriverApproved: true,
+      driverProfileStatus: "APPROVED",
     });
 
     const createResponse = await runHandlers(
@@ -846,6 +976,168 @@ describe("rides API integration", () => {
         params: { id: createdRide.id },
         body: { status: "ACTIVE" },
         headers: { authorization: "Bearer driver-2-token" },
+      },
+    );
+
+    expect(response.statusCode).toBe(403);
+    expect((response.body.error as { code: string }).code).toBe("FORBIDDEN");
+  });
+
+  it("allows the ride driver to cancel a scheduled ride with no confirmed bookings", async () => {
+    const departureTime = new Date(futureDate);
+    testState.rides.push({
+      id: "ride-cancel-open",
+      driverId: "driver-1",
+      originAddress: "University",
+      originLat: 58.9,
+      originLng: 5.7,
+      destinationAddress: "Station",
+      destinationLat: 58.97,
+      destinationLng: 5.73,
+      departureTime,
+      totalSeats: 3,
+      availableSeats: 3,
+      pricePerSeat: new Prisma.Decimal(80),
+      status: "OPEN",
+      createdAt: departureTime,
+      updatedAt: departureTime,
+    });
+    testState.bookings.push({
+      id: "booking-pending-1",
+      rideId: "ride-cancel-open",
+      passengerId: "passenger-1",
+      seatsBooked: 1,
+      status: "PENDING",
+      createdAt: departureTime,
+    });
+
+    const response = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), cancelRide],
+      {
+        method: "DELETE",
+        headers: { authorization: "Bearer driver-token" },
+        params: { id: "ride-cancel-open" },
+      },
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect((response.body.data as RideRecord).status).toBe("CANCELLED");
+    expect(
+      testState.bookings.find((booking) => booking.id === "booking-pending-1")
+        ?.status,
+    ).toBe("CANCELLED");
+    expect(
+      testState.rides.find((ride) => ride.id === "ride-cancel-open")
+        ?.availableSeats,
+    ).toBe(3);
+    expect(notifyRideStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels confirmed bookings, restores seats, and notifies the ride room", async () => {
+    const departureTime = new Date(futureDate);
+    testState.users.push({
+      id: "passenger-2",
+      name: "Parker Passenger",
+      role: "PASSENGER",
+    });
+    testState.rides.push({
+      id: "ride-cancel-confirmed",
+      driverId: "driver-1",
+      originAddress: "University",
+      originLat: 58.9,
+      originLng: 5.7,
+      destinationAddress: "Station",
+      destinationLat: 58.97,
+      destinationLng: 5.73,
+      departureTime,
+      totalSeats: 4,
+      availableSeats: 1,
+      pricePerSeat: new Prisma.Decimal(80),
+      status: "FULL",
+      createdAt: departureTime,
+      updatedAt: departureTime,
+    });
+    testState.bookings.push(
+      {
+        id: "booking-confirmed-1",
+        rideId: "ride-cancel-confirmed",
+        passengerId: "passenger-1",
+        seatsBooked: 2,
+        status: "CONFIRMED",
+        createdAt: departureTime,
+      },
+      {
+        id: "booking-confirmed-2",
+        rideId: "ride-cancel-confirmed",
+        passengerId: "passenger-2",
+        seatsBooked: 1,
+        status: "CONFIRMED",
+        createdAt: departureTime,
+      },
+    );
+
+    const response = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), cancelRide],
+      {
+        method: "DELETE",
+        headers: { authorization: "Bearer driver-token" },
+        params: { id: "ride-cancel-confirmed" },
+      },
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect((response.body.data as RideRecord).status).toBe("CANCELLED");
+    expect(
+      testState.bookings
+        .filter((booking) => booking.rideId === "ride-cancel-confirmed")
+        .every((booking) => booking.status === "CANCELLED"),
+    ).toBe(true);
+    expect(
+      testState.rides.find((ride) => ride.id === "ride-cancel-confirmed")
+        ?.availableSeats,
+    ).toBe(4);
+    expect(notifyRideStatusMock).toHaveBeenCalledWith(
+      "ride-cancel-confirmed",
+      {
+        rideId: "ride-cancel-confirmed",
+        bookingId: "",
+        status: "cancelled",
+      },
+    );
+  });
+
+  it("rejects ride cancellation from another driver", async () => {
+    const departureTime = new Date(futureDate);
+    testState.users.push({
+      id: "driver-2",
+      name: "Devon Driver",
+      role: "DRIVER",
+      driverProfileStatus: "APPROVED",
+    });
+    testState.rides.push({
+      id: "ride-cancel-forbidden",
+      driverId: "driver-1",
+      originAddress: "University",
+      originLat: 58.9,
+      originLng: 5.7,
+      destinationAddress: "Station",
+      destinationLat: 58.97,
+      destinationLng: 5.73,
+      departureTime,
+      totalSeats: 3,
+      availableSeats: 3,
+      pricePerSeat: new Prisma.Decimal(80),
+      status: "OPEN",
+      createdAt: departureTime,
+      updatedAt: departureTime,
+    });
+
+    const response = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), cancelRide],
+      {
+        method: "DELETE",
+        headers: { authorization: "Bearer driver-2-token" },
+        params: { id: "ride-cancel-forbidden" },
       },
     );
 

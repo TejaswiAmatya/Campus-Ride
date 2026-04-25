@@ -4,6 +4,11 @@ import { app } from '../app'
 import { prisma } from '../lib/prisma'
 import { supabaseAdmin } from '../lib/supabase'
 
+const runLiveIntegrationTests = ['1', 'true'].includes(
+  (process.env.RUN_LIVE_INTEGRATION_TESTS ?? '').toLowerCase(),
+)
+const describeLiveIntegration = runLiveIntegrationTests ? describe.sequential : describe.skip
+
 type ApiError = {
   code: string
   message: string
@@ -39,7 +44,7 @@ type MeResponse = {
   error: ApiError | null
 }
 
-describe.sequential('Users/Auth integration', () => {
+describeLiveIntegration('Users/Auth integration', () => {
   const createdUserIds: string[] = []
 
   beforeEach(() => {
