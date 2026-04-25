@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
-import type { BookingDetail, BookingListItem } from './types'
+import type { BookingDetail, BookingListItem, BookingLocation } from './types'
 
 export function useBookings(params?: {
   asDriver?: boolean
@@ -40,10 +40,19 @@ export function useBookRide() {
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: async (input: { rideId: string; seatsBooked?: number }) => {
+    mutationFn: async (input: {
+      rideId: string
+      seatsBooked?: number
+      pickup?: BookingLocation
+      dropoff?: BookingLocation
+      messageToDriver?: string
+    }) => {
       const res = await api.post<{ data: BookingListItem }>('/api/bookings', {
         rideId: input.rideId,
         seatsBooked: input.seatsBooked ?? 1,
+        pickup: input.pickup,
+        dropoff: input.dropoff,
+        messageToDriver: input.messageToDriver,
       })
       return res.data.data
     },

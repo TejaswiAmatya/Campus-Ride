@@ -11,7 +11,12 @@ export const CreateBookingSchema = z.object({
   seatsBooked: z.number().int().min(1, 'Must book at least one seat').max(8),
   pickup: BookingLocationSchema.optional(),
   dropoff: BookingLocationSchema.optional(),
-  messageToDriver: z.string().trim().max(1000).optional(),
+  messageToDriver: z
+    .string()
+    .trim()
+    .max(1000)
+    .optional()
+    .transform((value) => (value ? value : undefined)),
 })
 
 export const UpdateBookingStatusSchema = z.object({
