@@ -1,9 +1,12 @@
 import { Link, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Clock, MapPin, Users } from "lucide-react";
+import { LeaveReviewSection } from "@/components/LeaveReviewSection";
 import { MapView } from "@/components/MapView";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserReviews } from "@/hooks/useProfile";
 import { api } from "@/api/client";
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
 import { useDriverLocation, useRide } from "./hooks";
@@ -20,6 +23,21 @@ export function RideDetailPage() {
   const driverLocation = useDriverLocation(
     ride?.status === "IN_PROGRESS" ? ride.id : undefined,
   );
+  const { data: driverReviews = [] } = useUserReviews(ride?.driver.id);
+  const { data: myBookings = [] } = useQuery({
+    queryKey: ["bookings", "ride-detail-review-check"],
+    queryFn: async () => {
+      const res = await api.get<{
+        data: Array<{
+          id: string;
+          status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+          ride: { id: string };
+        }>;
+      }>("/api/bookings");
+      return res.data.data ?? [];
+    },
+    enabled: !!user,
+  });
 
   const canBook =
     !!user &&
@@ -32,6 +50,29 @@ export function RideDetailPage() {
     const participants = ride?.participants ?? [];
     return participants.filter((participant) => participant.id !== user?.id);
   }, [ride?.participants, user?.id]);
+
+  const isPassengerParticipant = useMemo(() => {
+    if (!user || !ride || user.id === ride.driver.id) {
+      return false;
+    }
+
+    return myBookings.some(
+      (booking) =>
+        booking.ride.id === ride.id &&
+        (booking.status === "CONFIRMED" || booking.status === "COMPLETED"),
+    );
+  }, [myBookings, ride, user]);
+
+  const hasReviewedDriver = useMemo(() => {
+    if (!user || !ride) {
+      return false;
+    }
+
+    return driverReviews.some(
+      (review) =>
+        review.rideId === ride.id && review.reviewer.id === user.id,
+    );
+  }, [driverReviews, ride, user]);
 
   if (isLoading) {
     return (
@@ -61,6 +102,11 @@ export function RideDetailPage() {
 
   const canSubmitReport =
     selectedUserId && reason.trim().length >= 10 && !isSubmitting;
+  const showLeaveReviewSection =
+    !!user &&
+    ride.status === "COMPLETED" &&
+    isPassengerParticipant &&
+    !hasReviewedDriver;
 
   const handleReportSubmit = async (
     event: React.FormEvent<HTMLFormElement>,
@@ -171,6 +217,18 @@ export function RideDetailPage() {
           </p>
         </div>
       </div>
+
+      {showLeaveReviewSection && (
+        <div className="rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(255,255,255,0.98))] p-2 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
+          <LeaveReviewSection
+            rideId={ride.id}
+            revieweeId={ride.driver.id}
+            revieweeName={ride.driver.name}
+            title="Leave a Review"
+            description="Your feedback helps future passengers understand what the ride experience is actually like."
+          />
+        </div>
+      )}
 
       <div className="rounded-lg border p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
