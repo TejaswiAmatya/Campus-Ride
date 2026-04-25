@@ -2,6 +2,8 @@ import { Link, useParams } from 'react-router-dom'
 import { Clock, MapPin, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MapView } from '@/components/MapView'
+import { DriverLocationLayer } from './components/DriverLocationLayer'
+import { useDriverLocation, useRide } from './hooks'
 import { useAuth } from '@/hooks/useAuth'
 import { useRide } from './hooks'
 
@@ -9,6 +11,7 @@ export function RideDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const { data: ride, isLoading, isError } = useRide(id)
+  const driverLocation = useDriverLocation(ride?.status === 'IN_PROGRESS' ? ride.id : undefined)
 
   const canBook =
     !!user &&
@@ -64,7 +67,9 @@ export function RideDetailPage() {
             type: 'destination',
           },
         ]}
-      />
+      >
+        <DriverLocationLayer location={driverLocation} />
+      </MapView>
 
       <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-3">
         <div className="space-y-1">

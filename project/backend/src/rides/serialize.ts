@@ -13,11 +13,28 @@ export type RideDriverApi = {
   } | null
 }
 
+export type RideBookingApi = {
+  id: string
+  seatsBooked: number
+  status: string
+  passenger: {
+    id: string
+    name: string
+    avatarUrl: string | null
+  }
+}
+
 type DriverRow = {
   id: string
   name: string
   avatarPath: string | null
   driverProfile: { vehicleInfo: Prisma.JsonValue } | null
+}
+
+type PassengerRow = {
+  id: string
+  name: string
+  avatarPath: string | null
 }
 
 function parseVehicle(
@@ -55,6 +72,14 @@ export function mapDriverForApi(driver: DriverRow): RideDriverApi {
   }
 }
 
+function mapPassengerForApi(passenger: PassengerRow) {
+  return {
+    id: passenger.id,
+    name: passenger.name,
+    avatarUrl: passenger.avatarPath ?? null,
+  }
+}
+
 export function serializeRideList(ride: {
   id: string
   originAddress: string
@@ -84,5 +109,41 @@ export function serializeRideList(ride: {
     pricePerSeat: ride.pricePerSeat.toString(),
     status: ride.status,
     driver: mapDriverForApi(ride.driver),
+  }
+}
+
+export function serializeMyRide(ride: {
+  id: string
+  originAddress: string
+  originLat: number
+  originLng: number
+  destinationAddress: string
+  destinationLat: number
+  destinationLng: number
+  departureTime: Date
+  availableSeats: number
+  totalSeats: number
+  pricePerSeat: Prisma.Decimal
+  status: string
+  driver: DriverRow
+  bookings: Array<{
+    id: string
+    seatsBooked: number
+    status: string
+    passenger: PassengerRow
+  }>
+  _count?: {
+    bookings: number
+  }
+}) {
+  return {
+    ...serializeRideList(ride),
+    bookings: ride.bookings.map((booking) => ({
+      id: booking.id,
+      seatsBooked: booking.seatsBooked,
+      status: booking.status,
+      passenger: mapPassengerForApi(booking.passenger),
+    })),
+    _count: ride._count,
   }
 }
