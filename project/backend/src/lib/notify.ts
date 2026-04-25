@@ -1,24 +1,22 @@
-//this file is here so that when notify.bookingNew is called they just have to keep passengerId and bookingId instead of writing the whole payload
 import {
   notifyBookingNew,
   notifyBookingStatus,
   notifyRideStatus,
 } from "./socket";
 
-import type { BookingStatusPayload, RideStatusPayload } from "./socket.types";
+import type {
+  BookingNewPayload,
+  BookingStatusPayload,
+  RideStatusPayload,
+} from "./socket.types";
 
-// Stub — build minimal payload and fire the socket event
-async function bookingNew(driverId: string, bookingId: string) {
-  console.log("[notify] bookingNew", { driverId, bookingId });
+async function bookingNew(
+  driverId: string,
+  booking: Pick<BookingNewPayload, "bookingId" | "passengerId" | "rideId">,
+) {
+  console.log("[notify] bookingNew", { driverId, booking });
 
-  notifyBookingNew(driverId, {
-    bookingId,
-    passengerId: "", // stub — fill in later when you have real data
-    passengerName: "", // stub — fill in later when you have real data
-    pickupLocation: { lat: 0, lng: 0 }, // stub
-    dropoffLocation: { lat: 0, lng: 0 }, // stub
-    requestedAt: new Date().toISOString(),
-  });
+  notifyBookingNew(driverId, booking);
 }
 
 async function bookingStatus(
