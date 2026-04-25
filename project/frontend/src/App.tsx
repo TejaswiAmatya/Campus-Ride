@@ -22,6 +22,9 @@ import { ReportsPage } from "./features/admin/ReportsPage";
 import { useAuth } from "./hooks/useAuth";
 import { BookingHistoryPage } from "./features/bookings/BookingHistoryPage";
 import { DriverApprovalPage } from "./features/admin/DriverApprovalPage";
+import { canAccessDriverRoutes } from './features/auth/routing'
+import { DashboardRoutingPage } from './features/user/DashboardRoutingPage'
+import { ProfilePage } from './features/user/ProfilePage'
 
 
 const queryClient = new QueryClient({
@@ -34,6 +37,36 @@ const queryClient = new QueryClient({
   },
 });
 
+const DashboardEntryPage = DashboardRoutingPage
+const BookingHistoryPage = BookingsPage
+const BookingDetailPage = BookingStatusPage
+const ManageRidePage = RideDetailPage
+const EarningsPage = DriverDashboardPage
+const AdminDashboardPage = AdminDashboard
+const AdminDriversPage = DriverApprovalPage
+const AdminUsersPage = AdminDashboard
+const AdminRidesPage = AdminDashboard
+
+function RequireDriverApproved() {
+  const { user, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-muted-foreground animate-pulse">Loading…</p>
+      </div>
+    )
+  }
+
+  if (!user) return <Navigate to="/auth/login" replace />
+  if (!canAccessDriverRoutes(user)) return <Navigate to="/dashboard" replace />
+  return <ProtectedRoute />
+}
+
+function RequireAdmin() {
+  return <ProtectedRoute requiredRole="ADMIN" />
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -43,37 +76,27 @@ export function App() {
           <main className="container mx-auto px-4 py-6">
             <Routes>
               {/* Public */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/auth/login" element={<LoginPage />} />
+              <Route path="/auth/register" element={<RegisterPage />} />
 
-              {/* Authenticated (any role) */}
+              {/* Authenticated */}
               <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<HomeRedirect />} />
+                <Route path="/dashboard" element={<DashboardEntryPage />} />
+                <Route path="/rides" element={<SearchRidesPage />} />
+                <Route path="/rides/:id" element={<RideDetailPage />} />
+                <Route path="/bookings" element={<BookingHistoryPage />} />
+                <Route path="/bookings/:id" element={<BookingDetailPage />} />
+                <Route path="/driver/register" element={<DriverRegistrationPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
 
-              {/* Authenticated (non-admin) */}
-              <Route element={<ProtectedRoute blockedRole="ADMIN" />}>
-                <Route
-                  path="/driver/register"
-                  element={<DriverRegistrationPage />}
-                />
-                <Route path="/rides" element={<SearchRidesPage />} />
-                <Route path="/rides/mine" element={<MyRidesPage />} />
-                <Route path="/rides/post" element={<PostRidePage />} />
-                <Route
-                  path="/rides/:rideId/checkout"
-                  element={<BookingCheckoutPage />}
-                />
-                <Route path="/rides/:id" element={<RideDetailPage />} />
-                <Route path="/bookings/:id" element={<BookingStatusPage />} />
-                <Route
-                  path="/bookings/history"
-                  element={<BookingHistoryPage />}
-                />
-                <Route path="/bookings" element={<BookingHistoryPage />} />
-                <Route path="/bookings/manage" element={<BookingsPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+              {/* Driver only */}
+              <Route element={<RequireDriverApproved />}>
+                <Route path="/driver/dashboard" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/driver/rides" element={<MyRidesPage />} />
+                <Route path="/driver/rides/new" element={<PostRidePage />} />
+                <Route path="/driver/rides/:id" element={<ManageRidePage />} />
+                <Route path="/driver/earnings" element={<EarningsPage />} />
               </Route>
 
               {/* Admin only */}
@@ -86,8 +109,14 @@ export function App() {
                 <Route path="/admin/reports" element={<ReportsPage />} />
               </Route>
 
+              {/* Legacy redirects */}
+              <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+              <Route path="/register" element={<Navigate to="/auth/register" replace />} />
+              <Route path="/rides/post" element={<Navigate to="/driver/rides/new" replace />} />
+              <Route path="/rides/mine" element={<Navigate to="/driver/rides" replace />} />
+
               {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </main>
         </div>

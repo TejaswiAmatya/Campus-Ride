@@ -482,3 +482,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Project-local Codex/Claude artifacts
+project/.claude/commands/
+project/.claude/skills/
+project/skills-lock.json

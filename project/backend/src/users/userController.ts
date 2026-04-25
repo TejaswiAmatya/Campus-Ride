@@ -9,6 +9,16 @@ import { prisma } from "../lib/prisma";
 import { uploadAvatar, uploadLicense } from "../lib/supabase";
 import { AppError } from "../middleware/error";
 
+interface MeResponse {
+  id: string
+  email: string
+  name: string
+  role: 'PASSENGER' | 'DRIVER' | 'ADMIN'
+  avatarUrl: string | null
+  driverStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | null
+  createdAt: string
+}
+
 /**
  * GET /api/users/me
  *
@@ -28,15 +38,9 @@ export async function getCurrentUser(
       return;
     }
 
-    const { driverProfile, ...userData } = await prisma.user.findUniqueOrThrow({
+    const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phone: true,
-        role: true,
-        avatarPath: true,
+      include: {
         driverProfile: {
           select: {
             status: true,
@@ -45,14 +49,24 @@ export async function getCurrentUser(
       },
     });
 
-    res.json({
-      data: {
-        ...userData,
-        isDriverApproved: driverProfile?.status === "APPROVED",
-      },
-    });
-  } catch (err) {
-    next(err);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' })
+      return
+    }
+
+    const response: MeResponse = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      avatarUrl: user.avatarPath ?? null,
+      driverStatus: user.driverProfile?.status ?? null,
+      createdAt: user.createdAt.toISOString(),
+    }
+
+    res.json(response)
+  } catch(err) {
+    next(err)
   }
 }
 
