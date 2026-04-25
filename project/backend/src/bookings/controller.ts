@@ -251,19 +251,20 @@ export async function listBookings(
       throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
     }
 
-    const asDriver = req.query.asDriver === 'true'
-    const rawStatus = req.query.status
-    const statusValue = Array.isArray(rawStatus) ? undefined : rawStatus
+    const asDriver = req.query.asDriver === "true";
+    const rawStatus = req.query.status;
+    const statusValue = Array.isArray(rawStatus) ? undefined : rawStatus;
     const allowedStatuses: ReadonlyArray<BookingStatus> = [
-      'PENDING',
-      'CONFIRMED',
-      'CANCELLED',
-      'COMPLETED',
-    ]
+      "PENDING",
+      "CONFIRMED",
+      "CANCELLED",
+      "COMPLETED",
+    ];
     const statusFilter =
-      typeof statusValue === 'string' && allowedStatuses.includes(statusValue as BookingStatus)
+      typeof statusValue === "string" &&
+      allowedStatuses.includes(statusValue as BookingStatus)
         ? (statusValue as BookingStatus)
-        : undefined
+        : undefined;
 
     if (rawStatus !== undefined && !statusFilter) {
       throw new AppError(
@@ -418,7 +419,6 @@ export async function confirmBooking(
             if (!confirmedBooking) {
               throw new AppError("NOT_FOUND", "Booking not found", 404);
             }
-
             return confirmedBooking;
           },
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -434,6 +434,15 @@ export async function confirmBooking(
 
     if (!updated) {
       throw new AppError("INTERNAL_ERROR", "Booking confirmation failed", 500);
+    }
+
+    try {
+      await emailQueue.bookingConfirmed(updated.id);
+    } catch (queueErr) {
+      console.error("[bookings/confirm] bookingConfirmed queue failed", {
+        bookingId: updated.id,
+        error: queueErr,
+      });
     }
 
     res.json({ data: serializeBookingList(updated) });

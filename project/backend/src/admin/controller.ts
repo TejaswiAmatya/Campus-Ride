@@ -183,6 +183,29 @@ export async function driverDecision(
       return { profile, user };
     });
 
+    try {
+      if (body.approved) {
+        await emailQueue.driverApproved(
+          updatedDriver.user.id,
+          updatedDriver.user.email,
+          updatedDriver.user.name,
+        );
+      } else {
+        await emailQueue.driverRejected(
+          updatedDriver.user.id,
+          updatedDriver.user.email,
+          updatedDriver.user.name,
+          body.reason,
+        );
+      }
+    } catch (queueErr) {
+      console.error("[admin/driverDecision] driver decision queue failed", {
+        driverId: updatedDriver.user.id,
+        approved: body.approved,
+        error: queueErr,
+      });
+    }
+
     res.json({
       data: {
         id: updatedDriver.user.id,

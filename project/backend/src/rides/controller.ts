@@ -15,6 +15,7 @@ import {
 } from "./serialize";
 import { searchRidesByLocation } from "./location";
 import { notify } from "../lib/notify";
+import { emailQueue } from "../lib/emailQueue";
 
 const rideStatusTransitions = {
   OPEN: ["ACTIVE", "CANCELLED"],
@@ -295,6 +296,15 @@ export async function updateRideStatus(
     });
 
     if (body.status === "ACTIVE") {
+      try {
+        await emailQueue.rideStarted(updatedRide.id);
+      } catch (queueErr) {
+        console.error("[rides/status] rideStarted queue failed", {
+          rideId: updatedRide.id,
+          error: queueErr,
+        });
+      }
+
       await notify.rideStatus(id, {
         rideId: id,
         bookingId: "",

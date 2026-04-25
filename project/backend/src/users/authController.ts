@@ -3,7 +3,7 @@ import { RegisterSchema, LoginSchema } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { createAuthUser, deleteAuthUser, supabaseAuth } from "../lib/supabase";
 import { AppError } from "../middleware/error";
-
+import { emailQueue } from "../lib/emailQueue";
 // POST /api/auth/register
 export async function register(
   req: Request,
@@ -54,7 +54,15 @@ export async function register(
     }
 
     // TODO: enqueue welcome email
-    // await emailQueue.add('welcome', { recipientEmail: body.email, payload: { name: body.name } })
+    try {
+      await emailQueue.welcomeEmail(user.id, user.email);
+    } catch (queueErr) {
+      console.error("[auth/register] welcomeEmail queue failed", {
+        userId: user.id,
+        email: user.email,
+        error: queueErr,
+      });
+    }
 
     res.status(201).json({
       data: {
