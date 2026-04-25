@@ -6,7 +6,10 @@ import { LeaveReviewSection } from "@/components/LeaveReviewSection";
 import { MapView } from "@/components/MapView";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { useUserReviews } from "@/hooks/useProfile";
+import {
+  useDriverRideReviewPassengers,
+  useUserReviews,
+} from "@/hooks/useProfile";
 import { api } from "@/api/client";
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
 import { useDriverLocation, useRide } from "./hooks";
@@ -38,6 +41,12 @@ export function RideDetailPage() {
     },
     enabled: !!user,
   });
+  const { data: pendingDriverReviewPassengers = [] } =
+    useDriverRideReviewPassengers(
+      ride?.id,
+      user?.id === ride?.driver.id ? user?.id : undefined,
+      ride?.status,
+    );
 
   const canBook =
     !!user &&
@@ -107,6 +116,11 @@ export function RideDetailPage() {
     ride.status === "COMPLETED" &&
     isPassengerParticipant &&
     !hasReviewedDriver;
+  const showDriverReviewSection =
+    !!user &&
+    ride.status === "COMPLETED" &&
+    user.id === ride.driver.id &&
+    pendingDriverReviewPassengers.length > 0;
 
   const handleReportSubmit = async (
     event: React.FormEvent<HTMLFormElement>,
@@ -228,6 +242,36 @@ export function RideDetailPage() {
             description="Your feedback helps future passengers understand what the ride experience is actually like."
           />
         </div>
+      )}
+
+      {showDriverReviewSection && (
+        <section className="space-y-4 rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+              Completed ride follow-up
+            </p>
+            <h2 className="text-2xl font-semibold text-slate-950">
+              Review your passengers
+            </h2>
+            <p className="text-sm text-slate-600">
+              Leave one short review for each confirmed passenger from this completed ride.
+            </p>
+          </div>
+
+          <div className="space-y-5">
+            {pendingDriverReviewPassengers.map((passenger) => (
+              <LeaveReviewSection
+                key={passenger.id}
+                rideId={ride.id}
+                revieweeId={passenger.id}
+                revieweeName={passenger.name}
+                title={`Review ${passenger.name}`}
+                description="Keep it practical and specific so future riders and drivers get useful context."
+                submitLabel={`Submit review for ${passenger.name}`}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
       <div className="rounded-lg border p-5">
