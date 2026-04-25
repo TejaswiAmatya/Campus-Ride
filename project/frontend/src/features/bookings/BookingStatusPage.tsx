@@ -146,7 +146,7 @@ export function BookingStatusPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg border bg-muted/20 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Capture status</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Payment status</p>
                 <p className="mt-1 text-sm font-semibold">{payment.status}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {payment.paidAt
@@ -165,7 +165,7 @@ export function BookingStatusPage() {
                   <p className="mt-1 text-sm font-semibold">{formatMoney(refund.amount)}</p>
                 </div>
                 <div className="rounded-lg border p-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Still charged</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Final amount charged</p>
                   <p className="mt-1 text-sm font-semibold">{formatMoney(refund.remainingCharged)}</p>
                 </div>
               </div>
