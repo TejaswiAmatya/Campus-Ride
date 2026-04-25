@@ -2,10 +2,11 @@ import { Link, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LeaveReviewSection } from "@/components/LeaveReviewSection";
-import { ArrowRight, Clock, MapPin, ShieldCheck, Ticket, Users } from "lucide-react";
+import { ArrowRight, Clock, MapPin, ShieldCheck, Ticket, UserCheck, UserRoundX, Users } from "lucide-react";
 import { MapView } from "@/components/MapView";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useBookings, useMarkBookingNoShow, useMarkBookingPickedUp } from "@/features/bookings/hooks";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useDriverRideReviewPassengers,
@@ -28,6 +29,9 @@ export function RideDetailPage() {
     ride?.status === "IN_PROGRESS" ? ride.id : undefined,
   );
   const { data: driverReviews = [] } = useUserReviews(ride?.driver.id);
+  const { data: driverBookings = [] } = useBookings({
+    asDriver: true,
+  });
   const { data: myBookings = [] } = useQuery({
     queryKey: ["bookings", "ride-detail-review-check"],
     queryFn: async () => {
@@ -56,6 +60,10 @@ export function RideDetailPage() {
   const { isSharingLocation } = useDriverLocationEmitter(
     isDriverViewingOwnActiveRide ? ride?.id : undefined,
   );
+  const markBookingPickedUp = useMarkBookingPickedUp();
+  const markBookingNoShow = useMarkBookingNoShow();
+  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<string[]>([]);
+  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<string[]>([]);
 
   const canBook =
     !!user &&
@@ -91,6 +99,13 @@ export function RideDetailPage() {
         review.rideId === ride.id && review.reviewer.id === user.id,
     );
   }, [driverReviews, ride, user]);
+  const activeRideBookings = useMemo(
+    () =>
+      driverBookings.filter((booking) => booking.ride.id === ride?.id),
+    [driverBookings, ride?.id],
+  );
+  const pickedUpSet = useMemo(() => new Set(locallyPickedUpBookingIds), [locallyPickedUpBookingIds]);
+  const noShowSet = useMemo(() => new Set(locallyNoShowBookingIds), [locallyNoShowBookingIds]);
 
   if (isLoading) {
     return (
@@ -286,6 +301,97 @@ export function RideDetailPage() {
           </p>
         </div>
       </div>
+
+      {isDriverViewingOwnActiveRide && (
+        <section className="rounded-lg border p-5">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">Passenger handling</p>
+            <p className="text-xs text-muted-foreground">
+              Mark each confirmed passenger as picked up or no-show while this ride is active.
+            </p>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {activeRideBookings.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No passenger bookings are attached to this ride yet.</p>
+            ) : (
+              activeRideBookings.map((booking) => {
+                const pickedUpLocally = pickedUpSet.has(booking.id);
+                const noShowLocally = noShowSet.has(booking.id);
+                const canHandleBooking =
+                  booking.status === "CONFIRMED" &&
+                  !pickedUpLocally &&
+                  !noShowLocally;
+
+                return (
+                  <div key={booking.id} className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{booking.passenger?.name ?? "Passenger"}</p>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        <span>{booking.seatsBooked} seat(s)</span>
+                        <span>Status: {booking.status}</span>
+                        {pickedUpLocally && <span className="text-emerald-700">Picked up</span>}
+                        {noShowLocally && <span className="text-destructive">Marked no-show</span>}
+                      </div>
+                    </div>
+
+                    {canHandleBooking ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={markBookingPickedUp.isPending || markBookingNoShow.isPending}
+                          onClick={() =>
+                            markBookingPickedUp.mutate(booking.id, {
+                              onSuccess: () =>
+                                setLocallyPickedUpBookingIds((current) =>
+                                  current.includes(booking.id) ? current : [...current, booking.id],
+                                ),
+                            })
+                          }
+                        >
+                          <UserCheck className="mr-2 h-4 w-4" />
+                          {markBookingPickedUp.isPending && markBookingPickedUp.variables === booking.id
+                            ? "Saving..."
+                            : "Picked up"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          disabled={markBookingPickedUp.isPending || markBookingNoShow.isPending}
+                          onClick={() =>
+                            markBookingNoShow.mutate(booking.id, {
+                              onSuccess: () =>
+                                setLocallyNoShowBookingIds((current) =>
+                                  current.includes(booking.id) ? current : [...current, booking.id],
+                                ),
+                            })
+                          }
+                        >
+                          <UserRoundX className="mr-2 h-4 w-4" />
+                          {markBookingNoShow.isPending && markBookingNoShow.variables === booking.id
+                            ? "Saving..."
+                            : "No-show"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        {pickedUpLocally
+                          ? "Passenger already marked as picked up."
+                          : noShowLocally
+                            ? "Passenger already marked as no-show."
+                            : "Only confirmed bookings can be handled here."}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+      )}
 
       {showLeaveReviewSection && (
         <div className="rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(255,255,255,0.98))] p-2 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
