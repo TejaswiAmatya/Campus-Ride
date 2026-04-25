@@ -32,6 +32,8 @@ const IDS = {
   booking2: "b0000000-0000-0000-0000-000000000002", // PENDING on ride1
   booking3: "b0000000-0000-0000-0000-000000000003", // COMPLETED on ride2
   booking4: "b0000000-0000-0000-0000-000000000004", // CANCELLED on ride1
+  review1: "v0000000-0000-0000-0000-000000000001",
+  review2: "v0000000-0000-0000-0000-000000000002",
 };
 
 async function main() {
@@ -244,15 +246,25 @@ async function main() {
 
   console.log("[seed] Creating reviews…");
 
-  // Alice reviews Dave after their completed ride
-  await prisma.review.create({
-    data: {
-      bookingId: IDS.booking3,
-      reviewerId: IDS.alice,
-      revieweeId: IDS.dave,
-      rating: 5,
-      comment: "Great driver, very punctual and friendly. Highly recommend!",
-    },
+  await prisma.review.createMany({
+    data: [
+      {
+        id: IDS.review1,
+        rideId: IDS.ride2,
+        reviewerId: IDS.alice,
+        revieweeId: IDS.dave,
+        rating: 5,
+        comment: "Great driver, very punctual and friendly. Highly recommend!",
+      },
+      {
+        id: IDS.review2,
+        rideId: IDS.ride2,
+        reviewerId: IDS.dave,
+        revieweeId: IDS.alice,
+        rating: 5,
+        comment: "Excellent passenger, ready on time and easy to coordinate with.",
+      },
+    ],
   });
 
   console.log("[seed] Creating config…");
@@ -295,7 +307,7 @@ async function main() {
   console.log("  2 vehicles");
   console.log("  3 rides (OPEN, COMPLETED, IN_PROGRESS)");
   console.log("  4 bookings (CONFIRMED, PENDING, COMPLETED, CANCELLED)");
-  console.log("  1 review");
+  console.log("  2 reviews");
   console.log("  3 config entries");
   console.log("  3 email job log entries");
 }
