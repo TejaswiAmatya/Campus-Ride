@@ -1,8 +1,15 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { LeaveReviewSection } from "@/components/LeaveReviewSection";
-import { ArrowRight, Clock, MapPin, ShieldCheck, Ticket, Users } from "lucide-react";
+import {
+  ArrowRight,
+  Clock,
+  Map,
+  MapPin,
+  ShieldCheck,
+  Ticket,
+  Timer,
+  Users,
+} from "lucide-react";
 import { MapView } from "@/components/MapView";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +21,12 @@ import {
 import { api } from "@/api/client";
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
 import { useDriverLocation, useDriverLocationEmitter, useRide } from "./hooks";
+import {
+  fetchRoutePreview,
+  formatRouteDistance,
+  formatRouteDuration,
+  type RoutePreview,
+} from "./routing";
 
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +37,9 @@ export function RideDetailPage() {
   const [reason, setReason] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [routePreview, setRoutePreview] = useState<RoutePreview | null>(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const driverLocation = useDriverLocation(
     ride?.status === "IN_PROGRESS" ? ride.id : undefined,
   );
@@ -56,6 +72,47 @@ export function RideDetailPage() {
   const { isSharingLocation } = useDriverLocationEmitter(
     isDriverViewingOwnActiveRide ? ride?.id : undefined,
   );
+
+  useEffect(() => {
+    if (!ride) {
+      setRoutePreview(null);
+      setRouteError(null);
+      setIsLoadingRoute(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setIsLoadingRoute(true);
+    setRouteError(null);
+
+    void fetchRoutePreview(
+      [
+        { lat: ride.originLat, lng: ride.originLng },
+        { lat: ride.destinationLat, lng: ride.destinationLng },
+      ],
+      controller.signal,
+    )
+      .then((route) => {
+        setRoutePreview(route);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setRoutePreview(null);
+        setRouteError(
+          error instanceof Error ? error.message : "Unable to load route preview.",
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsLoadingRoute(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [ride]);
 
   const canBook =
     !!user &&
@@ -184,25 +241,47 @@ export function RideDetailPage() {
         </div>
       </div>
 
-      <MapView
-        height="h-80"
-        markers={[
-          {
-            position: [ride.originLat, ride.originLng],
-            label: `Pickup: ${ride.originAddress}`,
-            type: "origin",
-          },
-          {
-            position: [ride.destinationLat, ride.destinationLng],
-            label: `Dropoff: ${ride.destinationAddress}`,
-            type: "destination",
-          },
-        ]}
-      >
-        <DriverLocationLayer location={driverLocation} />
-      </MapView>
+      <div className="space-y-3">
+        <MapView
+          height="h-80"
+          routePath={routePreview?.geometry ?? []}
+          markers={[
+            {
+              position: [ride.originLat, ride.originLng],
+              label: `Pickup: ${ride.originAddress}`,
+              type: "origin",
+            },
+            {
+              position: [ride.destinationLat, ride.destinationLng],
+              label: `Dropoff: ${ride.destinationAddress}`,
+              type: "destination",
+            },
+          ]}
+        >
+          <DriverLocationLayer location={driverLocation} />
+        </MapView>
+        <div className="grid gap-3 rounded-2xl border bg-slate-50 p-4 sm:grid-cols-3">
+          <RouteMeta
+            icon={<Map className="h-4 w-4" />}
+            label="Distance"
+            value={routePreview ? formatRouteDistance(routePreview.distanceMeters) : isLoadingRoute ? "Loading..." : "Unavailable"}
+          />
+          <RouteMeta
+            icon={<Timer className="h-4 w-4" />}
+            label="Drive time"
+            value={routePreview ? formatRouteDuration(routePreview.durationSeconds) : isLoadingRoute ? "Loading..." : "Unavailable"}
+          />
+          <div className="rounded-xl border bg-white px-3 py-3 text-sm text-slate-600">
+            {routeError
+              ? routeError
+              : routePreview
+                ? "Route preview is based on the current OSRM driving path."
+                : "Route preview will appear here when available."}
+          </div>
+        </div>
+      </div>
 
-      <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-3">
+      <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-4">
         <div className="space-y-1">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Departure
@@ -228,6 +307,12 @@ export function RideDetailPage() {
           <p className="text-sm font-medium">
             {ride.pricePerSeat} NOK per seat
           </p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Ride status
+          </p>
+          <p className="text-sm font-medium">{ride.status.replace("_", " ")}</p>
         </div>
       </div>
 
@@ -430,6 +515,26 @@ export function RideDetailPage() {
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+function RouteMeta({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-white px-3 py-3">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <p className="mt-2 text-sm font-medium text-slate-900">{value}</p>
     </div>
   );
 }
