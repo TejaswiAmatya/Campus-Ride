@@ -31,6 +31,10 @@ export const SearchRidesSchema = z
     destLat: z.coerce.number().min(-90).max(90).optional(),
     destLng: z.coerce.number().min(-180).max(180).optional(),
     radiusKm: z.coerce.number().positive().max(100).optional(),
+    minPrice: z.coerce.number().min(0).optional(),
+    maxPrice: z.coerce.number().min(0).optional(),
+    minRating: z.coerce.number().min(1).max(5).optional(),
+    sortBy: z.enum(["departureTime", "price", "rating"]).optional(),
   })
   .superRefine((value, ctx) => {
     const hasOriginLat = value.originLat !== undefined;
@@ -51,6 +55,18 @@ export const SearchRidesSchema = z
         code: z.ZodIssueCode.custom,
         message: "destLat and destLng must be provided together",
         path: hasDestLat ? ["destLng"] : ["destLat"],
+      });
+    }
+
+    if (
+      value.minPrice !== undefined &&
+      value.maxPrice !== undefined &&
+      value.minPrice > value.maxPrice
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "minPrice cannot be greater than maxPrice",
+        path: ["maxPrice"],
       });
     }
   });
