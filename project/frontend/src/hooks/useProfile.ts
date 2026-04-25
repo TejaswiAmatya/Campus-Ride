@@ -47,7 +47,7 @@ export interface ReviewUserSummary {
 export interface UserReview {
   id: string;
   rideId: string;
-  revieweeId?: string;
+  revieweeId: string;
   rating: number;
   comment?: string | null;
   createdAt: string;
