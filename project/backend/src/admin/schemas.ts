@@ -29,6 +29,14 @@ export const ResolveReportSchema = z.object({
   note: z.string().max(1000).optional(),
 });
 
+export const CreateModerationActionSchema = z.object({
+  actionType: z.enum(["WARNING", "SUSPENSION", "BAN", "UNBAN"]),
+  reason: z.string().trim().min(3).max(1000),
+  note: z.string().trim().max(1000).optional(),
+  reportId: z.string().uuid().optional(),
+  suspendedUntil: z.string().datetime().optional(),
+});
+
 export const CreateReportSchema = z.object({
   targetUserId: z.string().uuid(),
   targetRideId: z.string().uuid(),
@@ -39,3 +47,6 @@ export type DriverDecisionInput = z.infer<typeof DriverDecisionSchema>;
 export type UpdateConfigInput = z.infer<typeof UpdateConfigSchema>;
 export type ResolveReportInput = z.infer<typeof ResolveReportSchema>;
 export type CreateReportInput = z.infer<typeof CreateReportSchema>;
+export type CreateModerationActionInput = z.infer<
+  typeof CreateModerationActionSchema
+>;

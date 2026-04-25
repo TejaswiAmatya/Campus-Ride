@@ -12,6 +12,8 @@ adminRouter.get("/stats", controller.getStats);
 adminRouter.get("/drivers/pending", controller.listPendingDrivers);
 adminRouter.patch("/drivers/:id/decision", controller.driverDecision);
 adminRouter.get("/reports", controller.listReports);
+adminRouter.get("/reports/:id", controller.getReportDetail);
 adminRouter.patch("/reports/:id", controller.resolveReport);
+adminRouter.post("/users/:id/moderation-actions", controller.createModerationAction);
 adminRouter.get("/config", controller.getAdminConfig);
 adminRouter.patch("/config", controller.updateConfig);
