@@ -32,7 +32,34 @@ interface UpdateProfileInput {
   avatarPath?: string;
 }
 
+export interface ReviewUserSummary {
+  id: string;
+  name: string;
+  avatarPath: string | null;
+}
+
+export interface UserReview {
+  id: string;
+  rideId: string;
+  revieweeId?: string;
+  rating: number;
+  comment?: string | null;
+  createdAt: string;
+  reviewer: ReviewUserSummary;
+}
+
+export interface CreateRideReviewInput {
+  revieweeId: string;
+  rating: number;
+  comment?: string;
+}
+
 export const meQueryKey = ["me"] as const;
+export const userReviewsQueryKey = (userId?: string) =>
+  ["reviews", userId] as const;
+export const rideDetailQueryKey = (rideId?: string) =>
+  ["rides", "detail", rideId] as const;
+export const myRidesQueryKey = ["rides", "mine"] as const;
 
 export const fetchMe = async (): Promise<ProfileUser> => {
   const res = await api.get<MeApiResponse | MeResponse>("/api/users/me");
@@ -82,6 +109,42 @@ export function useUpdateProfile() {
       }
 
       void queryClient.invalidateQueries({ queryKey: meQueryKey });
+    },
+  });
+}
+
+export function useUserReviews(userId?: string) {
+  return useQuery({
+    queryKey: userReviewsQueryKey(userId),
+    queryFn: async (): Promise<UserReview[]> => {
+      if (!userId) return [];
+
+      const res = await api.get<{ data: UserReview[] }>(`/api/users/${userId}/reviews`);
+      return res.data.data ?? [];
+    },
+    enabled: !!userId,
+  });
+}
+
+export function useCreateRideReview(rideId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: CreateRideReviewInput): Promise<UserReview> => {
+      const res = await api.post<{ data: UserReview }>(
+        `/api/rides/${rideId}/reviews`,
+        payload,
+      );
+      return res.data.data;
+    },
+    onSuccess: async (review) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: rideDetailQueryKey(rideId) }),
+        queryClient.invalidateQueries({ queryKey: myRidesQueryKey }),
+        queryClient.invalidateQueries({
+          queryKey: userReviewsQueryKey(review.revieweeId),
+        }),
+      ]);
     },
   });
 }
