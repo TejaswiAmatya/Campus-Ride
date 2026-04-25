@@ -4,21 +4,11 @@ import {
   UpdateProfileSchema,
   DriverApplicationSchema,
   type DriverApplicationInput,
+  type MeResponse,
 } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { uploadAvatar, uploadLicense } from "../lib/supabase";
 import { AppError } from "../middleware/error";
-interface MeResponse {
-  id: string;
-  email: string;
-  name: string;
-  role: "PASSENGER" | "DRIVER" | "ADMIN";
-  accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
-  suspendedUntil: string | null;
-  avatarUrl: string | null;
-  driverStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
-  createdAt: string;
-}
 
 /**
  * GET /api/users/me
