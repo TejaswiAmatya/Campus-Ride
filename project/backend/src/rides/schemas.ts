@@ -6,6 +6,12 @@ const RideLocationSchema = z.object({
   lng: z.number().min(-180).max(180),
 });
 
+const OptionalRideLocationSchema = z.object({
+  address: z.string().min(1).optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+});
+
 export const CreateRideSchema = z.object({
   origin: RideLocationSchema,
   destination: RideLocationSchema,
@@ -31,9 +37,28 @@ export const SearchRidesSchema = z
     destLat: z.coerce.number().min(-90).max(90).optional(),
     destLng: z.coerce.number().min(-180).max(180).optional(),
     radiusKm: z.coerce.number().positive().max(100).optional(),
+    pickup: z.string().trim().min(1).optional(),
+    dropoff: z.string().trim().min(1).optional(),
+    pickupLat: z.coerce.number().min(-90).max(90).optional(),
+    pickupLng: z.coerce.number().min(-180).max(180).optional(),
+    dropoffLat: z.coerce.number().min(-90).max(90).optional(),
+    dropoffLng: z.coerce.number().min(-180).max(180).optional(),
+    earliestDepartureTime: z.string().datetime().optional(),
+    latestDepartureTime: z.string().datetime().optional(),
     minPrice: z.coerce.number().min(0).optional(),
     maxPrice: z.coerce.number().min(0).optional(),
     minRating: z.coerce.number().min(1).max(5).optional(),
+    preferences: z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .transform((value) => {
+        if (!value) return undefined;
+        const raw = Array.isArray(value) ? value : value.split(",");
+        const normalized = raw
+          .map((item) => item.trim())
+          .filter(Boolean);
+        return normalized.length > 0 ? normalized : undefined;
+      }),
     sortBy: z.enum(["departureTime", "price", "rating"]).optional(),
   })
   .superRefine((value, ctx) => {
@@ -41,6 +66,10 @@ export const SearchRidesSchema = z
     const hasOriginLng = value.originLng !== undefined;
     const hasDestLat = value.destLat !== undefined;
     const hasDestLng = value.destLng !== undefined;
+    const hasPickupLat = value.pickupLat !== undefined;
+    const hasPickupLng = value.pickupLng !== undefined;
+    const hasDropoffLat = value.dropoffLat !== undefined;
+    const hasDropoffLng = value.dropoffLng !== undefined;
 
     if (hasOriginLat !== hasOriginLng) {
       ctx.addIssue({
@@ -58,6 +87,22 @@ export const SearchRidesSchema = z
       });
     }
 
+    if (hasPickupLat !== hasPickupLng) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "pickupLat and pickupLng must be provided together",
+        path: hasPickupLat ? ["pickupLng"] : ["pickupLat"],
+      });
+    }
+
+    if (hasDropoffLat !== hasDropoffLng) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "dropoffLat and dropoffLng must be provided together",
+        path: hasDropoffLat ? ["dropoffLng"] : ["dropoffLat"],
+      });
+    }
+
     if (
       value.minPrice !== undefined &&
       value.maxPrice !== undefined &&
@@ -69,10 +114,37 @@ export const SearchRidesSchema = z
         path: ["maxPrice"],
       });
     }
+
+    if (
+      value.earliestDepartureTime &&
+      value.latestDepartureTime &&
+      new Date(value.earliestDepartureTime) > new Date(value.latestDepartureTime)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "earliestDepartureTime cannot be after latestDepartureTime",
+        path: ["latestDepartureTime"],
+      });
+    }
   });
 
 export const UpdateRideStatusSchema = z.object({
   status: z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]),
+});
+
+export const UpdateRideSchema = z.object({
+  origin: OptionalRideLocationSchema.optional(),
+  destination: OptionalRideLocationSchema.optional(),
+  departureTime: z.string().datetime().optional(),
+  totalSeats: z.number().int().min(1).max(8).optional(),
+  pricePerSeat: z.number().min(0).optional(),
+  detourFlexibilityKm: z.number().min(0).max(100).optional(),
+  preferences: z.array(z.string().trim().min(1)).max(20).optional(),
+  updateMessage: z.string().trim().max(1000).optional(),
+});
+
+export const StartRideSchema = z.object({
+  startedAt: z.string().datetime().optional(),
 });
 
 export const CreateRideReviewSchema = z.object({
@@ -84,4 +156,6 @@ export const CreateRideReviewSchema = z.object({
 export type CreateRideInput = z.infer<typeof CreateRideSchema>;
 export type SearchRidesInput = z.infer<typeof SearchRidesSchema>;
 export type UpdateRideStatusInput = z.infer<typeof UpdateRideStatusSchema>;
+export type UpdateRideInput = z.infer<typeof UpdateRideSchema>;
+export type StartRideInput = z.infer<typeof StartRideSchema>;
 export type CreateRideReviewInput = z.infer<typeof CreateRideReviewSchema>;
