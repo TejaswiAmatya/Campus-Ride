@@ -1,11 +1,10 @@
 import http from "http";
 import { app } from "./app";
 import { initSocket } from "./lib/socket";
+import { startEmailWorker } from "./workers/emailWorkers";
 
-// Email worker + Redis — not loaded during Vitest (tests import `./app` only).
 if (process.env.VITEST !== "true") {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require("./workers/emailWorkers");
+  startEmailWorker();
 }
 
 const PORT = parseInt(process.env.PORT || "8000", 10);

@@ -8,15 +8,14 @@ import {
 import { prisma } from "../lib/prisma";
 import { uploadAvatar, uploadLicense } from "../lib/supabase";
 import { AppError } from "../middleware/error";
-
 interface MeResponse {
-  id: string
-  email: string
-  name: string
-  role: 'PASSENGER' | 'DRIVER' | 'ADMIN'
-  avatarUrl: string | null
-  driverStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | null
-  createdAt: string
+  id: string;
+  email: string;
+  name: string;
+  role: "PASSENGER" | "DRIVER" | "ADMIN";
+  avatarUrl: string | null;
+  driverStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
+  createdAt: string;
 }
 
 /**
@@ -50,8 +49,8 @@ export async function getCurrentUser(
     });
 
     if (!user) {
-      res.status(404).json({ error: 'User not found' })
-      return
+      res.status(404).json({ error: "User not found" });
+      return;
     }
 
     const response: MeResponse = {
@@ -62,11 +61,11 @@ export async function getCurrentUser(
       avatarUrl: user.avatarPath ?? null,
       driverStatus: user.driverProfile?.status ?? null,
       createdAt: user.createdAt.toISOString(),
-    }
+    };
 
-    res.json(response)
-  } catch(err) {
-    next(err)
+    res.json(response);
+  } catch (err) {
+    next(err);
   }
 }
 

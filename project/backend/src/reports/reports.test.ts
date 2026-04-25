@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextFunction, Request, Response } from "express";
-import { Prisma, RideStatus, Role, type Report, type Ride, type User } from "@prisma/client";
+import {
+  Prisma,
+  RideStatus,
+  Role,
+  type Report,
+  type Ride,
+  type User,
+} from "@prisma/client";
 
 import { createReport } from "./controller";
 import { prisma } from "../lib/prisma";
