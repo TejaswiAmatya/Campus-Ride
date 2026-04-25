@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navbar } from "./components/Navbar";
+import { PublicProfilePage } from "./components/PublicProfilePage";
 import {
   ProtectedRoute,
   getDefaultAuthenticatedPath,
@@ -77,6 +78,7 @@ export function App() {
               {/* Public */}
               <Route path="/auth/login" element={<LoginPage />} />
               <Route path="/auth/register" element={<RegisterPage />} />
+              <Route path="/profile/:id" element={<PublicProfilePage />} />
 
               {/* Authenticated */}
               <Route element={<ProtectedRoute />}>
