@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { useAuth } from './hooks/useAuth'
 import { LoginPage } from './features/auth/LoginPage'
 import { RegisterPage } from './features/auth/RegisterPage'
+import { DriverRegistrationPage } from './features/auth/DriverRegistrationPage'
 import { canAccessDriverRoutes } from './features/auth/routing'
 import { SearchRidesPage } from './features/rides/SearchRidesPage'
 import { PostRidePage } from './features/rides/PostRidePage'
@@ -77,6 +78,7 @@ export function App() {
                 <Route path="/rides/:id" element={<RideDetailPage />} />
                 <Route path="/bookings" element={<BookingHistoryPage />} />
                 <Route path="/bookings/:id" element={<BookingDetailPage />} />
+                <Route path="/driver/register" element={<DriverRegistrationPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
 
