@@ -62,6 +62,7 @@ function serializeBookingList(b: any) {
         }
       : null,
     messageToDriver: b.messageToDriver ?? null,
+    ...buildPaymentSnapshot(b),
     cancellation: buildCancellationSnapshot(b),
     createdAt: b.createdAt.toISOString(),
     passenger: b.passenger,

@@ -183,7 +183,8 @@ export function BookingStatusPage() {
                 </p>
                 <p className="mt-2 text-muted-foreground">
                   Full refund if cancelled more than {cancellation.rules.fullRefundBeforeHours} hours before departure,
-                  {` ${cancellation.rules.partialRefundPercent}%`} refund within that window, and{' '}
+                  {` ${cancellation.rules.partialRefundPercent}%`} refund if cancelled after {cancellation.rules.fullRefundBeforeHours} hours,
+                   and{' '}
                   {cancellation.rules.noShowRefundPercent}% refund for no-shows.
                 </p>
                 {cancellation.policyApplied && (

@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CarFront, ChevronDown, ChevronUp, Clock3, MapPin, Plus, Users } from 'lucide-react'
+import { CarFront, ChevronDown, ChevronUp, Clock3, MapPin, Plus, UserCheck, UserRoundX, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useMarkBookingNoShow, useMarkBookingPickedUp } from '@/features/bookings/hooks'
 import { useAuth } from '@/hooks/useAuth'
 import { useCancelRide, useDriverLocationEmitter, useMyRides, useUpdateRideStatus } from './hooks'
 import type { Ride, RideBooking, RideStatusUpdate } from './types'
@@ -67,9 +68,15 @@ interface MyRideCardProps {
   isExpanded: boolean
   isUpdatingStatus: boolean
   isCancellingRide: boolean
+  locallyPickedUpBookingIds: Set<string>
+  locallyNoShowBookingIds: Set<string>
   onToggleExpanded: () => void
   onUpdateStatus: (status: RideStatusUpdate) => void
   onRequestCancel: () => void
+  onMarkPickedUp: (bookingId: string) => void
+  onMarkNoShow: (bookingId: string) => void
+  pickupPendingBookingId: string | null
+  noShowPendingBookingId: string | null
 }
 
 function MyRideCard({
@@ -77,14 +84,21 @@ function MyRideCard({
   isExpanded,
   isUpdatingStatus,
   isCancellingRide,
+  locallyPickedUpBookingIds,
+  locallyNoShowBookingIds,
   onToggleExpanded,
   onUpdateStatus,
   onRequestCancel,
+  onMarkPickedUp,
+  onMarkNoShow,
+  pickupPendingBookingId,
+  noShowPendingBookingId,
 }: MyRideCardProps) {
   const actions = availableActions(ride.status)
   const bookings = ride.bookings ?? []
   const { isSharingLocation } = useDriverLocationEmitter(ride.status === 'IN_PROGRESS' ? ride.id : undefined)
   const canCancelRide = ride.status === 'OPEN' || ride.status === 'FULL'
+  const canManagePassengers = ride.status === 'IN_PROGRESS'
 
   return (
     <div className="rounded-xl border p-4 shadow-sm">
@@ -104,7 +118,7 @@ function MyRideCard({
           <div className="flex items-start gap-2 text-base font-medium">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <span>
-              {ride.originAddress} → {ride.destinationAddress}
+              {ride.originAddress} to {ride.destinationAddress}
             </span>
           </div>
 
@@ -140,7 +154,7 @@ function MyRideCard({
           ))}
           {canCancelRide && (
             <Button variant="destructive" disabled={isCancellingRide} onClick={onRequestCancel}>
-              {isCancellingRide ? 'Cancelling…' : 'Cancel Ride'}
+              {isCancellingRide ? 'Cancelling...' : 'Cancel Ride'}
             </Button>
           )}
         </div>
@@ -149,7 +163,14 @@ function MyRideCard({
       {isExpanded && (
         <div className="mt-4 rounded-lg border bg-muted/20">
           <div className="border-b px-4 py-3">
-            <h2 className="text-sm font-semibold">Booking Requests</h2>
+            <h2 className="text-sm font-semibold">
+              {canManagePassengers ? 'Passenger handling' : 'Booking Requests'}
+            </h2>
+            {canManagePassengers && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Mark each confirmed passenger as picked up or no-show while the ride is active.
+              </p>
+            )}
           </div>
           {bookings.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">No booking requests yet.</p>
@@ -160,18 +181,69 @@ function MyRideCard({
                   <TableHead>Passenger</TableHead>
                   <TableHead>Seats</TableHead>
                   <TableHead>Status</TableHead>
+                  {canManagePassengers && <TableHead>Ride actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bookings.map((booking) => (
-                  <TableRow key={booking.id}>
-                    <TableCell className="font-medium">{booking.passenger.name}</TableCell>
-                    <TableCell>{booking.seatsBooked}</TableCell>
-                    <TableCell>
-                      <Badge variant={bookingStatusVariants[booking.status]}>{bookingStatusLabels[booking.status]}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {bookings.map((booking) => {
+                  const pickedUpLocally = locallyPickedUpBookingIds.has(booking.id)
+                  const noShowLocally = locallyNoShowBookingIds.has(booking.id)
+                  const canHandleThisBooking =
+                    canManagePassengers &&
+                    booking.status === 'CONFIRMED' &&
+                    !pickedUpLocally &&
+                    !noShowLocally
+
+                  return (
+                    <TableRow key={booking.id}>
+                      <TableCell className="font-medium">{booking.passenger.name}</TableCell>
+                      <TableCell>{booking.seatsBooked}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant={bookingStatusVariants[booking.status]}>{bookingStatusLabels[booking.status]}</Badge>
+                          {pickedUpLocally && <span className="text-xs text-emerald-700">Picked up</span>}
+                          {noShowLocally && <span className="text-xs text-destructive">Marked no-show</span>}
+                        </div>
+                      </TableCell>
+                      {canManagePassengers && (
+                        <TableCell>
+                          {canHandleThisBooking ? (
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={pickupPendingBookingId === booking.id || noShowPendingBookingId === booking.id}
+                                onClick={() => onMarkPickedUp(booking.id)}
+                              >
+                                <UserCheck className="mr-2 h-4 w-4" />
+                                {pickupPendingBookingId === booking.id ? 'Saving...' : 'Picked up'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={pickupPendingBookingId === booking.id || noShowPendingBookingId === booking.id}
+                                onClick={() => onMarkNoShow(booking.id)}
+                              >
+                                <UserRoundX className="mr-2 h-4 w-4" />
+                                {noShowPendingBookingId === booking.id ? 'Saving...' : 'No-show'}
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {pickedUpLocally
+                                ? 'Passenger marked as picked up.'
+                                : noShowLocally
+                                  ? 'Passenger marked as no-show.'
+                                  : booking.status === 'CONFIRMED'
+                                    ? 'Already handled.'
+                                    : 'Only confirmed bookings can be handled.'}
+                            </span>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}
@@ -206,7 +278,7 @@ function CancelRideDialog({
             Cancel this ride?
           </h2>
           <p className="text-sm text-muted-foreground">
-            {ride.originAddress} → {ride.destinationAddress}
+            {ride.originAddress} to {ride.destinationAddress}
           </p>
           <p className="text-sm text-muted-foreground">
             Any confirmed passenger bookings will be cancelled and their seats will be restored automatically.
@@ -218,7 +290,7 @@ function CancelRideDialog({
             Keep Ride
           </Button>
           <Button variant="destructive" disabled={isCancelling} onClick={onConfirm}>
-            {isCancelling ? 'Cancelling…' : 'Confirm Cancel'}
+            {isCancelling ? 'Cancelling...' : 'Confirm Cancel'}
           </Button>
         </div>
       </div>
@@ -231,8 +303,15 @@ export function MyRidesPage() {
   const { data: rides, isLoading } = useMyRides()
   const updateRideStatus = useUpdateRideStatus()
   const cancelRide = useCancelRide()
+  const markBookingPickedUp = useMarkBookingPickedUp()
+  const markBookingNoShow = useMarkBookingNoShow()
   const [expandedRideId, setExpandedRideId] = useState<string | null>(null)
   const [rideToCancel, setRideToCancel] = useState<Ride | null>(null)
+  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<string[]>([])
+  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<string[]>([])
+
+  const pickedUpSet = useMemo(() => new Set(locallyPickedUpBookingIds), [locallyPickedUpBookingIds])
+  const noShowSet = useMemo(() => new Set(locallyNoShowBookingIds), [locallyNoShowBookingIds])
 
   if (!user || user.role !== 'DRIVER') {
     return (
@@ -278,9 +357,29 @@ export function MyRidesPage() {
                 isExpanded={expandedRideId === ride.id}
                 isUpdatingStatus={updateRideStatus.isPending}
                 isCancellingRide={cancelRide.isPending && rideToCancel?.id === ride.id}
+                locallyPickedUpBookingIds={pickedUpSet}
+                locallyNoShowBookingIds={noShowSet}
                 onToggleExpanded={() => setExpandedRideId((current) => (current === ride.id ? null : ride.id))}
                 onUpdateStatus={(status) => updateRideStatus.mutate({ rideId: ride.id, status })}
                 onRequestCancel={() => setRideToCancel(ride)}
+                onMarkPickedUp={(bookingId) =>
+                  markBookingPickedUp.mutate(bookingId, {
+                    onSuccess: () =>
+                      setLocallyPickedUpBookingIds((current) =>
+                        current.includes(bookingId) ? current : [...current, bookingId],
+                      ),
+                  })
+                }
+                onMarkNoShow={(bookingId) =>
+                  markBookingNoShow.mutate(bookingId, {
+                    onSuccess: () =>
+                      setLocallyNoShowBookingIds((current) =>
+                        current.includes(bookingId) ? current : [...current, bookingId],
+                      ),
+                  })
+                }
+                pickupPendingBookingId={markBookingPickedUp.isPending ? markBookingPickedUp.variables ?? null : null}
+                noShowPendingBookingId={markBookingNoShow.isPending ? markBookingNoShow.variables ?? null : null}
               />
             )
           })}
