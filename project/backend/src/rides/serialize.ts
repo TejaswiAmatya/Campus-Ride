@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 
 export type RideDriverApi = {
   id: string
@@ -17,11 +17,19 @@ export type RideBookingApi = {
   id: string
   seatsBooked: number
   status: string
+  totalFare: string
+  driverEarnings: string
   passenger: {
     id: string
     name: string
     avatarUrl: string | null
   }
+  review: {
+    id: string
+    rating: number
+    comment: string | null
+    createdAt: string
+  } | null
 }
 
 type DriverRow = {
@@ -80,6 +88,14 @@ function mapPassengerForApi(passenger: PassengerRow) {
   }
 }
 
+function toDecimalString(value: Prisma.Decimal | string | number | null | undefined) {
+  if (value === null || value === undefined) {
+    return '0.00'
+  }
+
+  return new Prisma.Decimal(value).toString()
+}
+
 export function serializeRideList(ride: {
   id: string
   originAddress: string
@@ -130,20 +146,59 @@ export function serializeMyRide(ride: {
     id: string
     seatsBooked: number
     status: string
+    totalFare: Prisma.Decimal
+    driverEarnings: Prisma.Decimal
     passenger: PassengerRow
+    review: {
+      id: string
+      rating: number
+      comment: string | null
+      createdAt: Date
+    } | null
   }>
   _count?: {
     bookings: number
   }
 }) {
+  const totalPassengers = ride.bookings
+    .filter((booking) => booking.status === 'CONFIRMED' || booking.status === 'COMPLETED')
+    .reduce((sum, booking) => sum + booking.seatsBooked, 0)
+  const completedPassengers = ride.bookings
+    .filter((booking) => booking.status === 'COMPLETED')
+    .reduce((sum, booking) => sum + booking.seatsBooked, 0)
+  const totalEarnings = ride.bookings
+    .filter((booking) => booking.status === 'CONFIRMED' || booking.status === 'COMPLETED')
+    .reduce((sum, booking) => sum.add(booking.driverEarnings), new Prisma.Decimal(0))
+  const completedEarnings = ride.bookings
+    .filter((booking) => booking.status === 'COMPLETED')
+    .reduce((sum, booking) => sum.add(booking.driverEarnings), new Prisma.Decimal(0))
+
   return {
     ...serializeRideList(ride),
     bookings: ride.bookings.map((booking) => ({
       id: booking.id,
       seatsBooked: booking.seatsBooked,
       status: booking.status,
+      totalFare: toDecimalString(booking.totalFare),
+      driverEarnings: toDecimalString(booking.driverEarnings),
       passenger: mapPassengerForApi(booking.passenger),
+      review: booking.review
+        ? {
+            id: booking.review.id,
+            rating: booking.review.rating,
+            comment: booking.review.comment,
+            createdAt: booking.review.createdAt.toISOString(),
+          }
+        : null,
     })),
     _count: ride._count,
+    stats: {
+      totalPassengers,
+      completedPassengers,
+      totalEarnings: toDecimalString(totalEarnings),
+      completedEarnings: toDecimalString(completedEarnings),
+      pendingRequests: ride.bookings.filter((booking) => booking.status === 'PENDING').length,
+      completedBookings: ride.bookings.filter((booking) => booking.status === 'COMPLETED').length,
+    },
   }
 }

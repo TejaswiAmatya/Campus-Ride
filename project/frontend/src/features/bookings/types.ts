@@ -5,13 +5,22 @@ export interface BookingListItem {
   status: BookingStatus
   seatsBooked: number
   totalFare: string
+  driverEarnings: string
   createdAt: string
+  updatedAt: string
   passenger?: { id: string; name: string }
+  review: {
+    id: string
+    rating: number
+    comment: string | null
+    createdAt: string
+  } | null
   ride: {
     id: string
     originAddress: string
     destinationAddress: string
     departureTime: string
+    status: string
     driver: { id: string; name: string }
   }
 }
@@ -27,6 +36,14 @@ export interface BookingDetail {
   createdAt: string
   updatedAt: string
   passenger: { id: string; name: string; avatarUrl: string | null }
+  review: {
+    id: string
+    rating: number
+    comment: string | null
+    createdAt: string
+    reviewerId: string
+    revieweeId: string
+  } | null
   ride: {
     id: string
     originAddress: string

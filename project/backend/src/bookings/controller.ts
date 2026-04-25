@@ -4,6 +4,7 @@ import { CreateBookingSchema, CreateReviewSchema } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
+import { notify } from "../lib/notify";
 
 const PLATFORM_FEE_PERCENT = 0.1;
 
@@ -40,6 +41,7 @@ function serializeBookingList(
     include: {
       ride: { include: { driver: { select: { id: true; name: true } } } };
       passenger: { select: { id: true; name: true } };
+      review: { select: { id: true; rating: true; comment: true; createdAt: true } };
     };
   }>,
 ) {
@@ -48,13 +50,24 @@ function serializeBookingList(
     status: b.status,
     seatsBooked: b.seatsBooked,
     totalFare: b.totalFare.toString(),
+    driverEarnings: b.driverEarnings.toString(),
     createdAt: b.createdAt.toISOString(),
+    updatedAt: b.updatedAt.toISOString(),
     passenger: b.passenger,
+    review: b.review
+      ? {
+          id: b.review.id,
+          rating: b.review.rating,
+          comment: b.review.comment,
+          createdAt: b.review.createdAt.toISOString(),
+        }
+      : null,
     ride: {
       id: b.ride.id,
       originAddress: b.ride.originAddress,
       destinationAddress: b.ride.destinationAddress,
       departureTime: b.ride.departureTime.toISOString(),
+      status: b.ride.status,
       driver: { id: b.ride.driver.id, name: b.ride.driver.name },
     },
   };
@@ -69,6 +82,16 @@ function serializeBookingDetail(
         };
       };
       passenger: { select: { id: true; name: true; avatarPath: true } };
+      review: {
+        select: {
+          id: true;
+          rating: true;
+          comment: true;
+          createdAt: true;
+          reviewerId: true;
+          revieweeId: true;
+        };
+      };
     };
   }>,
 ) {
@@ -87,6 +110,16 @@ function serializeBookingDetail(
       name: b.passenger.name,
       avatarUrl: b.passenger.avatarPath ?? null,
     },
+    review: b.review
+      ? {
+          id: b.review.id,
+          rating: b.review.rating,
+          comment: b.review.comment,
+          createdAt: b.review.createdAt.toISOString(),
+          reviewerId: b.review.reviewerId,
+          revieweeId: b.review.revieweeId,
+        }
+      : null,
     ride: {
       id: b.ride.id,
       originAddress: b.ride.originAddress,
@@ -192,6 +225,9 @@ export async function createBooking(
                   include: { driver: { select: { id: true, name: true } } },
                 },
                 passenger: { select: { id: true, name: true } },
+                review: {
+                  select: { id: true, rating: true, comment: true, createdAt: true },
+                },
               },
             });
 
@@ -282,6 +318,9 @@ export async function listBookings(
         include: {
           passenger: { select: { id: true, name: true } },
           ride: { include: { driver: { select: { id: true, name: true } } } },
+          review: {
+            select: { id: true, rating: true, comment: true, createdAt: true },
+          },
         },
         orderBy: { createdAt: "desc" },
       });
@@ -297,6 +336,9 @@ export async function listBookings(
       include: {
         passenger: { select: { id: true, name: true } },
         ride: { include: { driver: { select: { id: true, name: true } } } },
+        review: {
+          select: { id: true, rating: true, comment: true, createdAt: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -330,6 +372,16 @@ export async function getBooking(
           },
         },
         passenger: { select: { id: true, name: true, avatarPath: true } },
+        review: {
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+            reviewerId: true,
+            revieweeId: true,
+          },
+        },
       },
     });
 
@@ -369,6 +421,7 @@ export async function confirmBooking(
       include: {
         ride: { include: { driver: { select: { id: true; name: true } } } };
         passenger: { select: { id: true; name: true } };
+        review: { select: { id: true; rating: true; comment: true; createdAt: true } };
       };
     }> | null = null;
 
@@ -412,6 +465,9 @@ export async function confirmBooking(
                   include: { driver: { select: { id: true, name: true } } },
                 },
                 passenger: { select: { id: true, name: true } },
+                review: {
+                  select: { id: true, rating: true, comment: true, createdAt: true },
+                },
               },
             });
 
@@ -435,6 +491,12 @@ export async function confirmBooking(
     if (!updated) {
       throw new AppError("INTERNAL_ERROR", "Booking confirmation failed", 500);
     }
+
+    await notify.bookingStatus(updated.passenger.id, {
+      bookingId: updated.id,
+      status: "confirmed",
+      updatedAt: new Date().toISOString(),
+    });
 
     res.json({ data: serializeBookingList(updated) });
   } catch (err) {
@@ -507,7 +569,16 @@ export async function declineBooking(
       include: {
         ride: { include: { driver: { select: { id: true, name: true } } } },
         passenger: { select: { id: true, name: true } },
+        review: {
+          select: { id: true, rating: true, comment: true, createdAt: true },
+        },
       },
+    });
+
+    await notify.bookingStatus(updated.passenger.id, {
+      bookingId: updated.id,
+      status: "cancelled",
+      updatedAt: new Date().toISOString(),
     });
 
     res.json({ data: serializeBookingList(updated) });
@@ -592,6 +663,9 @@ export async function cancelBooking(
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
           passenger: { select: { id: true, name: true } },
+          review: {
+            select: { id: true, rating: true, comment: true, createdAt: true },
+          },
         },
       });
     });
@@ -604,6 +678,12 @@ export async function cancelBooking(
         error: queueErr,
       });
     }
+
+    await notify.bookingStatus(updated.passenger.id, {
+      bookingId: updated.id,
+      status: "cancelled",
+      updatedAt: new Date().toISOString(),
+    });
 
     res.json({ data: serializeBookingList(updated) });
   } catch (err) {
@@ -691,8 +771,17 @@ export async function completeBooking(
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
           passenger: { select: { id: true, name: true } },
+          review: {
+            select: { id: true, rating: true, comment: true, createdAt: true },
+          },
         },
       });
+    });
+
+    await notify.bookingStatus(updated.passenger.id, {
+      bookingId: updated.id,
+      status: "completed",
+      updatedAt: new Date().toISOString(),
     });
 
     res.json({ data: serializeBookingList(updated) });
@@ -712,9 +801,77 @@ export async function createReview(
   try {
     const body = CreateReviewSchema.parse(req.body);
     const { id } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+    if (body.bookingId !== id) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Booking id in payload must match the route parameter",
+        422,
+      );
+    }
 
-    void body;
-    res.status(201).json({ message: "TODO: create review", bookingId: id });
+    const review = await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id },
+        include: {
+          ride: { select: { driverId: true } },
+          review: true,
+        },
+      });
+
+      if (!booking) {
+        throw new AppError("NOT_FOUND", "Booking not found", 404);
+      }
+      if (booking.status !== "COMPLETED") {
+        throw new AppError(
+          "INVALID_STATE",
+          "A review can only be left after the ride is completed",
+          409,
+        );
+      }
+      if (booking.review) {
+        throw new AppError(
+          "INVALID_STATE",
+          "A review has already been submitted for this booking",
+          409,
+        );
+      }
+
+      const isDriver = booking.ride.driverId === userId;
+      const isPassenger = booking.passengerId === userId;
+      if (!isDriver && !isPassenger) {
+        throw new AppError(
+          "FORBIDDEN",
+          "Only the driver or passenger from this booking can leave a review",
+          403,
+        );
+      }
+
+      return tx.review.create({
+        data: {
+          bookingId: booking.id,
+          reviewerId: userId,
+          revieweeId: isDriver ? booking.passengerId : booking.ride.driverId,
+          rating: body.rating,
+          comment: body.comment,
+        },
+      });
+    });
+
+    res.status(201).json({
+      data: {
+        id: review.id,
+        bookingId: review.bookingId,
+        rating: review.rating,
+        comment: review.comment,
+        reviewerId: review.reviewerId,
+        revieweeId: review.revieweeId,
+        createdAt: review.createdAt.toISOString(),
+      },
+    });
   } catch (err) {
     next(err);
   }
