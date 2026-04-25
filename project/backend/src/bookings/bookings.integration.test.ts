@@ -4,6 +4,11 @@ import { app } from '../app'
 import { prisma } from '../lib/prisma'
 import { supabaseAdmin } from '../lib/supabase'
 
+const runLiveIntegrationTests = ['1', 'true'].includes(
+  (process.env.RUN_LIVE_INTEGRATION_TESTS ?? '').toLowerCase(),
+)
+const describeLiveIntegration = runLiveIntegrationTests ? describe.sequential : describe.skip
+
 type ApiEnvelope<T> = { data: T | null; error: { code: string; message: string } | null }
 
 const password = 'password123'
@@ -57,7 +62,7 @@ async function cleanupByEmailPrefix(prefix: string) {
   }
 }
 
-describe.sequential('Bookings integration (book → confirm / decline)', () => {
+describeLiveIntegration('Bookings integration (book → confirm / decline)', () => {
   const prefix = `bkflow-${Date.now()}-`
   const driverEmail = `${prefix}drv@university.edu`
   const passengerEmail = `${prefix}pax@university.edu`

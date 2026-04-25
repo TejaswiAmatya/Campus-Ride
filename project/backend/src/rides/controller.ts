@@ -13,7 +13,7 @@ import {
   serializeMyRide,
   serializeRideList,
 } from "./serialize";
-import { searchRidesByLocation } from "./location.service";
+import { searchRidesByLocation } from "./location";
 import { notify } from "../lib/notify";
 import { emailQueue } from "../lib/emailQueue";
 

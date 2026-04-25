@@ -55,12 +55,15 @@ Frontend proxies API calls to the backend in dev (configured in `vite.config.ts`
 
 Each feature follows a **Router → Controller → Schema** pattern:
 
+- `src/app.ts` — Express app initialization and route mounting (separate from `index.ts`)
 - `src/users/` — auth, profiles, driver applications (Track A)
-- `src/rides/` — ride posting and search (Track B)
+- `src/rides/` — ride posting and search (Track B); includes `location.service.ts` and `serialize.ts`
 - `src/bookings/` — booking lifecycle and payments (Track C)
-- `src/admin/` — dashboard, reports, config management (Track D)
+- `src/admin/` — dashboard, driver approvals, config management (Track D); stats/approval/report resolution fully implemented
+- `src/reports/` — user-filed reports feature; `router.ts`, `controller.ts`, `validation.ts` (validates target exists, prevents self-reporting)
 - `src/middleware/auth.ts` — `requireAuth` and `requireRole` middleware (JWT via Supabase)
 - `src/middleware/error.ts` — global error handler; use the `AppError` class for structured errors
+- `src/middleware/upload.ts` — Multer config for file uploads (memory storage; accepts jpg/png/webp/heic/pdf)
 - `src/lib/prisma.ts` — Prisma singleton
 - `src/lib/supabase.ts` — Supabase Admin client singleton
 - `src/lib/socket.ts` — Socket.io server setup (initialized in `index.ts`)
@@ -72,10 +75,10 @@ Each feature follows a **Router → Controller → Schema** pattern:
 
 ### Database (Prisma + Supabase/PostgreSQL)
 
-Key models: `User`, `Vehicle`, `Ride`, `Booking`, `Review`, `Report`, `EmailJob`, `Config`.
+Key models: `User`, `DriverProfile` (licence, vehicle JSON, status, approvedAt), `Ride`, `Booking`, `Review`, `Report`, `EmailJob`, `Config`.
 
 - Run `npm run db:generate` after any schema change before building or testing
-- Enums: `Role` (PASSENGER | DRIVER | ADMIN), `RideStatus`, `BookingStatus`
+- Enums: `Role` (PASSENGER | DRIVER | ADMIN), `RideStatus` (OPEN | FULL | IN_PROGRESS | COMPLETED | CANCELLED), `BookingStatus` (PENDING | CONFIRMED | CANCELLED | COMPLETED), `DriverStatus` (PENDING | APPROVED | REJECTED)
 
 ### Auth Flow
 
@@ -86,16 +89,23 @@ Key models: `User`, `Vehicle`, `Ride`, `Booking`, `Review`, `Report`, `EmailJob`
 ### Frontend Structure
 
 - `src/features/` — page-level components organized by domain; each subdomain has a `routes.tsx` plus page components
-- `src/components/` — shared UI: `Navbar.tsx`, `MapView.tsx`, `ProtectedRoute.tsx`, and `ui/` (shadcn/ui primitives: button, card, input, badge, table)
+  - `admin/` — `AdminDashboard.tsx`, `DriverApprovalsPage.tsx`, `DriverApprovalTable.tsx`, `ReportsPage.tsx`, `ReportsTable.tsx`, `StatsCard.tsx`, `types.ts`, `useAdminStats.ts`, `usePendingDrivers.ts`, `useReports.ts`
+  - `auth/` — `LoginPage.tsx`, `RegisterPage.tsx`, `DriverRegistrationPage.tsx`, `routing.ts`, `components/DocumentUpload.tsx`
+  - `bookings/` — `BookingsPage.tsx`, `BookingCheckoutPage.tsx`, `BookingHistoryPage.tsx`, `BookingStatusPage.tsx`, `StatusBadge.tsx`, `types.ts`, `hooks.ts`
+  - `rides/` — `RidesPage.tsx`, `PostRidePage.tsx`, `RideDetailPage.tsx`, `MyRidesPage.tsx`, `SearchRidesPage.tsx`, `types.ts`, `hooks.ts`, `components/{DriverLocationLayer,RideCard,RouteInputForm,SeatSelector}.tsx`
+  - `user/` — `DashboardRoutingPage.tsx`, `DriverDashboardPage.tsx`, `PassengerDashboardPage.tsx`, `ProfilePage.tsx`
+- `src/components/` — shared UI: `Navbar.tsx`, `MapView.tsx`, `ProtectedRoute.tsx`, `AvatarUpload.tsx`, `DashboardCard.tsx`, `EditUserDetailForm.tsx`, `PendingDriverBanner.tsx`, `ProfileSummaryCard.tsx`, `UserProfileCard.tsx`, and `ui/` (shadcn/ui primitives: button, card, input, badge, table)
 - `src/store/authStore.ts` — Zustand store for persistent auth state (access/refresh tokens)
 - `src/lib/socket.ts` — Socket.io client instance
+- `src/lib/supabase.ts` — Supabase client with session management
 - `src/routes/types.ts` — shared route type definitions
 - `src/api/client.ts` — Axios instance with interceptors
+- `src/hooks/` — `useAuth.ts`, `useDashboard.ts`, `useProfile.ts`
 - Styling: Tailwind CSS with shadcn/ui design tokens (CSS variables in `index.css`), class-variance-authority for variants
 
 ### Testing
 
-- Vitest; primary test targets are Zod schema validations in each feature's `*.test.ts`
+- Vitest; unit tests (`*.test.ts`) cover Zod schema validations; integration tests (`*.int.test.ts`) cover full request flows
 - CI (`.github/workflows/ci.yml`) runs backend type-check + tests and frontend type-check on every push/PR to `main`
 - `prisma generate` runs in CI without a real DB connection (schema only)
 
@@ -129,10 +139,10 @@ Key models: `User`, `Vehicle`, `Ride`, `Booking`, `Review`, `Report`, `EmailJob`
 
 ### Admin
 
-- **Dashboard**: `/admin` → `GET /api/admin/stats`.
+- **Dashboard**: `/admin` → `GET /api/admin/stats` (activeRides, bookingsToday, revenue, openReports counts — fully implemented).
 - **Driver approvals**: `GET /api/admin/drivers/pending`, `PATCH /api/admin/drivers/:id/decision`.
-- **Reports**: users file via `POST /api/admin/reports`; admins view/resolve via `GET /api/admin/reports`, `PATCH /api/admin/reports/:id`.
-- **Config**: public `GET /api/admin/config`, admin `PATCH /api/admin/config`.
+- **Reports**: any authenticated user files via `POST /api/reports`; admins view/resolve via `GET /api/admin/reports`, `PATCH /api/admin/reports/:id`.
+- **Config**: public `GET /api/admin/config`, admin `PATCH /api/admin/config` (stubbed).
 
 ## Environment Variables
 
@@ -142,7 +152,7 @@ Key models: `User`, `Vehicle`, `Ride`, `Booking`, `Review`, `Report`, `EmailJob`
 
 ## Current Status
 
-Most controller handlers are stubbed with TODOs — the schema/routing layer is complete but business logic integration is in progress. Stripe payment (schema fields `stripePaymentIntentId`/`paymentStatus` exist in `Booking`) and PostGIS distance queries are planned for later sprints. Socket.io and BullMQ email queue infrastructure are wired up but notification calls in controllers are marked `// TODO: add notifications later`.
+The admin module (stats, driver approvals, report listing/resolution) is fully implemented. The reports filing system (`src/reports/`) is complete with target validation. Stripe payment (schema fields `stripePaymentIntentId`/`paymentStatus` exist in `Booking`) and PostGIS distance queries are planned for later sprints. Socket.io and BullMQ email queue infrastructure are wired up but notification calls in controllers are still marked `// TODO: add notifications later`. Config CRUD (`GET/PATCH /api/admin/config`) remains stubbed.
 
 ## File Structure (current)
 
@@ -154,11 +164,14 @@ project/
 	CLAUDE.md
 	README.md
 	SETUP.md
+	campus_ride.md
+	docker-compose.yml
 	backend/
 		.env
 		Dockerfile
 		dist/
 		package.json
+		prisma.config.ts
 		prisma/
 			schema.prisma
 			seed.ts
@@ -166,8 +179,9 @@ project/
 				migration_lock.toml
 				20260419161625_init/
 					migration.sql
-		prisma.config.ts
 		src/
+			app.ts
+			index.ts
 			admin/
 				controller.ts
 				router.ts
@@ -178,6 +192,7 @@ project/
 				router.ts
 				schemas.ts
 				bookings.test.ts
+				bookings.integration.test.ts
 			config/
 				redis.ts
 			lib/
@@ -190,11 +205,19 @@ project/
 			middleware/
 				auth.ts
 				error.ts
+				upload.ts
+			reports/
+				controller.ts
+				router.ts
+				validation.ts
+				reports.test.ts
 			rides/
 				controller.ts
 				router.ts
 				schemas.ts
 				rides.test.ts
+				location.service.ts
+				serialize.ts
 			users/
 				authController.ts
 				router.ts
@@ -204,11 +227,8 @@ project/
 				users.int.test.ts
 			workers/
 				emailWorkers.ts
-			index.ts
 		tsconfig.json
 		vitest.config.ts
-	campus_ride.md
-	docker-compose.yml
 	frontend/
 		.env
 		Dockerfile
@@ -222,9 +242,15 @@ project/
 			api/
 				client.ts
 			components/
+				AvatarUpload.tsx
+				DashboardCard.tsx
+				EditUserDetailForm.tsx
 				MapView.tsx
 				Navbar.tsx
+				PendingDriverBanner.tsx
+				ProfileSummaryCard.tsx
 				ProtectedRoute.tsx
+				UserProfileCard.tsx
 				ui/
 					badge.tsx
 					button.tsx
@@ -234,25 +260,60 @@ project/
 			features/
 				admin/
 					AdminDashboard.tsx
+					DriverApprovalPage.tsx
+					DriverApprovalsPage.tsx
+					DriverApprovalTable.tsx
+					ReportsPage.tsx
+					ReportsTable.tsx
+					StatsCard.tsx
 					routes.tsx
+					types.ts
+					useAdminStats.ts
+					usePendingDrivers.ts
+					useReports.ts
 				auth/
 					LoginPage.tsx
 					RegisterPage.tsx
+					DriverRegistrationPage.tsx
 					routes.tsx
+					routing.ts
+					components/
+						DocumentUpload.tsx
 				bookings/
 					BookingsPage.tsx
+					BookingCheckoutPage.tsx
+					BookingHistoryPage.tsx
+					BookingStatusPage.tsx
+					StatusBadge.tsx
 					routes.tsx
-				profile/
-					ProfilePage.tsx
-					routes.tsx
+					types.ts
+					hooks.ts
 				rides/
 					PostRidePage.tsx
 					RidesPage.tsx
+					RideDetailPage.tsx
+					MyRidesPage.tsx
+					SearchRidesPage.tsx
 					routes.tsx
+					types.ts
+					hooks.ts
+					components/
+						DriverLocationLayer.tsx
+						RideCard.tsx
+						RouteInputForm.tsx
+						SeatSelector.tsx
+				user/
+					DashboardRoutingPage.tsx
+					DriverDashboardPage.tsx
+					PassengerDashboardPage.tsx
+					ProfilePage.tsx
 			hooks/
 				useAuth.ts
+				useDashboard.ts
+				useProfile.ts
 			lib/
 				socket.ts
+				supabase.ts
 				utils.ts
 			routes/
 				types.ts
