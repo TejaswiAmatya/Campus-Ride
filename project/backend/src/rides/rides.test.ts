@@ -61,6 +61,13 @@ type RideRecord = {
   status: "OPEN" | "FULL" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   createdAt: Date;
   updatedAt: Date;
+  driver?: {
+    id: string;
+    name: string;
+    avatarPath: string | null;
+    driverProfile: { vehicleInfo: Prisma.JsonValue } | null;
+    reviewsReceived: Array<{ rating: number }>;
+  };
 };
 
 type BookingRecord = {
@@ -563,18 +570,20 @@ describe("searchRidesByLocation", () => {
     vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
       { id: "nearby-ride", sortDistanceMeters: 800 },
     ]);
-    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([
-      {
-        ...nearbyRide,
-        driver: {
-          id: "driver-1",
-          name: "Dana Driver",
-          avatarPath: null,
-          driverProfile: { vehicleInfo: null },
-          reviewsReceived: [],
+    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce(
+      [
+        {
+          ...nearbyRide,
+          driver: {
+            id: "driver-1",
+            name: "Dana Driver",
+            avatarPath: null,
+            driverProfile: { vehicleInfo: null },
+            reviewsReceived: [],
+          },
         },
-      },
-    ]);
+      ] as unknown as RideRecord[],
+    );
 
     const results = await searchRidesByLocation({
       originLat: osloLat,
