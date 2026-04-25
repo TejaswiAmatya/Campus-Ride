@@ -25,7 +25,7 @@ interface AuthState {
   setSession: (tokens: SessionTokens) => void;
   setUser: (user: AuthUser | null) => void;
   setAuthError: (error: AuthErrorState | null) => void;
-  clearSession: (authError?: AuthErrorState | null) => void;
+  clearSession: () => void;
 }
 
 const initialAccess = localStorage.getItem("access_token");
@@ -77,7 +77,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ authError });
   },
 
-  clearSession: (authError = null) => {
+  clearSession: () => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     void clearSupabaseSession().catch(() => {});
@@ -86,7 +86,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-      authError,
+      authError: null,
     });
   },
 }));
