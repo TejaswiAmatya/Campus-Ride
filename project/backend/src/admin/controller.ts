@@ -10,6 +10,7 @@ import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { createSignedLicenseUrl } from "../lib/supabase";
 import { validateReportTarget } from "../reports/validation";
+import { getConfigMap, upsertConfigValue } from "../config/service";
 
 type VehicleInfo = {
   make: string;
@@ -275,12 +276,8 @@ export async function getConfig(
   next: NextFunction,
 ): Promise<void> {
   try {
-    // TODO:
-    // const configs = await prisma.config.findMany()
-    // const map = Object.fromEntries(configs.map((c) => [c.key, c.value]))
-    // res.json({ data: map })
-
-    res.json({ message: "TODO: get config" });
+    const config = await getConfigMap();
+    res.json({ data: config });
   } catch (err) {
     next(err);
   }
@@ -298,20 +295,8 @@ export async function updateConfig(
 ): Promise<void> {
   try {
     const body = UpdateConfigSchema.parse(req.body);
-
-    // TODO:
-    // const config = await prisma.config.upsert({
-    //   where: { key: body.key },
-    //   create: { key: body.key, value: body.value },
-    //   update: { value: body.value },
-    // })
-    // res.json({ data: config })
-
-    res.json({
-      message: "TODO: update config",
-      key: body.key,
-      value: body.value,
-    });
+    const config = await upsertConfigValue(body.key, body.value);
+    res.json({ data: config });
   } catch (err) {
     next(err);
   }

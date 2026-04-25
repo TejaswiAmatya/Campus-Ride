@@ -24,6 +24,7 @@ import { canAccessDriverRoutes } from "./features/auth/routing";
 import { DashboardRoutingPage } from "./features/user/DashboardRoutingPage";
 import { ProfilePage } from "./features/user/ProfilePage";
 import { DriverDashboardPage } from "./features/user/DriverDashboardPage";
+import { SettingsPage } from "./features/admin/SettingsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -111,6 +112,7 @@ export function App() {
                   element={<DriverApprovalsPage />}
                 />
                 <Route path="/admin/reports" element={<ReportsPage />} />
+                <Route path="/admin/settings" element={<SettingsPage />} />
               </Route>
 
               {/* Legacy redirects */}

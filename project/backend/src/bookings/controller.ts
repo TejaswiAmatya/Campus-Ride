@@ -4,8 +4,7 @@ import { CreateBookingSchema, CreateReviewSchema } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
-
-const PLATFORM_FEE_PERCENT = 0.1;
+import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
 
 function isSerializationFailure(err: unknown): boolean {
   return (
@@ -172,9 +171,8 @@ export async function createBooking(
               ride.pricePerSeat.toString(),
             );
             const totalFare = pricePerSeat.mul(body.seatsBooked);
-            const platformFee = totalFare.mul(
-              new Prisma.Decimal(PLATFORM_FEE_PERCENT.toString()),
-            );
+            const platformFeeRate = await getPlatformFeeRate(tx);
+            const platformFee = totalFare.mul(platformFeeRate);
             const driverEarnings = totalFare.sub(platformFee);
 
             const created = await tx.booking.create({
@@ -620,7 +618,68 @@ export async function getEarnings(
   next: NextFunction,
 ): Promise<void> {
   try {
-    res.json({ message: "TODO: get earnings", driverId: req.user?.id });
+    const userId = req.user?.id;
+    const role = req.user?.role;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+    if (role !== "DRIVER") {
+      throw new AppError(
+        "FORBIDDEN",
+        "Only approved drivers can view earnings",
+        403,
+      );
+    }
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [platformFeePercent, completedBookings, pendingBookings] =
+      await Promise.all([
+        getPlatformFeePercent(),
+        prisma.booking.findMany({
+          where: {
+            status: "COMPLETED",
+            ride: { driverId: userId },
+          },
+          select: {
+            driverEarnings: true,
+            updatedAt: true,
+          },
+        }),
+        prisma.booking.findMany({
+          where: {
+            status: "CONFIRMED",
+            ride: { driverId: userId },
+          },
+          select: {
+            driverEarnings: true,
+          },
+        }),
+      ]);
+
+    const totalEarnings = sumDecimal(
+      completedBookings.map((booking) => booking.driverEarnings),
+    );
+    const thisMonth = sumDecimal(
+      completedBookings
+        .filter((booking) => booking.updatedAt >= startOfMonth)
+        .map((booking) => booking.driverEarnings),
+    );
+    const pendingPayout = sumDecimal(
+      pendingBookings.map((booking) => booking.driverEarnings),
+    );
+
+    res.json({
+      data: {
+        totalEarnings: totalEarnings.toString(),
+        thisMonth: thisMonth.toString(),
+        pendingPayout: pendingPayout.toString(),
+        platformFeePercent: platformFeePercent.toString(),
+        currency: "NOK",
+      },
+    });
   } catch (err) {
     next(err);
   }

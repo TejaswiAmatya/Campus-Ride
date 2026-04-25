@@ -55,6 +55,15 @@ describe("UpdateConfigSchema", () => {
         .success,
     ).toBe(false);
   });
+
+  it("rejects a non-numeric platform fee percentage", () => {
+    expect(
+      UpdateConfigSchema.safeParse({
+        key: "platformFeePercent",
+        value: "ten",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("ResolveReportSchema", () => {
