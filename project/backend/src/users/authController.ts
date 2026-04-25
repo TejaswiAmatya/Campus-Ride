@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { RegisterSchema, LoginSchema } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { createAuthUser, deleteAuthUser, supabaseAuth } from "../lib/supabase";
-import { AppError } from "../middleware/error";
+import { AppError, getBlockedAccountError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 // POST /api/auth/register
 export async function register(
@@ -101,6 +101,27 @@ export async function login(
       );
     }
 
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { accountStatus: true, suspendedUntil: true },
+    });
+
+    if (!user) {
+      throw new AppError("UNAUTHORIZED", "Authenticated user not found", 401);
+    }
+
+    const blockedAccountError = getBlockedAccountError({
+      accountStatus:
+        user.accountStatus === "SUSPENDED" && hasSuspensionExpired(user.suspendedUntil)
+          ? "ACTIVE"
+          : user.accountStatus,
+      suspendedUntil: user.suspendedUntil,
+    });
+
+    if (blockedAccountError) {
+      throw blockedAccountError;
+    }
+
     // return the access_token and refresh_token
     const session = data.session;
     res.status(200).json({
@@ -112,4 +133,8 @@ export async function login(
   } catch (err) {
     next(err);
   }
+}
+
+function hasSuspensionExpired(suspendedUntil: Date | null): boolean {
+  return suspendedUntil !== null && suspendedUntil.getTime() <= Date.now();
 }
