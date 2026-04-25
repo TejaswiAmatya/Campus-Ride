@@ -4,6 +4,7 @@ import { CarFront, ChevronDown, ChevronUp, Clock3, MapPin, Plus, Users } from 'l
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useDriverBookingNewListener } from '@/features/bookings/hooks'
 import { useAuth } from '@/hooks/useAuth'
 import { useCancelRide, useDriverLocationEmitter, useMyRides, useUpdateRideStatus } from './hooks'
 import type { Ride, RideBooking, RideStatusUpdate } from './types'
@@ -228,6 +229,7 @@ function CancelRideDialog({
 
 export function MyRidesPage() {
   const { user } = useAuth()
+  useDriverBookingNewListener(true)
   const { data: rides, isLoading } = useMyRides()
   const updateRideStatus = useUpdateRideStatus()
   const cancelRide = useCancelRide()

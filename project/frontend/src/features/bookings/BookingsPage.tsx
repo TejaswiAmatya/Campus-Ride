@@ -4,7 +4,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck, MapPin, Clock, AlertCircle } from 'lucide-react'
 import { api } from '@/api/client'
 import { cn } from '@/lib/utils'
-import { useBookings } from './hooks'
+import {
+  useBookings,
+  useDriverBookingNewListener,
+  usePassengerBookingStatusListener,
+} from './hooks'
 import { StatusBadge } from './StatusBadge'
 import type { BookingListItem } from './types'
 
@@ -12,6 +16,8 @@ export function BookingsPage() {
   const queryClient = useQueryClient()
   const [view, setView] = useState<'passenger' | 'driver'>('passenger')
   const asDriver = view === 'driver'
+  useDriverBookingNewListener(asDriver)
+  usePassengerBookingStatusListener(!asDriver)
   const { data: bookings, isLoading } = useBookings({ asDriver })
 
   const invalidateBookingsAndRides = () => {

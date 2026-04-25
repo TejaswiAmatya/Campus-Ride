@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
 import { useSocket } from '@/lib/socket'
-import type { CreateRideDto, Ride, RideStatusUpdate, SearchRidesParams } from './types'
+import type { CreateRideDto, Ride, RideStatusPayload, RideStatusUpdate, SearchRidesParams } from './types'
 
 export interface DriverLocation {
   lat: number
@@ -120,6 +120,47 @@ export function useDriverLocationEmitter(rideId?: string) {
   }, [rideId, socket])
 
   return { isSharingLocation }
+}
+
+export function useRideStatusListener(params?: {
+  rideId?: string
+  bookingId?: string
+  enabled?: boolean
+}) {
+  const queryClient = useQueryClient()
+  const { socket, isConnected } = useSocket()
+  const rideId = params?.rideId
+  const bookingId = params?.bookingId
+  const enabled = params?.enabled ?? true
+
+  useEffect(() => {
+    if (!enabled || !rideId || !isConnected) {
+      return
+    }
+
+    socket.emit('join:ride', { rideId })
+
+    function onRideStatus(payload: RideStatusPayload) {
+      if (payload.rideId !== rideId) {
+        return
+      }
+
+      void queryClient.invalidateQueries({ queryKey: ['rides'] })
+      void queryClient.invalidateQueries({ queryKey: ['rides', 'detail', rideId] })
+      void queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] })
+      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
+
+      if (bookingId) {
+        void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', bookingId] })
+      }
+    }
+
+    socket.on('ride:status', onRideStatus)
+
+    return () => {
+      socket.off('ride:status', onRideStatus)
+    }
+  }, [bookingId, enabled, isConnected, queryClient, rideId, socket])
 }
 
 export function useMyRides() {

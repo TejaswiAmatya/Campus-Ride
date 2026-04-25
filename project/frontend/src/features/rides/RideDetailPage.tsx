@@ -13,11 +13,32 @@ import {
 } from "@/hooks/useProfile";
 import { api } from "@/api/client";
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
-import { useDriverLocation, useDriverLocationEmitter, useRide } from "./hooks";
+import { useDriverLocation, useDriverLocationEmitter, useRide, useRideStatusListener } from "./hooks";
+import type { Ride } from "./types";
+
+const rideStatusLabels: Record<Ride["status"], string> = {
+  OPEN: "Scheduled",
+  FULL: "Scheduled",
+  IN_PROGRESS: "In Progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+const rideStatusVariants: Record<
+  Ride["status"],
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  OPEN: "secondary",
+  FULL: "secondary",
+  IN_PROGRESS: "default",
+  COMPLETED: "outline",
+  CANCELLED: "destructive",
+};
 
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: ride, isLoading, isError } = useRide(id);
+  useRideStatusListener({ rideId: ride?.id, enabled: true });
   const { user } = useAuth();
   const [showReportForm, setShowReportForm] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -166,6 +187,9 @@ export function RideDetailPage() {
           {ride.originAddress} → {ride.destinationAddress}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={rideStatusVariants[ride.status]}>
+            {rideStatusLabels[ride.status]}
+          </Badge>
           <p className="text-sm text-muted-foreground">
             Driver: {ride.driver.name}
             {ride.driver.vehicle
@@ -183,6 +207,25 @@ export function RideDetailPage() {
           )}
         </div>
       </div>
+
+      {(ride.status === "IN_PROGRESS" || ride.status === "COMPLETED") && (
+        <section
+          className={
+            ride.status === "IN_PROGRESS"
+              ? "rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900"
+              : "rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900"
+          }
+        >
+          <p className="text-sm font-semibold">
+            {ride.status === "IN_PROGRESS" ? "Ride is in progress" : "Ride is completed"}
+          </p>
+          <p className="text-sm">
+            {ride.status === "IN_PROGRESS"
+              ? "The driver has started the ride. Live updates on this page will keep the status current."
+              : "This ride has ended. Review actions are now available for eligible participants."}
+          </p>
+        </section>
+      )}
 
       <MapView
         height="h-80"
