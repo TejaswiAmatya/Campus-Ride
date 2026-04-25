@@ -1,14 +1,18 @@
 import { Link, useParams } from 'react-router-dom'
 import { CalendarCheck, MapPin, AlertCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MapView } from '@/components/MapView'
-import { useBooking, useCancelBooking } from './hooks'
+import { useBooking, useCancelBooking, usePassengerBookingStatusListener } from './hooks'
 import { StatusBadge } from './StatusBadge'
+import { useRideStatusListener } from '@/features/rides/hooks'
 
 export function BookingStatusPage() {
   const { id } = useParams<{ id: string }>()
   const { data: booking, isLoading, isError } = useBooking(id)
+  usePassengerBookingStatusListener(true)
+  useRideStatusListener({ rideId: booking?.ride.id, bookingId: booking?.id, enabled: true })
   const cancelMutation = useCancelBooking()
 
   if (isLoading) {
@@ -48,8 +52,43 @@ export function BookingStatusPage() {
           <h1 className="text-2xl font-bold">Booking status</h1>
           <p className="text-sm text-muted-foreground">Reference #{booking.id.slice(0, 8)}</p>
         </div>
-        <StatusBadge status={booking.status} className="text-sm" />
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={booking.status} className="text-sm" />
+          <Badge
+            variant={
+              booking.ride.status === 'IN_PROGRESS'
+                ? 'default'
+                : booking.ride.status === 'COMPLETED'
+                  ? 'outline'
+                  : booking.ride.status === 'CANCELLED'
+                    ? 'destructive'
+                    : 'secondary'
+            }
+            className="text-sm"
+          >
+            Ride {booking.ride.status === 'IN_PROGRESS' ? 'In Progress' : booking.ride.status}
+          </Badge>
+        </div>
       </div>
+
+      {(booking.ride.status === 'IN_PROGRESS' || booking.ride.status === 'COMPLETED') && (
+        <div
+          className={
+            booking.ride.status === 'IN_PROGRESS'
+              ? 'rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900'
+              : 'rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900'
+          }
+        >
+          <p className="text-sm font-semibold">
+            {booking.ride.status === 'IN_PROGRESS' ? 'Your ride is underway' : 'Your ride has finished'}
+          </p>
+          <p className="text-sm">
+            {booking.ride.status === 'IN_PROGRESS'
+              ? 'This page updates live when the driver starts the ride.'
+              : 'The ride has completed. Any follow-up actions will now use the completed state.'}
+          </p>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
