@@ -13,6 +13,8 @@ interface MeResponse {
   email: string;
   name: string;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
+  accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
+  suspendedUntil: string | null;
   avatarUrl: string | null;
   driverStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
   createdAt: string;
@@ -58,6 +60,8 @@ export async function getCurrentUser(
       email: user.email,
       name: user.name,
       role: user.role,
+      accountStatus: user.accountStatus,
+      suspendedUntil: user.suspendedUntil?.toISOString() ?? null,
       avatarUrl: user.avatarPath ?? null,
       driverStatus: user.driverProfile?.status ?? null,
       createdAt: user.createdAt.toISOString(),
