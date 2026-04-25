@@ -84,6 +84,10 @@ export function App() {
                 <Route path="/dashboard" element={<DashboardEntryPage />} />
                 <Route path="/rides" element={<SearchRidesPage />} />
                 <Route path="/rides/:id" element={<RideDetailPage />} />
+                <Route
+                  path="/rides/:rideId/book"
+                  element={<BookingCheckoutPage />}
+                />
                 <Route path="/bookings" element={<BookingHistoryPage />} />
                 <Route path="/bookings/:id" element={<BookingDetailPage />} />
                 <Route
