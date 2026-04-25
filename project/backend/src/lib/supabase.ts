@@ -1,37 +1,74 @@
 import { createClient } from '@supabase/supabase-js'
 import { AppError } from '../middleware/error'
+
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-  throw new Error(
-    'Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY and/or SUPABASE_SERVICE_ROLE_KEY',
-  )
+const missingSupabaseConfigMessage =
+  'Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY and/or SUPABASE_SERVICE_ROLE_KEY'
+
+type SupabaseClientInstance = ReturnType<typeof createClient>
+
+let supabaseAdminInstance: SupabaseClientInstance | null = null
+let supabaseAuthInstance: SupabaseClientInstance | null = null
+
+function assertSupabaseConfig() {
+  if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+    throw new Error(missingSupabaseConfigMessage)
+  }
+}
+
+function getSupabaseAdminClient() {
+  assertSupabaseConfig()
+  const url = supabaseUrl!
+  const serviceRoleKey = supabaseServiceRoleKey!
+
+  supabaseAdminInstance ??= createClient(url, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+  return supabaseAdminInstance
+}
+
+function getSupabaseAuthClient() {
+  assertSupabaseConfig()
+  const url = supabaseUrl!
+  const anonKey = supabaseAnonKey!
+
+  supabaseAuthInstance ??= createClient(url, anonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+  return supabaseAuthInstance
+}
+
+function createLazyClient(getClient: () => SupabaseClientInstance) {
+  return new Proxy({} as SupabaseClientInstance, {
+    get(_target, prop) {
+      const client = getClient()
+      const value = Reflect.get(client, prop)
+      return typeof value === 'function' ? value.bind(client) : value
+    },
+  })
 }
 
 /**
  * Supabase admin client — uses the service-role key for elevated access.
  */
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
+export const supabaseAdmin = createLazyClient(getSupabaseAdminClient)
 
 /**
  * Supabase auth client — uses the anon key for user-facing auth flows.
  */
-export const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
+export const supabaseAuth = createLazyClient(getSupabaseAuthClient)
 
 export async function createAuthUser(email: string, password: string) {
-  return supabaseAdmin.auth.admin.createUser({
+  return getSupabaseAdminClient().auth.admin.createUser({
     email,
     password,
     email_confirm: true,
@@ -39,7 +76,7 @@ export async function createAuthUser(email: string, password: string) {
 }
 
 export async function deleteAuthUser(userId: string) {
-  return supabaseAdmin.auth.admin.deleteUser(userId)
+  return getSupabaseAdminClient().auth.admin.deleteUser(userId)
 }
 
 export async function uploadLicense(
@@ -52,7 +89,7 @@ export async function uploadLicense(
   const path = `${userId}/license.${ext}`
 
   // Upload the file to Supabase Storage
-  const { error } = await supabaseAdmin.storage.from('DriversInfo').upload(path, buffer, {
+  const { error } = await getSupabaseAdminClient().storage.from('DriversInfo').upload(path, buffer, {
     contentType: filetype,
     upsert: true,
   })
@@ -95,7 +132,7 @@ export async function uploadAvatar(
   const ext = filetype.split('/')[1] ?? 'jpg'
   const path = `${userId}/avatar-${Date.now()}.${ext}`
 
-  const { error } = await supabaseAdmin.storage.from('avatars').upload(path, buffer, {
+  const { error } = await getSupabaseAdminClient().storage.from('avatars').upload(path, buffer, {
     contentType: filetype,
     upsert: false,
   })
@@ -111,6 +148,6 @@ export async function uploadAvatar(
     throw new AppError('UPLOAD_FAILED', 'Failed to upload avatar', 500)
   }
 
-  const { data } = supabaseAdmin.storage.from('avatars').getPublicUrl(path)
+  const { data } = getSupabaseAdminClient().storage.from('avatars').getPublicUrl(path)
   return data.publicUrl
 }
