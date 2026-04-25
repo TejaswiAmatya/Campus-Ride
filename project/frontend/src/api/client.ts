@@ -14,3 +14,56 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+type Role = 'PASSENGER' | 'DRIVER' | 'ADMIN'
+type DriverStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | null
+
+type MeFlatResponse = {
+  id: string
+  email: string
+  name: string
+  role: Role
+  avatarUrl: string | null
+  driverStatus: DriverStatus
+  createdAt: string
+}
+
+type MeLegacyResponse = {
+  data: {
+    id: string
+    email: string
+    name: string
+    role: Role
+    avatarPath?: string
+    isDriverApproved?: boolean
+  }
+}
+
+export type MeUser = {
+  id: string
+  email: string
+  name: string
+  role: Role
+  avatarPath?: string
+  isDriverApproved?: boolean
+  driverStatus?: DriverStatus
+}
+
+export async function fetchMe(): Promise<MeUser> {
+  const res = await api.get<MeFlatResponse | MeLegacyResponse>('/api/users/me')
+  const payload = 'data' in res.data ? res.data.data : res.data
+
+  if ('driverStatus' in payload) {
+    return {
+      id: payload.id,
+      email: payload.email,
+      name: payload.name,
+      role: payload.role,
+      avatarPath: payload.avatarUrl ?? undefined,
+      isDriverApproved: payload.driverStatus === 'APPROVED',
+      driverStatus: payload.driverStatus,
+    }
+  }
+
+  return payload
+}

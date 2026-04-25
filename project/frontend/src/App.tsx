@@ -2,17 +2,19 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navbar } from './components/Navbar'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { useAuth } from './hooks/useAuth'
 import { LoginPage } from './features/auth/LoginPage'
 import { RegisterPage } from './features/auth/RegisterPage'
 import { DriverRegistrationPage } from './features/auth/DriverRegistrationPage'
+import { canAccessDriverRoutes } from './features/auth/routing'
 import { SearchRidesPage } from './features/rides/SearchRidesPage'
 import { PostRidePage } from './features/rides/PostRidePage'
 import { RideDetailPage } from './features/rides/RideDetailPage'
 import { MyRidesPage } from './features/rides/MyRidesPage'
 import { BookingsPage } from './features/bookings/BookingsPage'
-import { BookingCheckoutPage } from './features/bookings/BookingCheckoutPage'
 import { BookingStatusPage } from './features/bookings/BookingStatusPage'
-import { BookingHistoryPage } from './features/bookings/BookingHistoryPage'
+import { DashboardRoutingPage } from './features/user/DashboardRoutingPage'
+import { DriverDashboardPage } from './features/user/DriverDashboardPage'
 import { ProfilePage } from './features/user/ProfilePage'
 import { AdminDashboard } from './features/admin/AdminDashboard'
 import { DriverApprovalPage } from './features/admin/DriverApprovalPage'
@@ -27,6 +29,36 @@ const queryClient = new QueryClient({
   },
 })
 
+const DashboardEntryPage = DashboardRoutingPage
+const BookingHistoryPage = BookingsPage
+const BookingDetailPage = BookingStatusPage
+const ManageRidePage = RideDetailPage
+const EarningsPage = DriverDashboardPage
+const AdminDashboardPage = AdminDashboard
+const AdminDriversPage = DriverApprovalPage
+const AdminUsersPage = AdminDashboard
+const AdminRidesPage = AdminDashboard
+
+function RequireDriverApproved() {
+  const { user, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-muted-foreground animate-pulse">Loading…</p>
+      </div>
+    )
+  }
+
+  if (!user) return <Navigate to="/auth/login" replace />
+  if (!canAccessDriverRoutes(user)) return <Navigate to="/dashboard" replace />
+  return <ProtectedRoute />
+}
+
+function RequireAdmin() {
+  return <ProtectedRoute requiredRole="ADMIN" />
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -36,34 +68,45 @@ export function App() {
           <main className="container mx-auto px-4 py-6">
             <Routes>
               {/* Public */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/auth/login" element={<LoginPage />} />
+              <Route path="/auth/register" element={<RegisterPage />} />
 
-              {/* Authenticated (any role) */}
+              {/* Authenticated */}
               <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<Navigate to="/rides" replace />} />
-                <Route path="/driver/register" element={<DriverRegistrationPage />} />
-              
+                <Route path="/dashboard" element={<DashboardEntryPage />} />
                 <Route path="/rides" element={<SearchRidesPage />} />
-                <Route path="/rides/mine" element={<MyRidesPage />} />
-                <Route path="/rides/post" element={<PostRidePage />} />
-                <Route path="/rides/:rideId/checkout" element={<BookingCheckoutPage />} />
                 <Route path="/rides/:id" element={<RideDetailPage />} />
-                <Route path="/bookings/:id" element={<BookingStatusPage />} />
-                <Route path="/bookings/history" element={<BookingHistoryPage />} />
                 <Route path="/bookings" element={<BookingHistoryPage />} />
-                <Route path="/bookings/manage" element={<BookingsPage />} />
+                <Route path="/bookings/:id" element={<BookingDetailPage />} />
+                <Route path="/driver/register" element={<DriverRegistrationPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
 
-              {/* Admin only */}
-              <Route element={<ProtectedRoute requiredRole="ADMIN" />}>
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/drivers" element={<DriverApprovalPage />} />
+              {/* Driver only */}
+              <Route element={<RequireDriverApproved />}>
+                <Route path="/driver/dashboard" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/driver/rides" element={<MyRidesPage />} />
+                <Route path="/driver/rides/new" element={<PostRidePage />} />
+                <Route path="/driver/rides/:id" element={<ManageRidePage />} />
+                <Route path="/driver/earnings" element={<EarningsPage />} />
               </Route>
 
+              {/* Admin only */}
+              <Route element={<RequireAdmin />}>
+                <Route path="/admin" element={<AdminDashboardPage />} />
+                <Route path="/admin/drivers" element={<AdminDriversPage />} />
+                <Route path="/admin/users" element={<AdminUsersPage />} />
+                <Route path="/admin/rides" element={<AdminRidesPage />} />
+              </Route>
+
+              {/* Legacy redirects */}
+              <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+              <Route path="/register" element={<Navigate to="/auth/register" replace />} />
+              <Route path="/rides/post" element={<Navigate to="/driver/rides/new" replace />} />
+              <Route path="/rides/mine" element={<Navigate to="/driver/rides" replace />} />
+
               {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </main>
         </div>
