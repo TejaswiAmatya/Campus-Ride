@@ -9,6 +9,7 @@ import type {
   BookingListItem,
   BookingNewPayload,
   BookingStatusPayload,
+  BookingLocation,
 } from "./types";
 
 export function useBookings(params?: {
@@ -48,10 +49,19 @@ export function useBookRide() {
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: async (input: { rideId: string; seatsBooked?: number }) => {
+    mutationFn: async (input: {
+      rideId: string;
+      seatsBooked?: number;
+      pickup?: BookingLocation;
+      dropoff?: BookingLocation;
+      messageToDriver?: string;
+    }) => {
       const res = await api.post<{ data: BookingListItem }>("/api/bookings", {
         rideId: input.rideId,
         seatsBooked: input.seatsBooked ?? 1,
+        pickup: input.pickup,
+        dropoff: input.dropoff,
+        messageToDriver: input.messageToDriver,
       });
       return res.data.data;
     },
@@ -136,4 +146,71 @@ export function usePassengerBookingStatusListener(enabled = true) {
       socket.off("booking:status", onBookingStatus);
     };
   }, [enabled, isConnected, queryClient, socket, user?.id, user?.role]);
+}
+
+export function useConfirmBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await api.patch<{ data: BookingListItem }>(
+        `/api/bookings/${bookingId}/confirm`,
+      );
+      return res.data.data;
+    },
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["rides"] });
+      void queryClient.invalidateQueries({ queryKey: ["rides", "mine"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["bookings", "detail", data.id],
+      });
+    },
+  });
+}
+
+export function useDeclineBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await api.patch<{ data: BookingListItem }>(
+        `/api/bookings/${bookingId}/decline`,
+      );
+      return res.data.data;
+    },
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["rides"] });
+      void queryClient.invalidateQueries({ queryKey: ["rides", "mine"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["bookings", "detail", data.id],
+      });
+    },
+  });
+}
+
+export function useCreateReview() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      bookingId: string;
+      rating: number;
+      comment?: string;
+    }) => {
+      const res = await api.post<{ data: { id: string } }>(
+        `/api/bookings/${input.bookingId}/review`,
+        input,
+      );
+      return res.data.data;
+    },
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["bookings", "detail", variables.bookingId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["rides", "mine"] });
+    },
+  });
 }

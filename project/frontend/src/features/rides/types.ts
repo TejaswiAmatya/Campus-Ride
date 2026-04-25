@@ -35,11 +35,19 @@ export interface RideBooking {
   id: string;
   seatsBooked: number;
   status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  totalFare: string;
+  driverEarnings: string;
   passenger: {
     id: string;
     name: string;
     avatarUrl?: string | null;
   };
+  review: {
+    id: string;
+    rating: number;
+    comment: string | null;
+    createdAt: string;
+  } | null;
 }
 
 export interface Ride {
@@ -61,6 +69,14 @@ export interface Ride {
   bookings?: RideBooking[];
   _count?: {
     bookings: number;
+  };
+  stats?: {
+    totalPassengers: number;
+    completedPassengers: number;
+    totalEarnings: string;
+    completedEarnings: string;
+    pendingRequests: number;
+    completedBookings: number;
   };
 }
 

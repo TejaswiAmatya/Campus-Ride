@@ -528,7 +528,7 @@ describe("searchRidesByLocation", () => {
     vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
       { id: "ride-1", sortDistanceMeters: 500 },
     ]);
-    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([] as RideRecord[]);
+    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([] as never);
 
     await searchRidesByLocation({
       originLat: osloLat,
@@ -540,7 +540,7 @@ describe("searchRidesByLocation", () => {
   });
 
   it("skips $queryRaw when no coordinates are provided", async () => {
-    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([] as RideRecord[]);
+    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([] as never);
 
     await searchRidesByLocation({ seats: 1 });
 
@@ -582,7 +582,7 @@ describe("searchRidesByLocation", () => {
             reviewsReceived: [],
           },
         },
-      ] as unknown as RideRecord[],
+      ] as never,
     );
 
     const results = await searchRidesByLocation({
@@ -605,7 +605,7 @@ describe("searchRidesByLocation", () => {
     vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
       { id: "ride-1", sortDistanceMeters: 500 },
     ]);
-    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([] as RideRecord[]);
+    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([] as never);
 
     await searchRidesByLocation({
       originLat: osloLat,
