@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api } from "@/api/client";
 import { useAuthStore } from "@/store/authStore";
 
@@ -52,6 +58,11 @@ export interface CreateRideReviewInput {
   revieweeId: string;
   rating: number;
   comment?: string;
+}
+
+export interface DriverRideReviewPassenger {
+  id: string;
+  name: string;
 }
 
 export const meQueryKey = ["me"] as const;
@@ -147,4 +158,86 @@ export function useCreateRideReview(rideId: string) {
       ]);
     },
   });
+}
+
+export function useDriverRideReviewPassengers(
+  rideId?: string,
+  driverId?: string,
+  rideStatus?: string,
+) {
+  const isDriverView = !!rideId && !!driverId;
+
+  const { data: driverRideBookings = [] } = useQuery({
+    queryKey: ["bookings", "driver-ride-review-check", rideId],
+    queryFn: async () => {
+      const res = await api.get<{
+        data: Array<{
+          id: string;
+          status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+          passenger?: { id: string; name: string };
+          ride: { id: string };
+        }>;
+      }>("/api/bookings?asDriver=true");
+      return res.data.data ?? [];
+    },
+    enabled: isDriverView,
+  });
+
+  const confirmedPassengers = useMemo(() => {
+    if (!rideId || !driverId) {
+      return [];
+    }
+
+    const passengerMap = new Map<string, DriverRideReviewPassenger>();
+
+    for (const booking of driverRideBookings) {
+      if (
+        booking.ride.id !== rideId ||
+        !booking.passenger ||
+        (booking.status !== "CONFIRMED" && booking.status !== "COMPLETED")
+      ) {
+        continue;
+      }
+
+      passengerMap.set(booking.passenger.id, booking.passenger);
+    }
+
+    return Array.from(passengerMap.values());
+  }, [driverId, driverRideBookings, rideId]);
+
+  const passengerReviewQueries = useQueries({
+    queries: confirmedPassengers.map((passenger) => ({
+      queryKey: userReviewsQueryKey(passenger.id),
+      queryFn: async () => {
+        const res = await api.get<{ data: UserReview[] }>(
+          `/api/users/${passenger.id}/reviews`,
+        );
+        return res.data.data ?? [];
+      },
+      enabled: rideStatus === "COMPLETED",
+    })),
+  });
+
+  const pendingPassengers = useMemo(() => {
+    if (!rideId || !driverId) {
+      return [];
+    }
+
+    return confirmedPassengers.filter((passenger, index) => {
+      const reviews = passengerReviewQueries[index]?.data ?? [];
+
+      return !reviews.some(
+        (review) =>
+          review.rideId === rideId && review.reviewer.id === driverId,
+      );
+    });
+  }, [confirmedPassengers, driverId, passengerReviewQueries, rideId]);
+
+  return {
+    data: pendingPassengers,
+    isLoading:
+      driverRideBookings.length === 0
+        ? false
+        : passengerReviewQueries.some((query) => query.isLoading),
+  };
 }
