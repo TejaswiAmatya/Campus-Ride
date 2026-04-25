@@ -90,7 +90,7 @@ describe('MeResponseSchema', () => {
         role: 'PASSENGER',
         accountStatus: 'ACTIVE',
         suspendedUntil: null,
-        avatarUrl: null,
+        avatarPath: null,
         driverStatus: null,
         createdAt: '2026-04-26T12:00:00.000Z',
       }).success,
@@ -134,8 +134,8 @@ describe('UpdateProfileSchema', () => {
     expect(UpdateProfileSchema.safeParse({}).success).toBe(false)
   })
 
-  it('rejects an invalid avatar path URL', () => {
-    expect(UpdateProfileSchema.safeParse({ avatarPath: 'not-a-url' }).success).toBe(false)
+  it('accepts a non-URL avatar path', () => {
+    expect(UpdateProfileSchema.safeParse({ avatarPath: 'user-1/avatar-123.jpg' }).success).toBe(true)
   })
 })
 

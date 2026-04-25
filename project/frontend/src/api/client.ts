@@ -23,7 +23,7 @@ type MeFlatResponse = {
   email: string
   name: string
   role: Role
-  avatarUrl: string | null
+  avatarPath: string | null
   driverStatus: DriverStatus
   createdAt: string
 }
@@ -59,7 +59,7 @@ export async function fetchMe(): Promise<MeUser> {
       email: payload.email,
       name: payload.name,
       role: payload.role,
-      avatarPath: payload.avatarUrl ?? undefined,
+      avatarPath: payload.avatarPath ?? undefined,
       isDriverApproved: payload.driverStatus === 'APPROVED',
       driverStatus: payload.driverStatus,
     }
