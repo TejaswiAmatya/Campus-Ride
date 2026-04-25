@@ -9,6 +9,13 @@ const VARIANT: Record<BookingStatus, 'default' | 'secondary' | 'destructive' | '
   COMPLETED: 'default',
 }
 
+const LABELS: Record<BookingStatus, string> = {
+  PENDING: 'Waiting for driver',
+  CONFIRMED: 'Accepted',
+  CANCELLED: 'Cancelled',
+  COMPLETED: 'Completed',
+}
+
 export function StatusBadge({
   status,
   className,
@@ -18,7 +25,7 @@ export function StatusBadge({
 }) {
   return (
     <Badge variant={VARIANT[status]} className={cn('font-medium', className)}>
-      {status}
+      {LABELS[status]}
     </Badge>
   )
 }
