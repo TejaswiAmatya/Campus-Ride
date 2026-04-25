@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import type { SearchRidesInput } from "./schemas";
+import { serializeRideList } from "./serialize";
 
 // Backend helpers for ride search proximity queries.
 const DEFAULT_RADIUS_KM = 5;
@@ -23,6 +24,8 @@ type ProximityRideRow = {
   id: string;
   sortDistanceMeters: number;
 };
+
+type SearchRideRow = Awaited<ReturnType<typeof prisma.ride.findMany>>[number];
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -87,6 +90,49 @@ function getDateBounds(date: string) {
   };
 }
 
+function getAverageRating(ride: SearchRideRow) {
+  const ratings = ride.driver?.reviewsReceived?.map((review) => review.rating) ?? [];
+
+  if (ratings.length === 0) {
+    return null;
+  }
+
+  const total = ratings.reduce((sum, rating) => sum + rating, 0);
+  return Number((total / ratings.length).toFixed(2));
+}
+
+function sortSearchRides(
+  rides: SearchRideRow[],
+  sortBy: SearchRidesInput["sortBy"],
+) {
+  return [...rides].sort((left, right) => {
+    if (sortBy === "price") {
+      const priceDiff =
+        Number(left.pricePerSeat) - Number(right.pricePerSeat);
+      if (priceDiff !== 0) {
+        return priceDiff;
+      }
+    }
+
+    if (sortBy === "rating") {
+      const leftRating = getAverageRating(left) ?? -1;
+      const rightRating = getAverageRating(right) ?? -1;
+      if (rightRating !== leftRating) {
+        return rightRating - leftRating;
+      }
+    }
+
+    return left.departureTime.getTime() - right.departureTime.getTime();
+  });
+}
+
+function serializeSearchRide(ride: SearchRideRow) {
+  return {
+    ...serializeRideList(ride),
+    driverRating: getAverageRating(ride),
+  };
+}
+
 export async function searchRidesByLocation(query: SearchRidesInput) {
   const seats = query.seats ?? 1;
   const dateBounds = query.date ? getDateBounds(query.date) : null;
@@ -106,12 +152,23 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
       },
     }),
   };
+  const priceFilters = {
+    ...(query.minPrice !== undefined && {
+      gte: query.minPrice,
+    }),
+    ...(query.maxPrice !== undefined && {
+      lte: query.maxPrice,
+    }),
+  };
 
   if (query.originLat === undefined && query.destLat === undefined) {
-    return prisma.ride.findMany({
+    const rides = await prisma.ride.findMany({
       where: {
         status: "OPEN",
         availableSeats: { gte: seats },
+        ...(Object.keys(priceFilters).length > 0 && {
+          pricePerSeat: priceFilters,
+        }),
         ...textFilters,
         ...(dateBounds && {
           departureTime: {
@@ -121,10 +178,25 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
         }),
       },
       include: {
-        driver: { select: { id: true, name: true, avatarPath: true } },
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            driverProfile: { select: { vehicleInfo: true } },
+            reviewsReceived: { select: { rating: true } },
+          },
+        },
       },
-      orderBy: { departureTime: "asc" },
     });
+
+    return sortSearchRides(
+      rides.filter((ride) => {
+        const rating = getAverageRating(ride);
+        return query.minRating === undefined || (rating ?? 0) >= query.minRating;
+      }),
+      query.sortBy,
+    ).map(serializeSearchRide);
   }
 
   const radiusKm = query.radiusKm ?? DEFAULT_RADIUS_KM;
@@ -152,6 +224,10 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
   const dateFilter = dateBounds
     ? Prisma.sql`AND r."departureTime" >= ${dateBounds.start} AND r."departureTime" < ${dateBounds.end}`
     : Prisma.empty;
+  const priceFilter =
+    query.minPrice !== undefined || query.maxPrice !== undefined
+      ? Prisma.sql`AND r."pricePerSeat" BETWEEN ${query.minPrice ?? 0} AND ${query.maxPrice ?? 999999999}`
+      : Prisma.empty;
 
   const sortDistance =
     originFilter && destinationFilter
@@ -168,6 +244,7 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
     WHERE r."status" = 'OPEN'
       AND r."availableSeats" >= ${seats}
       ${dateFilter}
+      ${priceFilter}
       ${originFilter ? Prisma.sql`AND ${originFilter.whereClause}` : Prisma.empty}
       ${destinationFilter ? Prisma.sql`AND ${destinationFilter.whereClause}` : Prisma.empty}
     ORDER BY "sortDistanceMeters" ASC, r."departureTime" ASC
@@ -182,6 +259,9 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
       id: { in: proximityRows.map((row) => row.id) },
       status: "OPEN",
       availableSeats: { gte: seats },
+      ...(Object.keys(priceFilters).length > 0 && {
+        pricePerSeat: priceFilters,
+      }),
       ...textFilters,
       ...(dateBounds && {
         departureTime: {
@@ -190,11 +270,28 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
         },
       }),
     },
-    include: { driver: { select: { id: true, name: true, avatarPath: true } } },
+    include: {
+      driver: {
+        select: {
+          id: true,
+          name: true,
+          avatarPath: true,
+          driverProfile: { select: { vehicleInfo: true } },
+          reviewsReceived: { select: { rating: true } },
+        },
+      },
+    },
   });
   const rideById = new Map(rides.map((ride) => [ride.id, ride]));
-
-  return proximityRows
+  const orderedRides = proximityRows
     .map((row) => rideById.get(row.id))
     .filter((ride): ride is NonNullable<typeof ride> => Boolean(ride));
+
+  return sortSearchRides(
+    orderedRides.filter((ride) => {
+      const rating = getAverageRating(ride);
+      return query.minRating === undefined || (rating ?? 0) >= query.minRating;
+    }),
+    query.sortBy,
+  ).map(serializeSearchRide);
 }

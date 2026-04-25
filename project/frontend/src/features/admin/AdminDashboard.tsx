@@ -9,7 +9,9 @@ import {
   XCircle,
   TrendingUp,
   AlertCircle,
+  Settings,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { StatsCard } from "./StatsCard";
 import { useAdminStats } from "@/features/admin/useAdminStats";
 import { Button } from "@/components/ui/button";
@@ -79,9 +81,17 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-2">
-        <LayoutDashboard className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <LayoutDashboard className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        </div>
+        <Button asChild variant="outline">
+          <Link to="/admin/settings">
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Link>
+        </Button>
       </div>
 
       <section className="space-y-3">
