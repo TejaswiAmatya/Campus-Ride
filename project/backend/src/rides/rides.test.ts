@@ -71,18 +71,32 @@ type BookingRecord = {
   createdAt: Date;
 };
 
+type ReviewRecord = {
+  id: string;
+  reviewerId: string;
+  revieweeId: string;
+  rating: number;
+};
+
 type RideSearchWhere = {
   status?: string;
   availableSeats?: { gte: number };
+  pricePerSeat?: { gte?: number; lte?: number };
   departureTime?: { gte: Date; lt: Date };
   id?: { in: string[] };
   driverId?: string;
 };
 
-const testState: { users: UserRecord[]; rides: RideRecord[]; bookings: BookingRecord[] } = {
+const testState: {
+  users: UserRecord[];
+  rides: RideRecord[];
+  bookings: BookingRecord[];
+  reviews: ReviewRecord[];
+} = {
   users: [],
   rides: [],
   bookings: [],
+  reviews: [],
 };
 
 vi.mock("../lib/supabase", () => ({
@@ -295,6 +309,22 @@ vi.mock("../lib/prisma", () => ({
               return false;
             }
 
+            if (where.pricePerSeat) {
+              const price = Number(ride.pricePerSeat);
+              if (
+                where.pricePerSeat.gte !== undefined &&
+                price < where.pricePerSeat.gte
+              ) {
+                return false;
+              }
+              if (
+                where.pricePerSeat.lte !== undefined &&
+                price > where.pricePerSeat.lte
+              ) {
+                return false;
+              }
+            }
+
             if (where.departureTime) {
               const departureTime = ride.departureTime.getTime();
               if (
@@ -330,14 +360,17 @@ vi.mock("../lib/prisma", () => ({
                 return {
                   ...booking,
                   passenger: passenger
-                    ? {
-                        id: passenger.id,
-                        name: passenger.name,
-                        avatarPath: passenger.avatarUrl ?? null,
-                      }
-                    : null,
+                  ? {
+                      id: passenger.id,
+                      name: passenger.name,
+                      avatarPath: passenger.avatarUrl ?? null,
+                    }
+                  : null,
                 };
               });
+            const reviewsReceived = testState.reviews
+              .filter((review) => review.revieweeId === ride.driverId)
+              .map((review) => ({ rating: review.rating }));
 
             return {
               ...ride,
@@ -347,6 +380,7 @@ vi.mock("../lib/prisma", () => ({
                     name: driver.name,
                     avatarPath: driver.avatarUrl ?? null,
                     driverProfile: { vehicleInfo: null },
+                    reviewsReceived,
                   }
                 : null,
               bookings,
@@ -389,6 +423,9 @@ vi.mock("../lib/prisma", () => ({
                 name: driver.name,
                 avatarPath: driver.avatarUrl ?? null,
                 driverProfile: { vehicleInfo: null },
+                reviewsReceived: testState.reviews
+                  .filter((review) => review.revieweeId === ride.driverId)
+                  .map((review) => ({ rating: review.rating })),
               }
             : null,
           bookings: testState.bookings
@@ -428,6 +465,9 @@ vi.mock("../lib/prisma", () => ({
                   name: driver.name,
                   avatarPath: driver.avatarUrl ?? null,
                   driverProfile: { vehicleInfo: null },
+                  reviewsReceived: testState.reviews
+                    .filter((review) => review.revieweeId === ride.driverId)
+                    .map((review) => ({ rating: review.rating })),
                 }
               : null,
           };
@@ -457,6 +497,7 @@ beforeEach(() => {
   ];
   testState.rides = [];
   testState.bookings = [];
+  testState.reviews = [];
   notifyRideStatusMock.mockReset();
 });
 
@@ -510,7 +551,18 @@ describe("searchRidesByLocation", () => {
     vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
       { id: "nearby-ride", sortDistanceMeters: 800 },
     ]);
-    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([nearbyRide]);
+    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([
+      {
+        ...nearbyRide,
+        driver: {
+          id: "driver-1",
+          name: "Dana Driver",
+          avatarPath: null,
+          driverProfile: { vehicleInfo: null },
+          reviewsReceived: [],
+        },
+      },
+    ]);
 
     const results = await searchRidesByLocation({
       originLat: osloLat,
@@ -561,6 +613,142 @@ describe("searchRidesByLocation", () => {
 
     expect(results).toEqual([]);
     expect(prisma.ride.findMany).not.toHaveBeenCalled();
+  });
+
+  it("filters by minRating and sorts by rating", async () => {
+    const departureTime = new Date(futureDate);
+    testState.users.push({
+      id: "driver-2",
+      name: "Devon Driver",
+      role: "DRIVER",
+      driverProfileStatus: "APPROVED",
+    });
+    testState.rides.push(
+      {
+        id: "ride-rated-low",
+        driverId: "driver-1",
+        originAddress: "A",
+        originLat: 58.9,
+        originLng: 5.7,
+        destinationAddress: "B",
+        destinationLat: 58.97,
+        destinationLng: 5.73,
+        departureTime,
+        totalSeats: 3,
+        availableSeats: 3,
+        pricePerSeat: new Prisma.Decimal(80),
+        status: "OPEN",
+        createdAt: departureTime,
+        updatedAt: departureTime,
+      },
+      {
+        id: "ride-rated-high",
+        driverId: "driver-2",
+        originAddress: "C",
+        originLat: 58.91,
+        originLng: 5.71,
+        destinationAddress: "D",
+        destinationLat: 58.98,
+        destinationLng: 5.74,
+        departureTime: new Date(departureTime.getTime() + 60_000),
+        totalSeats: 3,
+        availableSeats: 3,
+        pricePerSeat: new Prisma.Decimal(90),
+        status: "OPEN",
+        createdAt: departureTime,
+        updatedAt: departureTime,
+      },
+    );
+    testState.reviews.push(
+      {
+        id: "review-1",
+        reviewerId: "passenger-1",
+        revieweeId: "driver-1",
+        rating: 3,
+      },
+      {
+        id: "review-2",
+        reviewerId: "passenger-1",
+        revieweeId: "driver-2",
+        rating: 5,
+      },
+    );
+
+    const results = await searchRidesByLocation({
+      minRating: 4,
+      sortBy: "rating",
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.id).toBe("ride-rated-high");
+    expect(results[0]?.driverRating).toBe(5);
+  });
+
+  it("filters by price range and sorts by price", async () => {
+    const departureTime = new Date(futureDate);
+    testState.rides.push(
+      {
+        id: "ride-cheap",
+        driverId: "driver-1",
+        originAddress: "A",
+        originLat: 58.9,
+        originLng: 5.7,
+        destinationAddress: "B",
+        destinationLat: 58.97,
+        destinationLng: 5.73,
+        departureTime,
+        totalSeats: 3,
+        availableSeats: 3,
+        pricePerSeat: new Prisma.Decimal(50),
+        status: "OPEN",
+        createdAt: departureTime,
+        updatedAt: departureTime,
+      },
+      {
+        id: "ride-mid",
+        driverId: "driver-1",
+        originAddress: "C",
+        originLat: 58.91,
+        originLng: 5.71,
+        destinationAddress: "D",
+        destinationLat: 58.98,
+        destinationLng: 5.74,
+        departureTime: new Date(departureTime.getTime() + 60_000),
+        totalSeats: 3,
+        availableSeats: 3,
+        pricePerSeat: new Prisma.Decimal(80),
+        status: "OPEN",
+        createdAt: departureTime,
+        updatedAt: departureTime,
+      },
+      {
+        id: "ride-expensive",
+        driverId: "driver-1",
+        originAddress: "E",
+        originLat: 58.92,
+        originLng: 5.72,
+        destinationAddress: "F",
+        destinationLat: 58.99,
+        destinationLng: 5.75,
+        departureTime: new Date(departureTime.getTime() + 120_000),
+        totalSeats: 3,
+        availableSeats: 3,
+        pricePerSeat: new Prisma.Decimal(120),
+        status: "OPEN",
+        createdAt: departureTime,
+        updatedAt: departureTime,
+      },
+    );
+
+    const results = await searchRidesByLocation({
+      minPrice: 60,
+      maxPrice: 100,
+      sortBy: "price",
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.id).toBe("ride-mid");
+    expect(results[0]?.pricePerSeat).toBe("80");
   });
 });
 
@@ -663,6 +851,26 @@ describe("SearchRidesSchema", () => {
     expect(SearchRidesSchema.safeParse({ destLat: "58.97" }).success).toBe(
       false,
     );
+  });
+
+  it("accepts search filters for price, rating, and sorting", () => {
+    expect(
+      SearchRidesSchema.safeParse({
+        minPrice: "50",
+        maxPrice: "150",
+        minRating: "4",
+        sortBy: "price",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects minPrice above maxPrice", () => {
+    expect(
+      SearchRidesSchema.safeParse({
+        minPrice: "150",
+        maxPrice: "50",
+      }).success,
+    ).toBe(false);
   });
 });
 
