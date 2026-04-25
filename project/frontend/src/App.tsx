@@ -15,17 +15,15 @@ import { MyRidesPage } from "./features/rides/MyRidesPage";
 import { BookingsPage } from "./features/bookings/BookingsPage";
 import { BookingCheckoutPage } from "./features/bookings/BookingCheckoutPage";
 import { BookingStatusPage } from "./features/bookings/BookingStatusPage";
-import { ProfilePage } from "./features/user/ProfilePage";
 import { AdminDashboard } from "./features/admin/AdminDashboard";
 import { DriverApprovalsPage } from "./features/admin/DriverApprovalsPage";
 import { ReportsPage } from "./features/admin/ReportsPage";
 import { useAuth } from "./hooks/useAuth";
-import { BookingHistoryPage } from "./features/bookings/BookingHistoryPage";
 import { DriverApprovalPage } from "./features/admin/DriverApprovalPage";
-import { canAccessDriverRoutes } from './features/auth/routing'
-import { DashboardRoutingPage } from './features/user/DashboardRoutingPage'
-import { ProfilePage } from './features/user/ProfilePage'
-
+import { canAccessDriverRoutes } from "./features/auth/routing";
+import { DashboardRoutingPage } from "./features/user/DashboardRoutingPage";
+import { ProfilePage } from "./features/user/ProfilePage";
+import { DriverDashboardPage } from "./features/user/DriverDashboardPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,34 +35,34 @@ const queryClient = new QueryClient({
   },
 });
 
-const DashboardEntryPage = DashboardRoutingPage
-const BookingHistoryPage = BookingsPage
-const BookingDetailPage = BookingStatusPage
-const ManageRidePage = RideDetailPage
-const EarningsPage = DriverDashboardPage
-const AdminDashboardPage = AdminDashboard
-const AdminDriversPage = DriverApprovalPage
-const AdminUsersPage = AdminDashboard
-const AdminRidesPage = AdminDashboard
+const DashboardEntryPage = DashboardRoutingPage;
+const BookingHistoryPage = BookingsPage;
+const BookingDetailPage = BookingStatusPage;
+const ManageRidePage = RideDetailPage;
+const EarningsPage = DriverDashboardPage;
+const AdminDashboardPage = AdminDashboard;
+const AdminDriversPage = DriverApprovalPage;
+const AdminUsersPage = AdminDashboard;
+const AdminRidesPage = AdminDashboard;
 
 function RequireDriverApproved() {
-  const { user, isLoading } = useAuth()
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <p className="text-muted-foreground animate-pulse">Loading…</p>
       </div>
-    )
+    );
   }
 
-  if (!user) return <Navigate to="/auth/login" replace />
-  if (!canAccessDriverRoutes(user)) return <Navigate to="/dashboard" replace />
-  return <ProtectedRoute />
+  if (!user) return <Navigate to="/auth/login" replace />;
+  if (!canAccessDriverRoutes(user)) return <Navigate to="/dashboard" replace />;
+  return <ProtectedRoute />;
 }
 
 function RequireAdmin() {
-  return <ProtectedRoute requiredRole="ADMIN" />
+  return <ProtectedRoute requiredRole="ADMIN" />;
 }
 
 export function App() {
@@ -86,13 +84,19 @@ export function App() {
                 <Route path="/rides/:id" element={<RideDetailPage />} />
                 <Route path="/bookings" element={<BookingHistoryPage />} />
                 <Route path="/bookings/:id" element={<BookingDetailPage />} />
-                <Route path="/driver/register" element={<DriverRegistrationPage />} />
+                <Route
+                  path="/driver/register"
+                  element={<DriverRegistrationPage />}
+                />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
 
               {/* Driver only */}
               <Route element={<RequireDriverApproved />}>
-                <Route path="/driver/dashboard" element={<Navigate to="/dashboard" replace />} />
+                <Route
+                  path="/driver/dashboard"
+                  element={<Navigate to="/dashboard" replace />}
+                />
                 <Route path="/driver/rides" element={<MyRidesPage />} />
                 <Route path="/driver/rides/new" element={<PostRidePage />} />
                 <Route path="/driver/rides/:id" element={<ManageRidePage />} />
@@ -110,10 +114,22 @@ export function App() {
               </Route>
 
               {/* Legacy redirects */}
-              <Route path="/login" element={<Navigate to="/auth/login" replace />} />
-              <Route path="/register" element={<Navigate to="/auth/register" replace />} />
-              <Route path="/rides/post" element={<Navigate to="/driver/rides/new" replace />} />
-              <Route path="/rides/mine" element={<Navigate to="/driver/rides" replace />} />
+              <Route
+                path="/login"
+                element={<Navigate to="/auth/login" replace />}
+              />
+              <Route
+                path="/register"
+                element={<Navigate to="/auth/register" replace />}
+              />
+              <Route
+                path="/rides/post"
+                element={<Navigate to="/driver/rides/new" replace />}
+              />
+              <Route
+                path="/rides/mine"
+                element={<Navigate to="/driver/rides" replace />}
+              />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
