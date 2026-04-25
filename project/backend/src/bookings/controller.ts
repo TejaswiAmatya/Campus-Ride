@@ -4,8 +4,8 @@ import { CreateBookingSchema, CreateReviewSchema } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
-
-const PLATFORM_FEE_PERCENT = 0.1;
+import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
+import { getStartOfWeek } from "../lib/date";
 
 function isSerializationFailure(err: unknown): boolean {
   return (
@@ -24,15 +24,6 @@ function sumDecimal(
       total.add(new Prisma.Decimal(value.toString())) as Prisma.Decimal,
     new Prisma.Decimal(0),
   );
-}
-
-function getStartOfWeek(date: Date): Date {
-  const start = new Date(date);
-  const day = start.getDay();
-  const diff = (day + 6) % 7;
-  start.setDate(start.getDate() - diff);
-  start.setHours(0, 0, 0, 0);
-  return start;
 }
 
 function serializeBookingList(
@@ -172,9 +163,8 @@ export async function createBooking(
               ride.pricePerSeat.toString(),
             );
             const totalFare = pricePerSeat.mul(body.seatsBooked);
-            const platformFee = totalFare.mul(
-              new Prisma.Decimal(PLATFORM_FEE_PERCENT.toString()),
-            );
+            const platformFeeRate = await getPlatformFeeRate(tx);
+            const platformFee = totalFare.mul(platformFeeRate);
             const driverEarnings = totalFare.sub(platformFee);
 
             const created = await tx.booking.create({
@@ -629,7 +619,142 @@ export async function getEarnings(
   next: NextFunction,
 ): Promise<void> {
   try {
-    res.json({ message: "TODO: get earnings", driverId: req.user?.id });
+    const userId = req.user?.id;
+    const role = req.user?.role;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+    if (role !== "DRIVER") {
+      throw new AppError(
+        "FORBIDDEN",
+        "Only approved drivers can view earnings",
+        403,
+      );
+    }
+
+    const rawPage = Array.isArray(req.query.page)
+      ? req.query.page[0]
+      : req.query.page;
+    const rawLimit = Array.isArray(req.query.limit)
+      ? req.query.limit[0]
+      : req.query.limit;
+    const parsedPage = Number(rawPage);
+    const parsedLimit = Number(rawLimit);
+    const page =
+      Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const limit =
+      Number.isInteger(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, 100)
+        : 20;
+    const skip = (page - 1) * limit;
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const startOfWeek = getStartOfWeek(new Date());
+
+    const [
+      platformFeePercent,
+      approvedDriverProfile,
+      thisWeekResult,
+      thisMonthResult,
+      totalCompletedCount,
+      completedBookings,
+    ] = await Promise.all([
+      getPlatformFeePercent(),
+      prisma.driverProfile.findFirst({
+        where: { userId, status: "APPROVED" },
+        select: { id: true },
+      }),
+      prisma.booking.aggregate({
+        _sum: { driverEarnings: true },
+        where: {
+          status: "COMPLETED",
+          ride: {
+            driverId: userId,
+            departureTime: { gte: startOfWeek },
+          },
+        },
+      }),
+      prisma.booking.aggregate({
+        _sum: { driverEarnings: true },
+        where: {
+          status: "COMPLETED",
+          ride: {
+            driverId: userId,
+            departureTime: { gte: startOfMonth },
+          },
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          status: "COMPLETED",
+          ride: { driverId: userId },
+        },
+      }),
+      prisma.booking.findMany({
+        where: {
+          status: "COMPLETED",
+          ride: { driverId: userId },
+        },
+        select: {
+          id: true,
+          totalFare: true,
+          platformFee: true,
+          driverEarnings: true,
+          ride: {
+            select: {
+              id: true,
+              departureTime: true,
+              originAddress: true,
+              destinationAddress: true,
+            },
+          },
+        },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    if (!approvedDriverProfile) {
+      throw new AppError(
+        "FORBIDDEN",
+        "Only approved drivers can view earnings",
+        403,
+      );
+    }
+
+    res.json({
+      data: {
+        platformFeePercent: platformFeePercent.toString(),
+        totals: {
+          thisWeek: (
+            thisWeekResult._sum.driverEarnings ?? new Prisma.Decimal(0)
+          ).toString(),
+          thisMonth: (
+            thisMonthResult._sum.driverEarnings ?? new Prisma.Decimal(0)
+          ).toString(),
+          currency: "NOK",
+        },
+        rides: completedBookings.map((booking) => ({
+          bookingId: booking.id,
+          rideId: booking.ride.id,
+          rideDate: booking.ride.departureTime.toISOString(),
+          originAddress: booking.ride.originAddress,
+          destinationAddress: booking.ride.destinationAddress,
+          totalPrice: booking.totalFare.toString(),
+          platformFee: booking.platformFee.toString(),
+          driverPayout: booking.driverEarnings.toString(),
+        })),
+        pagination: {
+          page,
+          limit,
+          total: totalCompletedCount,
+          totalPages: Math.max(1, Math.ceil(totalCompletedCount / limit)),
+        },
+      },
+    });
   } catch (err) {
     next(err);
   }

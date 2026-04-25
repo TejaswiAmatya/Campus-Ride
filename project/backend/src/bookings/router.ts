@@ -9,9 +9,10 @@ bookingsRouter.use(requireAuth)
 
 bookingsRouter.post('/', controller.createBooking)
 bookingsRouter.get('/', controller.listBookings)
-// bookingsRouter.get('/earnings', controller.getEarnings) // must come before /:id
+bookingsRouter.get('/earnings', controller.getEarnings)
 bookingsRouter.get('/:id', controller.getBooking)
 bookingsRouter.patch('/:id/confirm', controller.confirmBooking)
 bookingsRouter.patch('/:id/decline', controller.declineBooking)
 bookingsRouter.patch('/:id/cancel', controller.cancelBooking)
+bookingsRouter.patch('/:id/complete', controller.completeBooking)
 // bookingsRouter.post('/:id/review', controller.createReview)
