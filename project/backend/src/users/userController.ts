@@ -31,7 +31,15 @@ export async function getCurrentUser(
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        accountStatus: true,
+        suspendedUntil: true,
+        avatarPath: true,
+        createdAt: true,
         driverProfile: {
           select: {
             status: true,
