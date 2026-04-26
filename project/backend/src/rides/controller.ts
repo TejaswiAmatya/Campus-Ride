@@ -485,6 +485,10 @@ export async function startRide(
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
+        bookings: {
+          where: { status: "CONFIRMED" },
+          select: { id: true },
+        },
       },
     });
 
@@ -493,6 +497,20 @@ export async function startRide(
     }
     if (ride.driverId !== driverId) {
       throw new AppError("FORBIDDEN", "Not the driver of this ride", 403);
+    }
+    if (ride.status !== "OPEN" && ride.status !== "FULL") {
+      throw new AppError(
+        "INVALID_STATE",
+        "Only scheduled rides can be started",
+        409,
+      );
+    }
+    if (ride.bookings.length === 0) {
+      throw new AppError(
+        "NO_CONFIRMED_PASSENGERS",
+        "Cannot start a ride without at least one confirmed passenger",
+        409,
+      );
     }
 
     const updated = await prisma.ride.update({
@@ -738,6 +756,10 @@ export async function updateRideStatus(
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
+        bookings: {
+          where: { status: "CONFIRMED" },
+          select: { id: true },
+        },
       },
     });
 
@@ -753,37 +775,55 @@ export async function updateRideStatus(
         409,
       );
     }
+    const confirmedBookings = ride.bookings ?? [];
+    if (body.status === "ACTIVE" && confirmedBookings.length === 0) {
+      throw new AppError(
+        "NO_CONFIRMED_PASSENGERS",
+        "Cannot start a ride without at least one confirmed passenger",
+        409,
+      );
+    }
 
-    const updatedRide = await prisma.$transaction(async (tx) => {
-      const nextStatus = mapRequestedRideStatus(body.status);
+    const updatedRide =
+      body.status === "COMPLETED"
+        ? await prisma.$transaction(async (tx) => {
+            await tx.booking.updateMany({
+              where: {
+                rideId: id,
+                status: "CONFIRMED",
+              },
+              data: { status: "COMPLETED" },
+            });
 
-      if (body.status === "COMPLETED") {
-        await tx.booking.updateMany({
-          where: {
-            rideId: id,
-            status: "CONFIRMED",
-          },
-          data: {
-            status: "COMPLETED",
-          },
-        });
-      }
-
-      return tx.ride.update({
-        where: { id },
-        data: { status: nextStatus },
-        include: {
-          driver: {
-            select: {
-              id: true,
-              name: true,
-              avatarPath: true,
-              driverProfile: { select: { vehicleInfo: true } },
+            return tx.ride.update({
+              where: { id },
+              data: { status: mapRequestedRideStatus(body.status) },
+              include: {
+                driver: {
+                  select: {
+                    id: true,
+                    name: true,
+                    avatarPath: true,
+                    driverProfile: { select: { vehicleInfo: true } },
+                  },
+                },
+              },
+            });
+          })
+        : await prisma.ride.update({
+            where: { id },
+            data: { status: mapRequestedRideStatus(body.status) },
+            include: {
+              driver: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatarPath: true,
+                  driverProfile: { select: { vehicleInfo: true } },
+                },
+              },
             },
-          },
-        },
-      });
-    });
+          });
 
     if (body.status === "ACTIVE") {
       try {

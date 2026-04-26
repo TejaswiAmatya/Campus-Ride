@@ -118,52 +118,37 @@ export function useCancelBooking() {
   })
 }
 
+function invalidateBookingAndRideQueries(queryClient: ReturnType<typeof useQueryClient>, bookingId: string) {
+  void queryClient.invalidateQueries({ queryKey: ['bookings'] })
+  void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', bookingId] })
+  void queryClient.invalidateQueries({ queryKey: ['rides'] })
+}
+
+export function useMarkBookingPickedUp() {
 export function useConfirmBooking() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (bookingId: string) => {
-      const res = await api.patch<{ data: BookingListItem }>(`/api/bookings/${bookingId}/confirm`)
+      const res = await api.patch<{ data: BookingListItem }>(`/api/bookings/${bookingId}/picked-up`, {})
       return res.data.data
     },
     onSuccess: (data) => {
-      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      void queryClient.invalidateQueries({ queryKey: ['rides'] })
-      void queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] })
-      void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', data.id] })
+      invalidateBookingAndRideQueries(queryClient, data.id)
     },
   })
 }
 
-export function useDeclineBooking() {
+export function useMarkBookingNoShow() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (bookingId: string) => {
-      const res = await api.patch<{ data: BookingListItem }>(`/api/bookings/${bookingId}/decline`)
+      const res = await api.patch<{ data: BookingListItem }>(`/api/bookings/${bookingId}/no-show`, {})
       return res.data.data
     },
     onSuccess: (data) => {
-      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      void queryClient.invalidateQueries({ queryKey: ['rides'] })
-      void queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] })
-      void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', data.id] })
-    },
-  })
-}
-
-export function useCreateReview() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (input: { bookingId: string; rating: number; comment?: string }) => {
-      const res = await api.post<{ data: { id: string } }>(`/api/bookings/${input.bookingId}/review`, input)
-      return res.data.data
-    },
-    onSuccess: (_, variables) => {
-      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', variables.bookingId] })
-      void queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] })
+      invalidateBookingAndRideQueries(queryClient, data.id)
     },
   })
 }
