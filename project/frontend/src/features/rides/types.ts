@@ -127,6 +127,25 @@ export interface Ride {
   };
 }
 
+export interface RideStatusPayload {
+  rideId: string;
+  bookingId?: string;
+  driverLocation?: { lat: number; lng: number };
+  status:
+    | "OPEN"
+    | "FULL"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | "CANCELLED"
+    | "driver_assigned"
+    | "en_route"
+    | "arrived"
+    | "in_progress"
+    | "finished"
+    | "cancelled";
+  estimatedArrivalMinutes?: number;
+}
+
 export interface SearchRidesParams {
   location?: string;
   origin?: string;

@@ -194,15 +194,13 @@ async function findBookingReview(
   });
 }
 
-function buildPaymentSnapshot(
-  booking: {
-    totalFare: Prisma.Decimal | string | number;
-    refundedAmount?: Prisma.Decimal | string | number | null;
-    paymentStatus: string;
-    paidAt?: Date | null;
-    refundedAt?: Date | null;
-  },
-) {
+function buildPaymentSnapshot(booking: {
+  totalFare: Prisma.Decimal | string | number;
+  refundedAmount?: Prisma.Decimal | string | number | null;
+  paymentStatus: string;
+  paidAt?: Date | null;
+  refundedAt?: Date | null;
+}) {
   const totalFare = new Prisma.Decimal(booking.totalFare?.toString() ?? "0");
   const refundedAmount = new Prisma.Decimal(
     booking.refundedAmount?.toString() ?? "0",
@@ -428,6 +426,16 @@ export async function createBooking(
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
 
+        try {
+          const ride = booking.ride;
+          await notify.bookingNew(ride.driverId, {
+            bookingId: booking.id,
+            passengerId: booking.passengerId,
+            rideId: booking.rideId,
+          });
+        } catch (err) {
+          console.warn("[socket] notifyBookingNew failed", err);
+        }
         const review = await findBookingReview(prisma, booking as any);
 
         res.status(201).json({
@@ -661,14 +669,17 @@ export async function confirmBooking(
     if (!updated) {
       throw new AppError("INTERNAL_ERROR", "Booking confirmation failed", 500);
     }
-
     updated = { ...updated, review: await findBookingReview(prisma, updated) };
+    try {
+      await notify.bookingStatus(updated.passengerId, {
+        bookingId: updated.id,
+        status: "confirmed",
+        rideId: updated.rideId,
+      });
+    } catch (err) {
+      console.warn("[socket] notifyBookingStatus failed", err);
+    }
 
-    await notify.bookingStatus(updated.passenger.id, {
-      bookingId: updated.id,
-      status: "confirmed",
-      updatedAt: new Date().toISOString(),
-    });
     try {
       await emailQueue.bookingConfirmed(updated.id);
     } catch (queueErr) {
@@ -768,11 +779,15 @@ export async function declineBooking(
     });
     const review = await findBookingReview(prisma, updated as any);
 
-    await notify.bookingStatus(updated.passenger.id, {
-      bookingId: updated.id,
-      status: "cancelled",
-      updatedAt: new Date().toISOString(),
-    });
+    try {
+      await notify.bookingStatus(updated.passengerId, {
+        bookingId: updated.id,
+        status: "declined",
+        rideId: updated.rideId,
+      });
+    } catch (err) {
+      console.warn("[socket] notifyBookingStatus failed", err);
+    }
 
     res.json({ data: serializeBookingList({ ...updated, review }) });
   } catch (err) {
@@ -893,7 +908,10 @@ export async function cancelBooking(
       });
     }
 
-    const cancelReview = await findBookingReview(prisma, updated.booking as any);
+    const cancelReview = await findBookingReview(
+      prisma,
+      updated.booking as any,
+    );
 
     await notify.bookingStatus(updated.booking.passenger.id, {
       bookingId: updated.booking.id,
@@ -1319,9 +1337,10 @@ export async function completeBooking(
       updatedAt: new Date().toISOString(),
     });
 
-    res.json({ data: serializeBookingList({ ...updated, review: completedReview }) });
+    res.json({
+      data: serializeBookingList({ ...updated, review: completedReview }),
+    });
   } catch (err) {
     next(err);
   }
 }
-
