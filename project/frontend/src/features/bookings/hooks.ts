@@ -240,11 +240,12 @@ export function useBookingRealtime() {
       }
       seenRideEventsRef.current.add(eventKey);
 
+      const updatedDate = new Date(payload.updatedAt).toLocaleDateString();
       showToast({
         id: `ride-updated:${eventKey}`,
         tone: "default",
         title: "Ride details updated",
-        description: payload.updateMessage ?? "Your driver updated this ride.",
+        description: payload.updateMessage ?? `Your driver updated ${updatedDate} ride.`,
       });
     }
 
