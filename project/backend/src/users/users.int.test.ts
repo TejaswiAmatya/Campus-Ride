@@ -1,8 +1,13 @@
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { app } from '..'
+import { app } from '../app'
 import { prisma } from '../lib/prisma'
 import { supabaseAdmin } from '../lib/supabase'
+
+const runLiveIntegrationTests = ['1', 'true'].includes(
+  (process.env.RUN_LIVE_INTEGRATION_TESTS ?? '').toLowerCase(),
+)
+const describeLiveIntegration = runLiveIntegrationTests ? describe.sequential : describe.skip
 
 type ApiError = {
   code: string
@@ -27,15 +32,18 @@ type LoginResponse = {
 }
 
 type MeResponse = {
-  data: {
-    id: string
-    email: string
-    name: string
-  } | null
-  error: ApiError | null
+  id: string
+  email: string
+  name: string
+  role: string
+  accountStatus: 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED'
+  suspendedUntil: string | null
+  avatarPath: string | null
+  driverStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | null
+  createdAt: string
 }
 
-describe.sequential('Users/Auth integration', () => {
+describeLiveIntegration('Users/Auth integration', () => {
   const createdUserIds: string[] = []
 
   beforeEach(() => {
@@ -92,9 +100,10 @@ describe.sequential('Users/Auth integration', () => {
 
     expect(meRes.status).toBe(200)
     const meBody = meRes.body as MeResponse
-    expect(meBody.data).toBeTruthy()
-    expect(meBody.data?.email).toBe(email)
-    expect(meBody.error ?? null).toBeNull()
+    expect(meBody.email).toBe(email)
+    expect(meBody.accountStatus).toBe('ACTIVE')
+    expect(meBody.suspendedUntil).toBeNull()
+    expect(meBody.driverStatus).toBeNull()
   })
 
   it('returns 409 when registering the same email twice', async () => {
@@ -121,16 +130,16 @@ describe.sequential('Users/Auth integration', () => {
     expect(secondRes.body.error?.message).toBeTruthy()
   })
 
-  it('returns 400 for non-.edu email registration', async () => {
+  it('returns 422 for non-.edu email registration', async () => {
     const res = await request(app).post('/api/auth/register').send({
       email: 'test@gmail.com',
       name: 'Gmail User',
       password: 'password123',
     })
 
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(422)
     expect(res.body.data ?? null).toBeNull()
     expect(res.body.error?.message).toBeTruthy()
-    expect(res.body.error?.code).toBeTruthy()
+    expect(res.body.error?.code).toBe('VALIDATION_ERROR')
   })
 })

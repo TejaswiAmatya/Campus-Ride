@@ -1,19 +1,51 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Car } from "lucide-react";
-import { useLogin } from "@/hooks/useAuth";
+import { getDefaultRoute } from "@/features/auth/routing";
+import { useAuth, useLogin } from "@/hooks/useAuth";
+import { useAuthStore } from "@/store/authStore";
+
+function getModerationMessage(
+  authError: {
+    code: string;
+    message: string;
+    suspendedUntil?: string | null;
+  },
+) {
+  if (authError.code === "ACCOUNT_BANNED") {
+    return "Your account has been permanently banned. Contact support.";
+  }
+
+  if (authError.code === "ACCOUNT_SUSPENDED" && authError.suspendedUntil) {
+    return `Your account is suspended until ${new Date(
+      authError.suspendedUntil,
+    ).toLocaleDateString()}.`;
+  }
+
+  if (authError.code === "ACCOUNT_SUSPENDED") {
+    return "Your account is suspended indefinitely. Contact support.";
+  }
+
+  if (authError.code === "INVALID_CREDENTIALS") {
+    return "Invalid email or password.";
+  }
+
+  return "Something went wrong. Please try again.";
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const loginMutation = useLogin();
+  const authError = useAuthStore((state) => state.authError);
 
   useEffect(() => {
-    if (loginMutation.isSuccess) {
-      navigate("/rides");
+    if (!isLoading && user) {
+      navigate(getDefaultRoute(user), { replace: true });
     }
-  }, [loginMutation.isSuccess, navigate]);
+  }, [isLoading, navigate, user]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,9 +94,17 @@ export function LoginPage() {
           />
         </div>
 
-        {loginMutation.isError && (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            Invalid email or password. Please try again.
+        {authError && (
+          <p
+            role="alert"
+            className={`rounded-md px-3 py-2 text-sm ${
+              authError.code === "ACCOUNT_BANNED" ||
+              authError.code === "ACCOUNT_SUSPENDED"
+                ? "bg-orange-50 text-orange-600"
+                : "bg-red-50 text-red-600"
+            }`}
+          >
+            {getModerationMessage(authError)}
           </p>
         )}
 

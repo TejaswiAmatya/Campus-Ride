@@ -1,19 +1,10 @@
+import { useEffect } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { api } from '../api/client'
-import { useAuthStore } from '@/store/authStore'
+import { api, extractApiError } from '../api/client'
+import { useAuthStore, type AuthErrorState } from '@/store/authStore'
+import { fetchMe, meQueryKey, type ProfileUser } from './useProfile'
 
-export interface AuthUser {
-  id: string
-  email: string
-  name: string
-  role: 'PASSENGER' | 'DRIVER' | 'ADMIN'
-  avatarUrl?: string
-  isDriverApproved: boolean
-}
-
-interface currentUserResponse {
-  data: AuthUser
-}
+export type AuthUser = ProfileUser
 
 interface LoginResponse {
   data: {
@@ -21,6 +12,8 @@ interface LoginResponse {
     refresh_token: string
   }
 }
+
+type SessionTokens = LoginResponse['data']
 
 interface RegisterInput {
   email: string
@@ -37,47 +30,49 @@ interface RegisterResponse {
   }
 }
 
-const currentUserKey = ['auth', 'currentUser'] as const
-
-const fetchCurrentUser = async (): Promise<AuthUser | null> => {
-  try {
-    const res = await api.get<currentUserResponse>('/api/users/me')
-    return res.data?.data ?? null
-  } catch {
-    return null
-  }
-}
-
-
 /**
  * Returns the currently authenticated user by calling GET /api/users/me.
  * Only fires the request when an access_token is present in localStorage.
  */
 export function useAuth() {
-
   // Get the access token and user from the auth store so we can conditionally fetch the current user profile.
   const token = useAuthStore((state) => state.accessToken)
   const currentUser = useAuthStore((state) => state.user)
   const setUser = useAuthStore((state) => state.setUser)
   const clearSession = useAuthStore((state) => state.clearSession)
+  const setAuthError = useAuthStore((state) => state.setAuthError)
+  const authError = useAuthStore((state) => state.authError)
 
   // Fetch the current user profile if we have an access token but no user in the store.
-  const { data, isLoading } = useQuery({
-    queryKey: ['auth', 'currentUser'],
-    queryFn: fetchCurrentUser,
+  const { data, error, isLoading } = useQuery<AuthUser>({
+    queryKey: meQueryKey,
+    queryFn: fetchMe,
     enabled: !!token,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
-  // Keep Zustand synchronized with server user state
-  if (token && data === null && !isLoading && currentUser) {
-    clearSession()
-  }
+  useEffect(() => {
+    if (!token || isLoading || !error) {
+      return
+    }
 
-  if (data && data !== currentUser) {
-    setUser(data)
-  }
+    const authError = extractApiError(error)
+    clearSession()
+    setAuthError(authError)
+  }, [clearSession, error, isLoading, setAuthError, token])
+
+  useEffect(() => {
+    if (data && data !== currentUser) {
+      setUser(data)
+    }
+  }, [currentUser, data, setUser])
+
+  useEffect(() => {
+    if (token && !error) {
+      setAuthError(null)
+    }
+  }, [error, setAuthError, token])
 
   const user = data ?? currentUser
 
@@ -85,6 +80,7 @@ export function useAuth() {
     user: user ?? null,
     isAuthenticated: !!user,
     isLoading: !!token && isLoading,
+    authError,
   }
 }
 
@@ -93,27 +89,46 @@ export function useLogin(){
   const setSession = useAuthStore((s) => s.setSession)
   const setUser = useAuthStore((s) => s.setUser)
   const clearSession = useAuthStore((s) => s.clearSession)
+  const setAuthError = useAuthStore((s) => s.setAuthError)
 
-  return useMutation({
+  return useMutation<SessionTokens, AuthErrorState, { email: string; password: string }>({
+    onMutate: () => {
+      setAuthError(null)
+    },
     mutationFn: async (credentials: { email: string; password: string }) => {
-      const res = await api.post<LoginResponse>('/api/auth/login', credentials)
-      return res.data.data
+      try {
+        const res = await api.post<LoginResponse>('/api/auth/login', credentials)
+        return res.data.data
+      } catch (error) {
+        throw extractApiError(error)
+      }
     },
     onSuccess: async (tokens) => {
       setSession(tokens)
 
-      const user = await queryClient.fetchQuery({
-        queryKey: currentUserKey,
-        queryFn: fetchCurrentUser,
-        staleTime: 0,
-      })
+      let user: AuthUser | null = null
+      try {
+        user = await queryClient.fetchQuery({
+          queryKey: meQueryKey,
+          queryFn: fetchMe,
+          staleTime: 0,
+        })
+      } catch (error) {
+        const parsedError = extractApiError(error)
+        clearSession()
+        setAuthError(parsedError)
+        throw parsedError
+      }
 
       if (user) {
         setUser(user)
-        queryClient.setQueryData(currentUserKey, user)
+        queryClient.setQueryData(meQueryKey, user)
       } else {
         clearSession()
       }
+    },
+    onError: (error) => {
+      setAuthError(error)
     },
   })
 }

@@ -1,10 +1,21 @@
 import axios from 'axios'
+import type { AuthErrorState } from '@/store/authStore'
 
 export const api = axios.create({
   baseURL: '/',
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 })
+
+type ApiErrorPayload = {
+  error?: {
+    code?: string
+    message?: string
+    details?: {
+      suspendedUntil?: string
+    }
+  }
+}
 
 // Request interceptor — attach JWT
 api.interceptors.request.use((config) => {
@@ -14,3 +25,86 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+type Role = 'PASSENGER' | 'DRIVER' | 'ADMIN'
+type DriverStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | null
+type AccountStatus = 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED'
+
+type MeFlatResponse = {
+  id: string
+  email: string
+  name: string
+  role: Role
+  accountStatus: AccountStatus
+  suspendedUntil: string | null
+  avatarPath: string | null
+  driverStatus: DriverStatus
+  createdAt: string
+}
+
+type MeLegacyResponse = {
+  data: {
+    id: string
+    email: string
+    name: string
+    role: Role
+    accountStatus: AccountStatus
+    suspendedUntil: string | null
+    avatarPath: string | null
+    driverStatus?: DriverStatus
+  }
+}
+
+export type MeUser = {
+  id: string
+  email: string
+  name: string
+  role: Role
+  accountStatus: AccountStatus
+  suspendedUntil: string | null
+  avatarPath?: string
+  isDriverApproved?: boolean
+  driverStatus?: DriverStatus
+}
+
+export async function fetchMe(): Promise<MeUser> {
+  const res = await api.get<MeFlatResponse | MeLegacyResponse>('/api/users/me')
+  const payload = 'data' in res.data ? res.data.data : res.data
+  const driverStatus = payload.driverStatus ?? null
+
+  return {
+    id: payload.id,
+    email: payload.email,
+    name: payload.name,
+    role: payload.role,
+    accountStatus: payload.accountStatus,
+    suspendedUntil: payload.suspendedUntil,
+    avatarPath: payload.avatarPath ?? undefined,
+    isDriverApproved: driverStatus === 'APPROVED',
+    driverStatus,
+  }
+}
+
+export function extractApiError(
+  error: unknown,
+  fallbackMessage = 'Unable to complete authentication right now. Please try again.',
+): AuthErrorState {
+  if (axios.isAxiosError<ApiErrorPayload>(error)) {
+    const code = error.response?.data?.error?.code
+    const message = error.response?.data?.error?.message
+    const suspendedUntil = error.response?.data?.error?.details?.suspendedUntil
+
+    if (code && message) {
+      return {
+        code,
+        message,
+        suspendedUntil: suspendedUntil ?? null,
+      }
+    }
+  }
+
+  return {
+    code: 'AUTH_ERROR',
+    message: fallbackMessage,
+  }
+}
