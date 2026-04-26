@@ -79,17 +79,39 @@ export async function deleteAuthUser(userId: string) {
   return getSupabaseAdminClient().auth.admin.deleteUser(userId)
 }
 
+const PRIVATE_DOCUMENTS_BUCKET = 'license'
+
+function sanitizeFilename(filename: string): string {
+  const trimmed = filename.trim()
+  const fallback = 'document'
+  const normalized = trimmed || fallback
+
+  return normalized
+    .replace(/[/\\]/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9._-]/g, '')
+}
+
+function buildPrivateDocumentPath(
+  folder: 'licences' | 'insurance' | 'academic-ids',
+  userId: string,
+  filename: string,
+): string {
+  const timestamp = Date.now()
+  const safeFilename = sanitizeFilename(filename)
+  return `${folder}/${userId}/${timestamp}-${safeFilename}`
+}
+
 export async function uploadLicense(
   userId: string,
   buffer: Buffer,
-  filetype: string
+  filetype: string,
+  filename: string,
 ) : Promise<string> {
-  // Get the extension from the mimetype
-  const ext = filetype.split('/')[1]
-  const path = `${userId}/license.${ext}`
+  const path = buildPrivateDocumentPath('licences', userId, filename)
 
   // Upload the file to Supabase Storage
-  const { error } = await getSupabaseAdminClient().storage.from('DriversInfo').upload(path, buffer, {
+  const { error } = await getSupabaseAdminClient().storage.from(PRIVATE_DOCUMENTS_BUCKET).upload(path, buffer, {
     contentType: filetype,
     upsert: true,
   })
@@ -109,7 +131,7 @@ export async function uploadLicense(
 
 export async function createSignedLicenseUrl(path: string): Promise<string> {
   const { data, error } = await supabaseAdmin.storage
-    .from('DriversInfo')
+    .from(PRIVATE_DOCUMENTS_BUCKET)
     .createSignedUrl(path, 60 * 60)
 
   if (error || !data?.signedUrl) {
@@ -127,14 +149,14 @@ export async function createSignedLicenseUrl(path: string): Promise<string> {
 export async function uploadAcademicId(
   userId: string,
   buffer: Buffer,
-  filetype: string
+  filetype: string,
+  filename: string,
 ): Promise<string> {
-  const ext = filetype.split('/')[1] ?? 'pdf'
-  const path = `${userId}/academic-id.${ext}`
+  const path = buildPrivateDocumentPath('academic-ids', userId, filename)
 
   const { error } = await getSupabaseAdminClient()
     .storage
-    .from('AcademicInfo')
+    .from(PRIVATE_DOCUMENTS_BUCKET)
     .upload(path, buffer, {
       contentType: filetype,
       upsert: true,

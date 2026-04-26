@@ -1,4 +1,3 @@
-// cspell:words supabase
 import type { Request, Response, NextFunction } from "express";
 import {
   UpdateProfileSchema,
@@ -195,6 +194,7 @@ export async function applyAsDriver(
       req.user!.id,
       req.file.buffer,
       req.file.mimetype,
+      req.file.originalname,
     );
 
     const [driverProfile] = await prisma.$transaction([
@@ -315,6 +315,7 @@ export async function submitAcademicVerification(
       req.user.id,
       req.file.buffer,
       req.file.mimetype,
+      req.file.originalname,
     );
 
     const user = await prismaUntyped.user.update({
