@@ -1,5 +1,18 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import {
+  useBookings,
+  useConfirmBooking,
+  useDeclineBooking,
+  useCancelBooking,
+} from "./hooks";
+import { Button } from "@/components/ui/button";
+import { StatusBadge } from "./StatusBadge";
+import type { BookingListItem } from "./types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/api/client";
 import {
   CalendarCheck,
   CheckCircle2,
@@ -63,7 +76,7 @@ export function BookingsPage() {
           <div className="inline-flex rounded-xl border bg-white/90 p-1 shadow-sm">
             <button
               type="button"
-              onClick={() => setView('passenger')}
+              onClick={() => setView("passenger")}
               className={cn(
                 'rounded-lg px-4 py-2 text-sm font-medium transition',
                 view === 'passenger'
@@ -75,7 +88,7 @@ export function BookingsPage() {
             </button>
             <button
               type="button"
-              onClick={() => setView('driver')}
+              onClick={() => setView("driver")}
               className={cn(
                 'rounded-lg px-4 py-2 text-sm font-medium transition',
                 view === 'driver'
@@ -105,7 +118,10 @@ export function BookingsPage() {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-36 animate-pulse rounded-2xl border bg-muted" />
+            <div
+              key={i}
+              className="h-36 animate-pulse rounded-2xl border bg-muted"
+            />
           ))}
         </div>
       ) : (bookings ?? []).length === 0 ? (
@@ -195,7 +211,7 @@ export function BookingsPage() {
         </>
       )}
     </div>
-  )
+  );
 }
 
 function BookingCard({
@@ -208,39 +224,42 @@ function BookingCard({
   confirmPending,
   declinePending,
 }: {
-  booking: BookingListItem
-  view: 'passenger' | 'driver'
-  onCancel: () => void
-  onConfirm: () => void
-  onDecline: () => void
-  cancelPending: boolean
-  confirmPending: boolean
-  declinePending: boolean
+  booking: BookingListItem;
+  view: "passenger" | "driver";
+  onCancel: () => void;
+  onConfirm: () => void;
+  onDecline: () => void;
+  cancelPending: boolean;
+  confirmPending: boolean;
+  declinePending: boolean;
 }) {
-  const isPassenger = view === 'passenger'
+  const isPassenger = view === "passenger";
   const message =
-    booking.status === 'CONFIRMED'
+    booking.status === "CONFIRMED"
       ? isPassenger
-        ? 'Your driver has accepted the ride. You are all set for pickup.'
-        : 'This passenger is approved and counted into your ride plan.'
-      : booking.status === 'COMPLETED'
+        ? "Your driver has accepted the ride. You are all set for pickup."
+        : "This passenger is approved and counted into your ride plan."
+      : booking.status === "COMPLETED"
         ? isPassenger
-          ? 'Ride completed. You reached your destination.'
-          : 'Ride completed. Earnings from this passenger are now part of your trip summary.'
-        : booking.status === 'CANCELLED'
+          ? "Ride completed. You reached your destination."
+          : "Ride completed. Earnings from this passenger are now part of your trip summary."
+        : booking.status === "CANCELLED"
           ? isPassenger
-            ? 'This booking is no longer active.'
-            : 'This request was closed and is no longer travelling with you.'
+            ? "This booking is no longer active."
+            : "This request was closed and is no longer travelling with you."
           : isPassenger
-            ? 'Waiting for the driver to accept your booking request.'
-            : 'Review this request and choose whether to accept the passenger.'
+            ? "Waiting for the driver to accept your booking request."
+            : "Review this request and choose whether to accept the passenger.";
 
   return (
     <div className="rounded-2xl border bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={booking.status} className="rounded-full px-3 py-1" />
+            <StatusBadge
+              status={booking.status}
+              className="rounded-full px-3 py-1"
+            />
             <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
               Ref {booking.id.slice(0, 8)}
             </span>
@@ -260,16 +279,16 @@ function BookingCard({
 
           <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
             <MetaItem icon={<Clock3 className="h-4 w-4" />}>
-              {new Date(booking.ride.departureTime).toLocaleString('en-GB', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
+              {new Date(booking.ride.departureTime).toLocaleString("en-GB", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
               })}
             </MetaItem>
             <MetaItem icon={<UserRound className="h-4 w-4" />}>
-              {booking.seatsBooked} seat{booking.seatsBooked > 1 ? 's' : ''}
+              {booking.seatsBooked} seat{booking.seatsBooked > 1 ? "s" : ""}
             </MetaItem>
             <MetaItem icon={<Wallet className="h-4 w-4" />}>
               {isPassenger
@@ -286,7 +305,7 @@ function BookingCard({
           {view === 'passenger' && (
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span>Payment: {booking.payment.status}</span>
-              {booking.status === 'CANCELLED' && (
+              {booking.status === "CANCELLED" && (
                 <>
                   <span>Refunded: {booking.refund.amount} NOK</span>
                   <span>
@@ -328,10 +347,10 @@ function BookingCard({
               </Button>
             )}
 
-          {!isPassenger && booking.status === 'PENDING' && (
+          {!isPassenger && booking.status === "PENDING" && (
             <div className="flex gap-2">
               <Button disabled={confirmPending} onClick={onConfirm}>
-                {confirmPending ? 'Accepting...' : 'Accept'}
+                {confirmPending ? "Accepting..." : "Accept"}
               </Button>
               <Button
                 variant="outline"
@@ -345,14 +364,20 @@ function BookingCard({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-function MetaItem({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+function MetaItem({
+  icon,
+  children,
+}: {
+  icon: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2">
       <span className="text-slate-400">{icon}</span>
       <span>{children}</span>
     </div>
-  )
+  );
 }

@@ -1158,6 +1158,11 @@ describe("rides API integration", () => {
     expect(completeResponse.statusCode).toBe(200);
     expect((completeResponse.body.data as RideRecord).status).toBe("COMPLETED");
     expect(testState.bookings[0]?.status).toBe("COMPLETED");
+    expect(notifyRideStatusMock).toHaveBeenLastCalledWith(createdRide.id, {
+      rideId: createdRide.id,
+      bookingId: "",
+      status: "finished",
+    });
   });
 
   it("rejects illegal status transitions", async () => {

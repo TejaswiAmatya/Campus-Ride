@@ -17,8 +17,8 @@ import {
   serializeRideList,
 } from "./serialize";
 import { searchRidesByLocation } from "./location";
-import { notify } from "../lib/notify";
 import { emailQueue } from "../lib/emailQueue";
+import { notify } from "../lib/notify";
 import {
   formatDepartureTimeLocal,
   generateRideOccurrences,
@@ -38,6 +38,18 @@ function mapRequestedRideStatus(status: "ACTIVE" | "COMPLETED" | "CANCELLED") {
   }
 
   return status;
+}
+
+function mapRealtimeRideStatus(status: "ACTIVE" | "COMPLETED" | "CANCELLED") {
+  if (status === "ACTIVE") {
+    return "in_progress" as const;
+  }
+
+  if (status === "COMPLETED") {
+    return "finished" as const;
+  }
+
+  return "cancelled" as const;
 }
 
 type VehicleInfo = {
@@ -293,10 +305,7 @@ export async function updateRide(
       (total, booking) => total + booking.seatsBooked,
       0,
     );
-    if (
-      body.totalSeats !== undefined &&
-      body.totalSeats < confirmedSeats
-    ) {
+    if (body.totalSeats !== undefined && body.totalSeats < confirmedSeats) {
       throw new AppError(
         "INVALID_SEAT_COUNT",
         `Total seats cannot be lower than ${confirmedSeats} confirmed seats`,
@@ -382,8 +391,7 @@ export async function updateRide(
           ...(body.totalSeats !== undefined && {
             totalSeats: body.totalSeats,
             availableSeats: Math.max(body.totalSeats - confirmedSeats, 0),
-            status:
-              body.totalSeats - confirmedSeats > 0 ? "OPEN" : "FULL",
+            status: body.totalSeats - confirmedSeats > 0 ? "OPEN" : "FULL",
           }),
           ...(body.pricePerSeat !== undefined && {
             pricePerSeat: body.pricePerSeat,
@@ -825,6 +833,16 @@ export async function updateRideStatus(
             },
           });
 
+    try {
+      await notify.rideStatus(id, {
+        rideId: id,
+        bookingId: "",
+        status: mapRealtimeRideStatus(body.status),
+      });
+    } catch (err) {
+      console.warn("[socket] notifyRideStatus failed", err);
+    }
+
     if (body.status === "ACTIVE") {
       try {
         await emailQueue.rideStarted(updatedRide.id);
@@ -834,20 +852,6 @@ export async function updateRideStatus(
           error: queueErr,
         });
       }
-
-      await notify.rideStatus(id, {
-        rideId: id,
-        bookingId: "",
-        status: "in_progress",
-      });
-    }
-
-    if (body.status === "COMPLETED") {
-      await notify.rideStatus(id, {
-        rideId: id,
-        bookingId: "",
-        status: "finished",
-      });
     }
 
     res.json({ data: serializeRideList(updatedRide) });
@@ -977,11 +981,15 @@ export async function cancelRide(
     );
 
     if (notifiedPassengerIds.length > 0) {
-      await notify.rideStatus(id, {
-        rideId: id,
-        bookingId: "",
-        status: "cancelled",
-      });
+      try {
+        await notify.rideStatus(id, {
+          rideId: id,
+          bookingId: "",
+          status: "cancelled",
+        });
+      } catch (err) {
+        console.warn("[socket] notifyRideStatus failed", err);
+      }
     }
 
     res.json({ data: serializeRideList(ride) });
