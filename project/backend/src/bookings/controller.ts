@@ -14,7 +14,6 @@ import { notify } from "../lib/notify";
 
 const PLATFORM_FEE_PERCENT = 0.1;
 import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
-import { getStartOfWeek } from "../lib/date";
 import { payments } from "../payments/service";
 import { randomUUID } from "crypto";
 
@@ -46,15 +45,7 @@ function getStartOfWeek(date: Date): Date {
   return start;
 }
 
-function serializeBookingList(
-  b: Prisma.BookingGetPayload<{
-    include: {
-      ride: { include: { driver: { select: { id: true; name: true } } } };
-      passenger: { select: { id: true; name: true } };
-      review: { select: { id: true; rating: true; comment: true; createdAt: true } };
-    };
-  }>,
-) {
+function serializeBookingList(b: any) {
   return {
     id: b.id,
     status: b.status,
@@ -105,28 +96,7 @@ function serializeBookingList(
   };
 }
 
-function serializeBookingDetail(
-  b: Prisma.BookingGetPayload<{
-    include: {
-      ride: {
-        include: {
-          driver: { select: { id: true; name: true; avatarPath: true } };
-        };
-      };
-      passenger: { select: { id: true; name: true; avatarPath: true } };
-      review: {
-        select: {
-          id: true;
-          rating: true;
-          comment: true;
-          createdAt: true;
-          reviewerId: true;
-          revieweeId: true;
-        };
-      };
-    };
-  }>,
-) {
+function serializeBookingDetail(b: any) {
   return {
     id: b.id,
     status: b.status,
@@ -194,6 +164,32 @@ function serializeBookingDetail(
       },
     },
   };
+}
+
+async function findBookingReview(
+  client: typeof prisma,
+  booking: {
+    rideId: string;
+    passengerId: string;
+    ride: { driver: { id: string } };
+  },
+) {
+  return client.review.findFirst({
+    where: {
+      rideId: booking.rideId,
+      OR: [
+        {
+          reviewerId: booking.passengerId,
+          revieweeId: booking.ride.driver.id,
+        },
+        {
+          reviewerId: booking.ride.driver.id,
+          revieweeId: booking.passengerId,
+        },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 function buildPaymentSnapshot(
@@ -383,9 +379,6 @@ export async function createBooking(
                   include: { driver: { select: { id: true, name: true } } },
                 },
                 passenger: { select: { id: true, name: true } },
-                review: {
-                  select: { id: true, rating: true, comment: true, createdAt: true },
-                },
               },
             });
 
@@ -403,9 +396,11 @@ export async function createBooking(
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
 
+        const review = await findBookingReview(prisma, booking as any);
+
         res.status(201).json({
           data: {
-            ...serializeBookingList(booking),
+            ...serializeBookingList({ ...booking, review }),
             ...buildPaymentSnapshot(booking),
           },
         });
@@ -469,13 +464,16 @@ export async function listBookings(
         include: {
           passenger: { select: { id: true, name: true } },
           ride: { include: { driver: { select: { id: true, name: true } } } },
-          review: {
-            select: { id: true, rating: true, comment: true, createdAt: true },
-          },
         },
         orderBy: { createdAt: "desc" },
       });
-      res.json({ data: bookings.map(serializeBookingList) });
+      const bookingsWithReviews = await Promise.all(
+        bookings.map(async (booking) => ({
+          ...booking,
+          review: await findBookingReview(prisma, booking as any),
+        })),
+      );
+      res.json({ data: bookingsWithReviews.map(serializeBookingList) });
       return;
     }
 
@@ -492,13 +490,16 @@ export async function listBookings(
       include: {
         passenger: { select: { id: true, name: true } },
         ride: { include: { driver: { select: { id: true, name: true } } } },
-        review: {
-          select: { id: true, rating: true, comment: true, createdAt: true },
-        },
       },
       orderBy: { createdAt: "desc" },
     });
-    res.json({ data: bookings.map(serializeBookingList) });
+    const bookingsWithReviews = await Promise.all(
+      bookings.map(async (booking) => ({
+        ...booking,
+        review: await findBookingReview(prisma, booking as any),
+      })),
+    );
+    res.json({ data: bookingsWithReviews.map(serializeBookingList) });
   } catch (err) {
     next(err);
   }
@@ -528,16 +529,6 @@ export async function getBooking(
           },
         },
         passenger: { select: { id: true, name: true, avatarPath: true } },
-        review: {
-          select: {
-            id: true,
-            rating: true,
-            comment: true,
-            createdAt: true,
-            reviewerId: true,
-            revieweeId: true,
-          },
-        },
       },
     });
 
@@ -551,7 +542,8 @@ export async function getBooking(
       throw new AppError("FORBIDDEN", "You cannot view this booking", 403);
     }
 
-    res.json({ data: serializeBookingDetail(booking) });
+    const review = await findBookingReview(prisma, booking as any);
+    res.json({ data: serializeBookingDetail({ ...booking, review }) });
   } catch (err) {
     next(err);
   }
@@ -573,13 +565,7 @@ export async function confirmBooking(
     }
 
     const maxRetries = 3;
-    let updated: Prisma.BookingGetPayload<{
-      include: {
-        ride: { include: { driver: { select: { id: true; name: true } } } };
-        passenger: { select: { id: true; name: true } };
-        review: { select: { id: true; rating: true; comment: true; createdAt: true } };
-      };
-    }> | null = null;
+    let updated: any = null;
 
     for (let attempt = 1; ; attempt += 1) {
       try {
@@ -621,9 +607,6 @@ export async function confirmBooking(
                   include: { driver: { select: { id: true, name: true } } },
                 },
                 passenger: { select: { id: true, name: true } },
-                review: {
-                  select: { id: true, rating: true, comment: true, createdAt: true },
-                },
               },
             });
 
@@ -646,6 +629,8 @@ export async function confirmBooking(
     if (!updated) {
       throw new AppError("INTERNAL_ERROR", "Booking confirmation failed", 500);
     }
+
+    updated = { ...updated, review: await findBookingReview(prisma, updated) };
 
     await notify.bookingStatus(updated.passenger.id, {
       bookingId: updated.id,
@@ -732,11 +717,9 @@ export async function declineBooking(
       include: {
         ride: { include: { driver: { select: { id: true, name: true } } } },
         passenger: { select: { id: true, name: true } },
-        review: {
-          select: { id: true, rating: true, comment: true, createdAt: true },
-        },
       },
     });
+    const review = await findBookingReview(prisma, updated as any);
 
     await notify.bookingStatus(updated.passenger.id, {
       bookingId: updated.id,
@@ -744,7 +727,7 @@ export async function declineBooking(
       updatedAt: new Date().toISOString(),
     });
 
-    res.json({ data: serializeBookingList(updated) });
+    res.json({ data: serializeBookingList({ ...updated, review }) });
   } catch (err) {
     next(err);
   }
@@ -841,9 +824,6 @@ export async function cancelBooking(
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
           passenger: { select: { id: true, name: true } },
-          review: {
-            select: { id: true, rating: true, comment: true, createdAt: true },
-          },
         },
       });
 
@@ -862,16 +842,17 @@ export async function cancelBooking(
       });
     }
 
-    await notify.bookingStatus(updated.passenger.id, {
-      bookingId: updated.id,
+    const cancelReview = await findBookingReview(prisma, updated.booking as any);
+
+    await notify.bookingStatus(updated.booking.passenger.id, {
+      bookingId: updated.booking.id,
       status: "cancelled",
       updatedAt: new Date().toISOString(),
     });
 
-    res.json({ data: serializeBookingList(updated) });
     res.json({
       data: {
-        ...serializeBookingList(updated.booking),
+        ...serializeBookingList({ ...updated.booking, review: cancelReview }),
         ...buildPaymentSnapshot(updated.booking),
         cancellation: {
           policyApplied: updated.refundPolicy,
@@ -1275,12 +1256,11 @@ export async function completeBooking(
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
           passenger: { select: { id: true, name: true } },
-          review: {
-            select: { id: true, rating: true, comment: true, createdAt: true },
-          },
         },
       });
     });
+
+    const completedReview = await findBookingReview(prisma, updated as any);
 
     await notify.bookingStatus(updated.passenger.id, {
       bookingId: updated.id,
@@ -1288,7 +1268,7 @@ export async function completeBooking(
       updatedAt: new Date().toISOString(),
     });
 
-    res.json({ data: serializeBookingList(updated) });
+    res.json({ data: serializeBookingList({ ...updated, review: completedReview }) });
   } catch (err) {
     next(err);
   }
@@ -1321,8 +1301,7 @@ export async function createReview(
       const booking = await tx.booking.findUnique({
         where: { id },
         include: {
-          ride: { select: { driverId: true } },
-          review: true,
+          ride: { select: { id: true, driverId: true } },
         },
       });
 
@@ -1336,7 +1315,20 @@ export async function createReview(
           409,
         );
       }
-      if (booking.review) {
+      const revieweeId =
+        booking.ride.driverId === userId
+          ? booking.passengerId
+          : booking.ride.driverId;
+
+      const existingReview = await tx.review.findFirst({
+        where: {
+          rideId: booking.rideId,
+          reviewerId: userId,
+          revieweeId,
+        },
+      });
+
+      if (existingReview) {
         throw new AppError(
           "INVALID_STATE",
           "A review has already been submitted for this booking",
@@ -1356,9 +1348,9 @@ export async function createReview(
 
       return tx.review.create({
         data: {
-          bookingId: booking.id,
+          rideId: booking.rideId,
           reviewerId: userId,
-          revieweeId: isDriver ? booking.passengerId : booking.ride.driverId,
+          revieweeId,
           rating: body.rating,
           comment: body.comment,
         },
@@ -1368,7 +1360,7 @@ export async function createReview(
     res.status(201).json({
       data: {
         id: review.id,
-        bookingId: review.bookingId,
+        bookingId: id,
         rating: review.rating,
         comment: review.comment,
         reviewerId: review.reviewerId,
