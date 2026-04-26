@@ -88,10 +88,18 @@ describe('MeResponseSchema', () => {
         id: 'user-1',
         email: 'alice@university.edu',
         name: 'Alice',
+        phone: null,
         role: 'PASSENGER',
         accountStatus: 'ACTIVE',
         suspendedUntil: null,
         avatarPath: null,
+        bio: null,
+        homeAddress: null,
+        homeLat: null,
+        homeLng: null,
+        campusAddress: null,
+        campusLat: null,
+        campusLng: null,
         academicRole: null,
         academicVerificationStatus: 'NOT_SUBMITTED',
         academicIdPath: null,
@@ -134,6 +142,20 @@ describe('BlockedAuthErrorSchema', () => {
 describe('UpdateProfileSchema', () => {
   it('accepts a name-only update', () => {
     expect(UpdateProfileSchema.safeParse({ name: 'Alice B' }).success).toBe(true)
+  })
+
+  it('accepts profile field updates', () => {
+    expect(
+      UpdateProfileSchema.safeParse({
+        bio: 'Campus commuter',
+        homeAddress: '12 Hill St',
+        homeLat: 59.91,
+        homeLng: 10.75,
+        campusAddress: 'University Ave',
+        campusLat: 59.94,
+        campusLng: 10.72,
+      }).success,
+    ).toBe(true)
   })
 
   it('rejects an empty object (nothing to update)', () => {

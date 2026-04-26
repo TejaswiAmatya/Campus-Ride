@@ -27,6 +27,13 @@ const currentUserSelect = {
   accountStatus: true,
   suspendedUntil: true,
   avatarPath: true,
+  bio: true,
+  homeAddress: true,
+  homeLat: true,
+  homeLng: true,
+  campusAddress: true,
+  campusLat: true,
+  campusLng: true,
   academicRole: true,
   academicVerificationStatus: true,
   academicIdPath: true,
@@ -49,6 +56,13 @@ type CurrentUserRecord = {
   accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
   suspendedUntil: Date | null;
   avatarPath: string | null;
+  bio: string | null;
+  homeAddress: string | null;
+  homeLat: number | null;
+  homeLng: number | null;
+  campusAddress: string | null;
+  campusLat: number | null;
+  campusLng: number | null;
   academicRole: "STUDENT" | "STAFF" | null;
   academicVerificationStatus:
     | "NOT_SUBMITTED"
@@ -69,10 +83,18 @@ function serializeCurrentUser(user: CurrentUserRecord): MeResponse {
     id: user.id,
     email: user.email,
     name: user.name,
+    phone: user.phone,
     role: user.role,
     accountStatus: user.accountStatus,
     suspendedUntil: user.suspendedUntil?.toISOString() ?? null,
     avatarPath: user.avatarPath ?? null,
+    bio: user.bio ?? null,
+    homeAddress: user.homeAddress ?? null,
+    homeLat: user.homeLat ?? null,
+    homeLng: user.homeLng ?? null,
+    campusAddress: user.campusAddress ?? null,
+    campusLat: user.campusLat ?? null,
+    campusLng: user.campusLng ?? null,
     driverStatus: user.driverProfile?.status ?? null,
     academicRole: user.academicRole ?? null,
     academicVerificationStatus: user.academicVerificationStatus,
@@ -93,6 +115,13 @@ function serializeCurrentUserProfile(user: CurrentUserRecord) {
     accountStatus: user.accountStatus,
     suspendedUntil: user.suspendedUntil?.toISOString() ?? null,
     avatarPath: user.avatarPath ?? null,
+    bio: user.bio ?? null,
+    homeAddress: user.homeAddress ?? null,
+    homeLat: user.homeLat ?? null,
+    homeLng: user.homeLng ?? null,
+    campusAddress: user.campusAddress ?? null,
+    campusLat: user.campusLat ?? null,
+    campusLng: user.campusLng ?? null,
     driverStatus: user.driverProfile?.status ?? null,
     isDriverApproved: user.driverProfile?.status === "APPROVED",
     academicRole: user.academicRole ?? null,
@@ -158,7 +187,7 @@ export async function getCurrentUser(
 /**
  * PATCH /api/users/me
  *
- * Updates name, phone, or avatarPath.
+ * Updates user-editable profile fields.
  */
 export async function updateCurrentUser(
   req: Request,
