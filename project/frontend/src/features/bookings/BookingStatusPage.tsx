@@ -60,9 +60,11 @@ export function BookingStatusPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="animate-pulse text-muted-foreground">Loading booking...</p>
+        <p className="animate-pulse text-muted-foreground">
+          Loading booking...
+        </p>
       </div>
-    )
+    );
   }
 
   if (isError || !booking) {
@@ -75,26 +77,27 @@ export function BookingStatusPage() {
           <Link to="/bookings">Back to bookings</Link>
         </Button>
       </div>
-    )
+    );
   }
 
-  const canCancel = booking.status === 'PENDING' || booking.status === 'CONFIRMED'
+  const canCancel =
+    booking.status === "PENDING" || booking.status === "CONFIRMED";
   const pickup = booking.pickup ?? {
     address: booking.ride.originAddress,
     lat: booking.ride.originLat,
     lng: booking.ride.originLng,
-  }
+  };
   const dropoff = booking.dropoff ?? {
     address: booking.ride.destinationAddress,
     lat: booking.ride.destinationLat,
     lng: booking.ride.destinationLng,
-  }
+  };
   const payment = booking.payment ?? {
     status: booking.paymentStatus,
     paidAt: booking.paidAt ?? null,
     refundedAt: booking.refundedAt ?? null,
-  }
-  const cancellation = booking.cancellation
+  };
+  const cancellation = booking.cancellation;
   const refund = booking.refund ?? {
     amount: booking.refundedAmount,
     remainingCharged: String(
@@ -107,13 +110,13 @@ export function BookingStatusPage() {
     new Date(booking.ride.departureTime).getTime() > now
 
   const statusMessage =
-    booking.status === 'CONFIRMED'
-      ? 'Your driver has accepted the ride and everything is ready.'
-      : booking.status === 'COMPLETED'
-        ? 'Ride completed. You reached the destination successfully.'
-        : booking.status === 'CANCELLED'
-          ? 'This booking has been cancelled.'
-          : 'Your booking is waiting for the driver to respond.'
+    booking.status === "CONFIRMED"
+      ? "Your driver has accepted the ride and everything is ready."
+      : booking.status === "COMPLETED"
+        ? "Ride completed. You reached the destination successfully."
+        : booking.status === "CANCELLED"
+          ? "This booking has been cancelled."
+          : "Your booking is waiting for the driver to respond.";
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -143,13 +146,16 @@ export function BookingStatusPage() {
               <SummaryPill
                 icon={<CalendarCheck className="h-4 w-4" />}
                 label="Departure"
-                value={new Date(booking.ride.departureTime).toLocaleString('en-GB', {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                value={new Date(booking.ride.departureTime).toLocaleString(
+                  "en-GB",
+                  {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  },
+                )}
               />
               <SummaryPill
                 icon={<Timer className="h-4 w-4" />}
@@ -175,26 +181,26 @@ export function BookingStatusPage() {
             </h2>
             <div className="mt-4 space-y-4 text-sm">
               <TimelineRow
-                active={booking.status === 'PENDING'}
-                done={booking.status !== 'PENDING'}
+                active={booking.status === "PENDING"}
+                done={booking.status !== "PENDING"}
                 title="Booking request sent"
                 detail="Your seat request has been reserved for driver review."
               />
               <TimelineRow
-                active={booking.status === 'CONFIRMED'}
-                done={booking.status === 'COMPLETED'}
+                active={booking.status === "CONFIRMED"}
+                done={booking.status === "COMPLETED"}
                 title="Driver accepted"
                 detail="You are all set for the ride."
               />
               <TimelineRow
-                active={booking.ride.status === 'IN_PROGRESS'}
-                done={booking.status === 'COMPLETED'}
+                active={booking.ride.status === "IN_PROGRESS"}
+                done={booking.status === "COMPLETED"}
                 title="Ride in progress"
                 detail="The driver has started the trip."
               />
               <TimelineRow
-                active={booking.status === 'COMPLETED'}
-                done={booking.status === 'COMPLETED'}
+                active={booking.status === "COMPLETED"}
+                done={booking.status === "COMPLETED"}
                 title="Ride completed"
                 detail="You reached the destination."
               />
@@ -259,7 +265,7 @@ export function BookingStatusPage() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {payment.paidAt
                     ? `Captured at ${new Date(payment.paidAt).toLocaleString()}`
-                    : 'No capture timestamp available.'}
+                    : "No capture timestamp available."}
                 </p>
                 {payment.refundedAt && (
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -346,7 +352,7 @@ export function BookingStatusPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function SummaryPill({
@@ -354,9 +360,9 @@ function SummaryPill({
   label,
   value,
 }: {
-  icon: ReactNode
-  label: string
-  value: string
+  icon: ReactNode;
+  label: string;
+  value: string;
 }) {
   return (
     <div className="rounded-2xl border bg-white/90 p-4 shadow-sm">
@@ -366,7 +372,7 @@ function SummaryPill({
       </div>
       <p className="mt-3 text-sm font-medium text-slate-900">{value}</p>
     </div>
-  )
+  );
 }
 
 function TimelineRow({
@@ -375,10 +381,10 @@ function TimelineRow({
   title,
   detail,
 }: {
-  active: boolean
-  done: boolean
-  title: string
-  detail: string
+  active: boolean;
+  done: boolean;
+  title: string;
+  detail: string;
 }) {
   return (
     <div className="flex gap-3">
@@ -386,10 +392,10 @@ function TimelineRow({
         <span
           className={
             done
-              ? 'mt-0.5 h-3 w-3 rounded-full bg-emerald-500'
+              ? "mt-0.5 h-3 w-3 rounded-full bg-emerald-500"
               : active
-                ? 'mt-0.5 h-3 w-3 rounded-full bg-sky-500'
-                : 'mt-0.5 h-3 w-3 rounded-full bg-slate-200'
+                ? "mt-0.5 h-3 w-3 rounded-full bg-sky-500"
+                : "mt-0.5 h-3 w-3 rounded-full bg-slate-200"
           }
         />
         <span className="mt-1 h-full w-px bg-slate-200 last:hidden" />
@@ -399,5 +405,5 @@ function TimelineRow({
         <p className="text-slate-500">{detail}</p>
       </div>
     </div>
-  )
+  );
 }
