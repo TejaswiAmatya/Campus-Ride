@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CalendarCheck,
@@ -9,6 +9,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import {
   useBookingRealtime,
@@ -24,22 +25,32 @@ import type { BookingListItem } from './types'
 
 export function BookingsPage() {
   useBookingRealtime()
-  const [view, setView] = useState<'passenger' | 'driver'>('passenger')
+  const { user } = useAuth()
+  const [view, setView] = useState<'passenger' | 'driver'>(
+    user?.role === 'DRIVER' ? 'driver' : 'passenger',
+  )
   const asDriver = view === 'driver'
   const { data: bookings, isLoading } = useBookings({ asDriver })
   const { data: upcomingBookings = [] } = useUpcomingPassengerBookings()
   const confirmBooking = useConfirmBooking()
   const declineBooking = useDeclineBooking()
   const cancelBooking = useCancelBooking()
+  const safeUpcomingBookings = asDriver ? [] : upcomingBookings
+
+  useEffect(() => {
+    if (user?.role === 'DRIVER') {
+      setView('driver')
+    }
+  }, [user?.role])
 
   const passengerActivity = useMemo(() => {
     if (asDriver) {
       return []
     }
 
-    const upcomingIds = new Set(upcomingBookings.map((booking) => booking.id))
+    const upcomingIds = new Set(safeUpcomingBookings.map((booking) => booking.id))
     return (bookings ?? []).filter((booking) => !upcomingIds.has(booking.id))
-  }, [asDriver, bookings, upcomingBookings])
+  }, [asDriver, bookings, safeUpcomingBookings])
 
   return (
     <div className="space-y-6">
@@ -120,7 +131,7 @@ export function BookingsPage() {
         </div>
       ) : (
         <>
-          {!asDriver && upcomingBookings.length > 0 && (
+          {!asDriver && safeUpcomingBookings.length > 0 && (
             <section className="space-y-4">
               <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
@@ -136,7 +147,7 @@ export function BookingsPage() {
               </div>
 
               <div className="space-y-4">
-                {upcomingBookings.map((booking) => (
+                {safeUpcomingBookings.map((booking) => (
                   <UpcomingRideCard
                     key={booking.id}
                     booking={booking}
@@ -154,7 +165,7 @@ export function BookingsPage() {
             {!asDriver && (
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold text-slate-950">
-                  {passengerActivity.length > 0 || upcomingBookings.length === 0
+                  {passengerActivity.length > 0 || safeUpcomingBookings.length === 0
                     ? 'All booking activity'
                     : 'Past and pending activity'}
                 </h2>
@@ -187,7 +198,7 @@ export function BookingsPage() {
               ))}
             </div>
 
-            {!asDriver && passengerActivity.length === 0 && upcomingBookings.length > 0 && (
+            {!asDriver && passengerActivity.length === 0 && safeUpcomingBookings.length > 0 && (
               <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
                 Everything else is clear right now. Your confirmed upcoming rides are shown above.
               </div>
