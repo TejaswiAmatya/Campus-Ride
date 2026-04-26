@@ -1,10 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Car, Star } from "lucide-react";
 import { api } from "@/api/client";
 import { AccountStatusBanner } from "@/components/AccountStatusBanner";
 import { UserProfileCard } from "@/components/UserProfileCard";
-import { useProfile } from "@/hooks/useProfile";
+import { VerificationBadge } from "@/components/VerificationBadge";
+import {
+  useProfile,
+  useSubmitAcademicVerification,
+  useUpdateProfile,
+} from "@/hooks/useProfile";
 
 interface Review {
   id: string;
@@ -16,6 +22,17 @@ interface Review {
 
 export function ProfilePage() {
   const { data: user } = useProfile();
+  const updateProfileMutation = useUpdateProfile();
+  const submitAcademicVerificationMutation = useSubmitAcademicVerification();
+  const [isEditingBio, setIsEditingBio] = useState(false);
+  const [bioDraft, setBioDraft] = useState("");
+  const [isEditingAddresses, setIsEditingAddresses] = useState(false);
+  const [homeAddressDraft, setHomeAddressDraft] = useState("");
+  const [campusAddressDraft, setCampusAddressDraft] = useState("");
+  const [academicRoleDraft, setAcademicRoleDraft] = useState<
+    "STUDENT" | "STAFF" | ""
+  >((user?.academicRole ?? "") as "STUDENT" | "STAFF" | "");
+  const [academicDocument, setAcademicDocument] = useState<File | null>(null);
 
   const { data: reviews } = useQuery({
     queryKey: ["reviews", user?.id],
@@ -31,6 +48,10 @@ export function ProfilePage() {
 
   if (!user) return null;
 
+  const showAcademicForm =
+    user.academicVerificationStatus === "NOT_SUBMITTED" ||
+    user.academicVerificationStatus === "REJECTED";
+
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <h1 className="text-2xl font-bold">Your Profile</h1>
@@ -45,6 +66,258 @@ export function ProfilePage() {
         onAvatarSaved={() => undefined}
         onDetailsSaved={() => undefined}
       />
+
+      <div className="rounded-lg border p-6 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Bio</h2>
+          {!isEditingBio ? (
+            <button
+              type="button"
+              onClick={() => {
+                setBioDraft(user.bio ?? "");
+                setIsEditingBio(true);
+              }}
+              className="text-sm text-primary hover:underline"
+            >
+              Edit
+            </button>
+          ) : null}
+        </div>
+
+        {isEditingBio ? (
+          <div className="space-y-3">
+            <textarea
+              value={bioDraft}
+              onChange={(event) => setBioDraft(event.target.value)}
+              rows={4}
+              className="w-full rounded-md border px-3 py-2 text-sm"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  await updateProfileMutation.mutateAsync({ bio: bioDraft });
+                  setIsEditingBio(false);
+                }}
+                disabled={updateProfileMutation.isPending}
+                className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBioDraft(user.bio ?? "");
+                  setIsEditingBio(false);
+                }}
+                disabled={updateProfileMutation.isPending}
+                className="rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className={user.bio?.trim() ? "text-sm" : "text-sm text-muted-foreground"}>
+            {user.bio?.trim() ? user.bio : "No bio yet"}
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-lg border p-6 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Addresses</h2>
+          {!isEditingAddresses ? (
+            <button
+              type="button"
+              onClick={() => {
+                setHomeAddressDraft(user.homeAddress ?? "");
+                setCampusAddressDraft(user.campusAddress ?? "");
+                setIsEditingAddresses(true);
+              }}
+              className="text-sm text-primary hover:underline"
+            >
+              Edit
+            </button>
+          ) : null}
+        </div>
+
+        {isEditingAddresses ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Home address</label>
+              <input
+                type="text"
+                value={homeAddressDraft}
+                onChange={(event) => setHomeAddressDraft(event.target.value)}
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Campus address</label>
+              <input
+                type="text"
+                value={campusAddressDraft}
+                onChange={(event) => setCampusAddressDraft(event.target.value)}
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  await updateProfileMutation.mutateAsync({
+                    homeAddress: homeAddressDraft,
+                    campusAddress: campusAddressDraft,
+                  });
+                  setIsEditingAddresses(false);
+                }}
+                disabled={updateProfileMutation.isPending}
+                className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setHomeAddressDraft(user.homeAddress ?? "");
+                  setCampusAddressDraft(user.campusAddress ?? "");
+                  setIsEditingAddresses(false);
+                }}
+                disabled={updateProfileMutation.isPending}
+                className="rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Home address</p>
+              <p
+                className={
+                  user.homeAddress?.trim()
+                    ? "text-sm"
+                    : "text-sm text-muted-foreground"
+                }
+              >
+                {user.homeAddress?.trim()
+                  ? user.homeAddress
+                  : "No home address yet"}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Campus address</p>
+              <p
+                className={
+                  user.campusAddress?.trim()
+                    ? "text-sm"
+                    : "text-sm text-muted-foreground"
+                }
+              >
+                {user.campusAddress?.trim()
+                  ? user.campusAddress
+                  : "No campus address yet"}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border p-6 space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold">Academic verification</h2>
+          <p className="text-sm text-muted-foreground">
+            Add a verified student or staff badge to your profile.
+          </p>
+        </div>
+
+        {user.academicVerificationStatus === "PENDING" ? (
+          <p className="rounded-md bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+            Your verification is under review
+          </p>
+        ) : null}
+
+        {user.academicVerificationStatus === "VERIFIED" ? (
+          <div className="rounded-md bg-emerald-50 px-3 py-3">
+            <VerificationBadge
+              academicRole={user.academicRole}
+              academicVerificationStatus={user.academicVerificationStatus}
+            />
+          </div>
+        ) : null}
+
+        {user.academicVerificationStatus === "REJECTED" ? (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {user.academicRejectionReason ?? "Your verification was rejected."}
+          </p>
+        ) : null}
+
+        {showAcademicForm ? (
+          <form
+            className="space-y-4"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (!academicRoleDraft || !academicDocument) return;
+
+              await submitAcademicVerificationMutation.mutateAsync({
+                role: academicRoleDraft,
+                document: academicDocument,
+              });
+
+              setAcademicDocument(null);
+            }}
+          >
+            <p className="text-sm font-medium text-slate-900">
+              Get your verified badge
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Role</label>
+              <select
+                value={academicRoleDraft}
+                onChange={(event) =>
+                  setAcademicRoleDraft(
+                    event.target.value as "STUDENT" | "STAFF" | "",
+                  )
+                }
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              >
+                <option value="">Select role</option>
+                <option value="STUDENT">Student</option>
+                <option value="STAFF">Staff</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">ID document</label>
+              <input
+                type="file"
+                onChange={(event) =>
+                  setAcademicDocument(event.target.files?.[0] ?? null)
+                }
+                className="block w-full text-sm"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={
+                submitAcademicVerificationMutation.isPending ||
+                !academicRoleDraft ||
+                !academicDocument
+              }
+              className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              Submit
+            </button>
+          </form>
+        ) : null}
+      </div>
 
       {/* Driver status */}
       {user.role === "DRIVER" && (

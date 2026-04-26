@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import Rating from "@mui/material/Rating";
 import { Link, useParams } from "react-router-dom";
 import { Star, UserRound } from "lucide-react";
+import { VerificationBadge } from "@/components/VerificationBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserReviews } from "@/hooks/useProfile";
 
@@ -98,6 +99,14 @@ export function PublicProfilePage() {
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
                   {profileName}
                 </h1>
+                <VerificationBadge
+                  academicRole={isOwnProfile ? user.academicRole : null}
+                  academicVerificationStatus={
+                    isOwnProfile
+                      ? user.academicVerificationStatus
+                      : "NOT_SUBMITTED"
+                  }
+                />
                 <p className="text-sm text-slate-600">{profileSubtitle}</p>
                 <div className="flex flex-wrap items-center gap-3 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
                   <span className="rounded-full border border-slate-200 bg-white/90 px-3 py-1">

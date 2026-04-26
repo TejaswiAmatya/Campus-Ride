@@ -106,6 +106,34 @@ export function useUpdateProfile() {
   });
 }
 
+export function useSubmitAcademicVerification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      role,
+      document,
+    }: {
+      role: "STUDENT" | "STAFF";
+      document: File;
+    }) => {
+      const formData = new FormData();
+      formData.append("role", role);
+      formData.append("document", document);
+
+      const res = await api.post<MeResponse>(
+        "/api/users/me/academic-verification",
+        formData,
+      );
+
+      return res.data.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: meQueryKey });
+    },
+  });
+}
+
 export function useUserReviews(userId?: string) {
   return useQuery({
     queryKey: userReviewsQueryKey(userId),
