@@ -6,6 +6,15 @@ const RideLocationSchema = z.object({
   lng: z.number().min(-180).max(180),
 });
 
+const RideStopSchema = z.object({
+  address: z.string().min(1, "Stop address is required"),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+});
+
+const recurrencePatternSchema = z.enum(["NONE", "DAILY", "WEEKLY", "SPECIFIC_DAYS"]);
+const rideOfferTypeSchema = z.enum(["ONE_TIME", "RECURRING"]);
+
 const OptionalRideLocationSchema = z.object({
   address: z.string().min(1).optional(),
   lat: z.number().min(-90).max(90).optional(),
@@ -13,13 +22,44 @@ const OptionalRideLocationSchema = z.object({
 });
 
 export const CreateRideSchema = z.object({
+  offerType: rideOfferTypeSchema.default("ONE_TIME"),
   origin: RideLocationSchema,
   destination: RideLocationSchema,
+  stops: z.array(RideStopSchema).max(8).optional().default([]),
   departureTime: z
     .string()
     .datetime({ message: "Must be a valid ISO 8601 datetime" }),
   totalSeats: z.number().int().min(1).max(8),
-  pricePerSeat: z.number().positive("Price must be greater than 0"),
+  pricePerSeat: z.number().min(0, "Price cannot be negative"),
+  detourFlexibilityKm: z.number().min(0).max(100).optional().default(0),
+  preferences: z.array(z.string().trim().min(1)).max(20).optional().default([]),
+  recurrencePattern: recurrencePatternSchema.optional().default("NONE"),
+  recurrenceDays: z.array(z.number().int().min(0).max(6)).max(7).optional().default([]),
+  recurrenceEndDate: z.string().datetime().optional().nullable(),
+  routePolyline: z.string().trim().min(1).optional().nullable(),
+  routeDistanceKm: z.number().min(0).optional().nullable(),
+  routeDurationMinutes: z.number().int().min(0).optional().nullable(),
+}).superRefine((value, ctx) => {
+  if (value.offerType === "RECURRING") {
+    if (value.recurrencePattern === "NONE") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Recurring rides must choose a recurrence pattern",
+        path: ["recurrencePattern"],
+      });
+    }
+
+    if (
+      value.recurrencePattern === "SPECIFIC_DAYS" &&
+      (!value.recurrenceDays || value.recurrenceDays.length === 0)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Choose at least one weekday for specific-day recurrence",
+        path: ["recurrenceDays"],
+      });
+    }
+  }
 });
 
 export const SearchRidesSchema = z
@@ -135,11 +175,15 @@ export const UpdateRideStatusSchema = z.object({
 export const UpdateRideSchema = z.object({
   origin: OptionalRideLocationSchema.optional(),
   destination: OptionalRideLocationSchema.optional(),
+  stops: z.array(RideStopSchema).max(8).optional(),
   departureTime: z.string().datetime().optional(),
   totalSeats: z.number().int().min(1).max(8).optional(),
   pricePerSeat: z.number().min(0).optional(),
   detourFlexibilityKm: z.number().min(0).max(100).optional(),
   preferences: z.array(z.string().trim().min(1)).max(20).optional(),
+  routePolyline: z.string().trim().min(1).optional().nullable(),
+  routeDistanceKm: z.number().min(0).optional().nullable(),
+  routeDurationMinutes: z.number().int().min(0).optional().nullable(),
   updateMessage: z.string().trim().max(1000).optional(),
 });
 

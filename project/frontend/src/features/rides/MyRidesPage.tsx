@@ -17,7 +17,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { useCreateReview, useConfirmBooking, useDeclineBooking } from '@/features/bookings/hooks'
-import { useCancelRide, useDriverLocationEmitter, useMyRides, useUpdateRideStatus } from './hooks'
+import { EditRideForm } from './components/EditRideForm'
+import { useCancelRide, useDriverLocationEmitter, useMyRides, useUpdateRide, useUpdateRideStatus } from './hooks'
 import type { Ride, RideBooking, RideStatusUpdate } from './types'
 
 const statusLabels: Record<Ride['status'], string> = {
@@ -64,12 +65,14 @@ export function MyRidesPage() {
   const { user } = useAuth()
   const { data: rides, isLoading } = useMyRides()
   const updateRideStatus = useUpdateRideStatus()
+  const updateRide = useUpdateRide()
   const cancelRide = useCancelRide()
   const confirmBooking = useConfirmBooking()
   const declineBooking = useDeclineBooking()
   const createReview = useCreateReview()
   const [expandedRideId, setExpandedRideId] = useState<string | null>(null)
   const [rideToCancel, setRideToCancel] = useState<Ride | null>(null)
+  const [rideToEdit, setRideToEdit] = useState<Ride | null>(null)
 
   if (!user || user.role !== 'DRIVER') {
     return (
@@ -143,6 +146,7 @@ export function MyRidesPage() {
               onToggleExpanded={() => setExpandedRideId((current) => (current === ride.id ? null : ride.id))}
               onUpdateStatus={(status) => updateRideStatus.mutate({ rideId: ride.id, status })}
               onRequestCancel={() => setRideToCancel(ride)}
+              onRequestEdit={() => setRideToEdit(ride)}
               onConfirmBooking={(bookingId) => confirmBooking.mutate(bookingId)}
               onDeclineBooking={(bookingId) => declineBooking.mutate(bookingId)}
               onCreateReview={(bookingId, rating) => createReview.mutate({ bookingId, rating })}
@@ -164,6 +168,21 @@ export function MyRidesPage() {
           })
         }}
       />
+
+      <EditRideForm
+        ride={rideToEdit}
+        isOpen={!!rideToEdit}
+        isSaving={updateRide.isPending}
+        onClose={() => setRideToEdit(null)}
+        onSubmit={({ rideId, payload }) =>
+          updateRide.mutate(
+            { rideId, payload },
+            {
+              onSuccess: () => setRideToEdit(null),
+            },
+          )
+        }
+      />
     </div>
   )
 }
@@ -179,6 +198,7 @@ function RideCard({
   onToggleExpanded,
   onUpdateStatus,
   onRequestCancel,
+  onRequestEdit,
   onConfirmBooking,
   onDeclineBooking,
   onCreateReview,
@@ -193,6 +213,7 @@ function RideCard({
   onToggleExpanded: () => void
   onUpdateStatus: (status: RideStatusUpdate) => void
   onRequestCancel: () => void
+  onRequestEdit: () => void
   onConfirmBooking: (bookingId: string) => void
   onDeclineBooking: (bookingId: string) => void
   onCreateReview: (bookingId: string, rating: number) => void
@@ -253,6 +274,11 @@ function RideCard({
             {isExpanded ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
             {isExpanded ? 'Hide riders' : 'View riders'}
           </Button>
+          {canCancelRide && (
+            <Button variant="outline" onClick={onRequestEdit}>
+              Edit ride
+            </Button>
+          )}
           {actions.map((status) => (
             <Button key={status} variant={actionVariant(status)} disabled={isUpdatingStatus} onClick={() => onUpdateStatus(status)}>
               {actionLabel(status)}

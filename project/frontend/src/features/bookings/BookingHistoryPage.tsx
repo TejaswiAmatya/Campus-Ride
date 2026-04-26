@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { CalendarCheck, Clock, MapPin } from 'lucide-react'
-import { useBookings } from './hooks'
+import { useBookingRealtime, useBookings } from './hooks'
 import type { BookingListItem, BookingStatus } from './types'
 import { StatusBadge } from './StatusBadge'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,7 @@ const FILTERS: { label: string; value: StatusFilter }[] = [
 ]
 
 export function BookingHistoryPage() {
+  useBookingRealtime()
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const { data: bookings, isLoading } = useBookings({
     status: statusFilter === 'ALL' ? undefined : statusFilter,
