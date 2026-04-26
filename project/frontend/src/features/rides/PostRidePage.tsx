@@ -1,70 +1,254 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Car } from 'lucide-react'
+import { Car, LocateFixed, Map, Repeat, Route, Timer } from 'lucide-react'
 import { MapView } from '@/components/MapView'
 import { usePostRide } from './hooks'
-import { RouteInputForm } from './components/RouteInputForm'
+import { RouteInputForm, type RouteInputValue } from './components/RouteInputForm'
 import { SeatSelector } from './components/SeatSelector'
-
-interface LocationFormValue {
-  address: string
-  lat: string
-  lng: string
-}
+import { RidePreferencesInput } from './components/RidePreferencesInput'
+import { StopsEditor, type StopFormValue } from './components/StopsEditor'
+import type { GeocodingSuggestion } from './geocoding'
+import { reverseGeocode } from './geocoding'
+import {
+  fetchRoutePreview,
+  formatRouteDistance,
+  formatRouteDuration,
+  type RoutePreview,
+} from './routing'
+import type { RideRecurrencePattern } from './types'
 
 interface CreateRideForm {
-  origin: LocationFormValue
-  destination: LocationFormValue
+  offerType: 'ONE_TIME' | 'RECURRING'
+  origin: RouteInputValue
+  destination: RouteInputValue
+  stops: StopFormValue[]
   departureTime: string
+  recurrencePattern: RideRecurrencePattern
+  recurrenceDays: number[]
+  recurrenceEndDate: string
   totalSeats: string
   pricePerSeat: string
+  detourFlexibilityKm: string
+  preferences: string[]
 }
+
+const weekdayOptions = [
+  { label: 'Sun', value: 0 },
+  { label: 'Mon', value: 1 },
+  { label: 'Tue', value: 2 },
+  { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 },
+  { label: 'Fri', value: 5 },
+  { label: 'Sat', value: 6 },
+]
 
 export function PostRidePage() {
   const navigate = useNavigate()
   const [form, setForm] = useState<CreateRideForm>({
-    origin: { address: '', lat: '', lng: '' },
-    destination: { address: '', lat: '', lng: '' },
+    offerType: 'ONE_TIME',
+    origin: { address: '', lat: null, lng: null },
+    destination: { address: '', lat: null, lng: null },
+    stops: [],
     departureTime: '',
+    recurrencePattern: 'WEEKLY',
+    recurrenceDays: [],
+    recurrenceEndDate: '',
     totalSeats: '3',
-    pricePerSeat: '',
+    pricePerSeat: '0',
+    detourFlexibilityKm: '0',
+    preferences: [],
   })
+  const [mapSelectionTarget, setMapSelectionTarget] = useState<'origin' | 'destination' | null>(null)
+  const [mapError, setMapError] = useState<string | null>(null)
+  const [routePreview, setRoutePreview] = useState<RoutePreview | null>(null)
+  const [routeError, setRouteError] = useState<string | null>(null)
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false)
   const postRide = usePostRide()
 
-  const setField = (key: 'departureTime' | 'pricePerSeat') => (event: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((prev) => ({ ...prev, [key]: event.target.value }))
+  const setField =
+    (key: 'departureTime' | 'pricePerSeat' | 'detourFlexibilityKm') =>
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((prev) => ({ ...prev, [key]: event.target.value }))
 
-  const setLocationField = (
-    segment: 'origin' | 'destination',
-    field: keyof LocationFormValue,
-    value: string,
-  ) => {
+  const setLocationField = (segment: 'origin' | 'destination', value: Partial<RouteInputValue>) => {
     setForm((prev) => ({
       ...prev,
       [segment]: {
         ...prev[segment],
-        [field]: value,
+        ...value,
       },
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleAddressInput = (segment: 'origin' | 'destination', address: string) => {
+    setLocationField(segment, {
+      address,
+      lat: null,
+      lng: null,
+    })
+    setRoutePreview(null)
+  }
+
+  const handleSuggestionSelect = (segment: 'origin' | 'destination', suggestion: GeocodingSuggestion) => {
+    setLocationField(segment, {
+      address: suggestion.address,
+      lat: suggestion.lat,
+      lng: suggestion.lng,
+    })
+    setMapError(null)
+  }
+
+  const handleMapClick = async (position: [number, number]) => {
+    if (!mapSelectionTarget) {
+      return
+    }
+
+    try {
+      setMapError(null)
+      const suggestion = await reverseGeocode(position[0], position[1])
+      handleSuggestionSelect(mapSelectionTarget, suggestion)
+      setMapSelectionTarget(null)
+    } catch {
+      setMapError('Could not resolve that map location. Try another point or use address search.')
+    }
+  }
+
+  const validStops = form.stops.filter((stop) => stop.address.trim() && stop.lat !== null && stop.lng !== null)
+
+  const routePoints = useMemo(() => {
+    const points: Array<{ lat: number; lng: number }> = []
+    if (form.origin.lat !== null && form.origin.lng !== null) {
+      points.push({ lat: form.origin.lat, lng: form.origin.lng })
+    }
+    validStops.forEach((stop) => {
+      points.push({ lat: stop.lat!, lng: stop.lng! })
+    })
+    if (form.destination.lat !== null && form.destination.lng !== null) {
+      points.push({ lat: form.destination.lat, lng: form.destination.lng })
+    }
+    return points
+  }, [form.destination.lat, form.destination.lng, form.origin.lat, form.origin.lng, validStops])
+
+  const markers = [
+    ...(form.origin.lat !== null && form.origin.lng !== null
+      ? [
+          {
+            position: [form.origin.lat, form.origin.lng] as [number, number],
+            label: form.origin.address || 'Origin',
+            type: 'origin' as const,
+          },
+        ]
+      : []),
+    ...validStops.map((stop, index) => ({
+      position: [stop.lat!, stop.lng!] as [number, number],
+      label: `Stop ${index + 1}: ${stop.address}`,
+      type: 'default' as const,
+    })),
+    ...(form.destination.lat !== null && form.destination.lng !== null
+      ? [
+          {
+            position: [form.destination.lat, form.destination.lng] as [number, number],
+            label: form.destination.address || 'Destination',
+            type: 'destination' as const,
+          },
+        ]
+      : []),
+  ]
+
+  const mapCenter = useMemo<[number, number]>(() => {
+    if (markers.length > 0) {
+      const lat = markers.reduce((sum, marker) => sum + marker.position[0], 0) / markers.length
+      const lng = markers.reduce((sum, marker) => sum + marker.position[1], 0) / markers.length
+      return [lat, lng]
+    }
+
+    return [58.9, 5.71]
+  }, [markers])
+
+  useEffect(() => {
+    if (routePoints.length < 2) {
+      setRoutePreview(null)
+      setRouteError(null)
+      setIsLoadingRoute(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setIsLoadingRoute(true)
+    setRouteError(null)
+
+    void fetchRoutePreview(routePoints, controller.signal)
+      .then((route) => {
+        setRoutePreview(route)
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setRoutePreview(null)
+        setRouteError(error instanceof Error ? error.message : 'Unable to load route preview.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsLoadingRoute(false)
+        }
+      })
+
+    return () => controller.abort()
+  }, [routePoints])
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+
+    if (
+      form.origin.lat === null ||
+      form.origin.lng === null ||
+      form.destination.lat === null ||
+      form.destination.lng === null
+    ) {
+      setMapError('Select both origin and destination from autocomplete or by clicking the map.')
+      return
+    }
+
+    if (form.offerType === 'RECURRING' && form.recurrencePattern === 'SPECIFIC_DAYS' && form.recurrenceDays.length === 0) {
+      setMapError('Choose at least one weekday for a recurring ride.')
+      return
+    }
+
     postRide.mutate(
       {
+        offerType: form.offerType,
         origin: {
           address: form.origin.address,
-          lat: parseFloat(form.origin.lat),
-          lng: parseFloat(form.origin.lng),
+          lat: form.origin.lat,
+          lng: form.origin.lng,
         },
         destination: {
           address: form.destination.address,
-          lat: parseFloat(form.destination.lat),
-          lng: parseFloat(form.destination.lng),
+          lat: form.destination.lat,
+          lng: form.destination.lng,
         },
+        stops: validStops.map((stop, orderIndex) => ({
+          address: stop.address,
+          lat: stop.lat!,
+          lng: stop.lng!,
+          orderIndex,
+        })),
         totalSeats: parseInt(form.totalSeats, 10),
         pricePerSeat: parseFloat(form.pricePerSeat),
         departureTime: new Date(form.departureTime).toISOString(),
+        detourFlexibilityKm: parseFloat(form.detourFlexibilityKm || '0'),
+        preferences: form.preferences,
+        recurrencePattern: form.offerType === 'RECURRING' ? form.recurrencePattern : 'NONE',
+        recurrenceDays: form.offerType === 'RECURRING' ? form.recurrenceDays : [],
+        recurrenceEndDate:
+          form.offerType === 'RECURRING' && form.recurrenceEndDate
+            ? new Date(form.recurrenceEndDate).toISOString()
+            : null,
+        routePolyline: routePreview ? JSON.stringify(routePreview.geometry) : null,
+        routeDistanceKm: routePreview ? Number((routePreview.distanceMeters / 1000).toFixed(2)) : null,
+        routeDurationMinutes: routePreview ? Math.round(routePreview.durationSeconds / 60) : null,
       },
       {
         onSuccess: (ride) => {
@@ -74,88 +258,210 @@ export function PostRidePage() {
     )
   }
 
-  // TODO (Sprint 2): replace manual lat/lng inputs with a Nominatim geocoder +
-  // map click handler so drivers pick locations visually on the map.
-  const markers = [
-    ...(form.origin.lat && form.origin.lng
-      ? [
-          {
-            position: [parseFloat(form.origin.lat), parseFloat(form.origin.lng)] as [number, number],
-            label: form.origin.address || 'Origin',
-            type: 'origin' as const,
-          },
-        ]
-      : []),
-    ...(form.destination.lat && form.destination.lng
-      ? [
-          {
-            position: [parseFloat(form.destination.lat), parseFloat(form.destination.lng)] as [number, number],
-            label: form.destination.address || 'Destination',
-            type: 'destination' as const,
-          },
-        ]
-      : []),
-  ]
-
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center gap-2">
         <Car className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Post a Ride</h1>
       </div>
 
-      {/* Map preview */}
-      <MapView markers={markers} height="h-48" />
+      <div className="space-y-3">
+        <MapView
+          center={mapCenter}
+          markers={markers}
+          routePath={routePreview?.geometry ?? []}
+          height="h-72"
+          onMapClick={handleMapClick}
+        />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <LocateFixed className="h-4 w-4" />
+          <span>
+            {mapSelectionTarget
+              ? `Click the map to set the ${mapSelectionTarget}.`
+              : 'Search for both places or click the map after choosing Origin or Destination.'}
+          </span>
+        </div>
+        {(isLoadingRoute || routePreview || routeError) && (
+          <div className="grid gap-3 rounded-2xl border bg-slate-50 p-4 sm:grid-cols-3">
+            <RouteStat
+              icon={<Map className="h-4 w-4" />}
+              label="Distance"
+              value={routePreview ? formatRouteDistance(routePreview.distanceMeters) : isLoadingRoute ? 'Loading...' : 'Unavailable'}
+            />
+            <RouteStat
+              icon={<Timer className="h-4 w-4" />}
+              label="Drive time"
+              value={routePreview ? formatRouteDuration(routePreview.durationSeconds) : isLoadingRoute ? 'Loading...' : 'Unavailable'}
+            />
+            <div className="rounded-xl border bg-white px-3 py-3 text-sm text-slate-600">
+              {routeError
+                ? routeError
+                : routePreview
+                  ? 'Preview based on the current OSRM driving route across all selected stops.'
+                  : 'Choose route points to load a trip preview.'}
+            </div>
+          </div>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="rounded-lg border p-4">
+          <div className="flex flex-wrap gap-2">
+            {(['ONE_TIME', 'RECURRING'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, offerType: option }))}
+                className={`rounded-full border px-3 py-1.5 text-sm transition ${form.offerType === option ? 'border-slate-900 bg-slate-900 text-white' : 'hover:bg-muted'}`}
+              >
+                {option === 'ONE_TIME' ? 'One-time ride' : 'Recurring ride'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <RouteInputForm
           origin={form.origin}
           destination={form.destination}
-          onChange={setLocationField}
+          mapSelectionTarget={mapSelectionTarget}
+          onAddressInput={handleAddressInput}
+          onSelectSuggestion={handleSuggestionSelect}
+          onPickFromMap={(segment) =>
+            setMapSelectionTarget((current) => (current === segment ? null : segment))
+          }
         />
 
-        {/* Ride details */}
+        <StopsEditor
+          stops={form.stops}
+          onChange={(stops) => setForm((prev) => ({ ...prev, stops }))}
+        />
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <label className="block text-sm font-medium mb-1">Departure time</label>
+            <label className="mb-1 block text-sm font-medium">Departure time</label>
             <input
               type="datetime-local"
               value={form.departureTime}
               onChange={setField('departureTime')}
               required
-              className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input px-3 py-2 text-sm"
             />
           </div>
           <SeatSelector value={form.totalSeats} onChange={(value) => setForm((prev) => ({ ...prev, totalSeats: value }))} />
           <div>
-            <label className="block text-sm font-medium mb-1">Price per seat (NOK)</label>
+            <label className="mb-1 block text-sm font-medium">Price per seat (NOK)</label>
             <input
               type="number"
-              min="1"
+              min="0"
               step="any"
               value={form.pricePerSeat}
               onChange={setField('pricePerSeat')}
-              placeholder="80"
+              placeholder="0"
               required
-              className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input px-3 py-2 text-sm"
             />
           </div>
         </div>
 
-        {postRide.isError && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Driver detour flexibility (km)</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={form.detourFlexibilityKm}
+              onChange={setField('detourFlexibilityKm')}
+              className="w-full rounded-md border border-input px-3 py-2 text-sm"
+            />
+          </div>
+
+          {form.offerType === 'RECURRING' && (
+            <div className="rounded-lg border p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+                <Repeat className="h-4 w-4" />
+                Recurrence
+              </div>
+              <select
+                value={form.recurrencePattern}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    recurrencePattern: event.target.value as RideRecurrencePattern,
+                  }))
+                }
+                className="w-full rounded-md border border-input px-3 py-2 text-sm"
+              >
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="SPECIFIC_DAYS">Specific days</option>
+              </select>
+              {form.recurrencePattern === 'SPECIFIC_DAYS' && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {weekdayOptions.map((day) => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          recurrenceDays: prev.recurrenceDays.includes(day.value)
+                            ? prev.recurrenceDays.filter((value) => value !== day.value)
+                            : [...prev.recurrenceDays, day.value].sort((a, b) => a - b),
+                        }))
+                      }
+                      className={`rounded-full border px-3 py-1 text-sm ${form.recurrenceDays.includes(day.value) ? 'border-slate-900 bg-slate-900 text-white' : 'hover:bg-muted'}`}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3">
+                <label className="mb-1 block text-sm font-medium">Repeat until</label>
+                <input
+                  type="date"
+                  value={form.recurrenceEndDate}
+                  onChange={(event) => setForm((prev) => ({ ...prev, recurrenceEndDate: event.target.value }))}
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <RidePreferencesInput
+          value={form.preferences}
+          onChange={(preferences) => setForm((prev) => ({ ...prev, preferences }))}
+        />
+
+        {(postRide.isError || mapError) && (
           <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            Failed to post ride. Please check your details and try again.
+            {mapError ?? 'Failed to post ride. Please check your details and try again.'}
           </p>
         )}
 
         <button
           type="submit"
           disabled={postRide.isPending}
-          className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {postRide.isPending ? 'Posting…' : 'Post ride'}
+          {postRide.isPending ? 'Posting…' : form.offerType === 'RECURRING' ? 'Create recurring ride offer' : 'Post ride'}
         </button>
       </form>
+    </div>
+  )
+}
+
+function RouteStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-xl border bg-white px-3 py-3">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <p className="mt-2 text-sm font-medium text-slate-900">{value}</p>
     </div>
   )
 }

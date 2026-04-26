@@ -45,3 +45,5 @@ coverage/
 prisma/migrations/dev
 
 /.playwright-mcp
+.cursor
+progress.md

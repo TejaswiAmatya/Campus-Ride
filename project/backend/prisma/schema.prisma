@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -15,116 +15,228 @@ enum Role {
 }
 
 enum RideStatus {
-  OPEN        // accepting bookings
-  FULL        // no seats left
+  OPEN // accepting bookings
+  FULL // no seats left
   IN_PROGRESS // driver has started the ride
-  COMPLETED   // ride finished
-  CANCELLED   // cancelled by driver or admin
+  COMPLETED // ride finished
+  CANCELLED // cancelled by driver or admin
 }
 
 enum BookingStatus {
-  PENDING    // waiting for driver to accept
-  CONFIRMED  // driver accepted
-  CANCELLED  // cancelled by passenger, driver, or admin
-  COMPLETED  // ride finished, earnings settled
+  PENDING // waiting for driver to accept
+  CONFIRMED // driver accepted
+  CANCELLED // cancelled by passenger, driver, or admin
+  COMPLETED // ride finished, earnings settled
+}
+
+enum DriverStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AccountStatus {
+  ACTIVE
+  WARNED
+  SUSPENDED
+  BANNED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  FAILED
+}
+
+enum RideRecurrencePattern {
+  NONE
+  DAILY
+  WEEKLY
+  SPECIFIC_DAYS
+}
+
+enum ModerationActionType {
+  WARNING
+  SUSPENSION
+  BAN
+  UNBAN
 }
 
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
-  id               String   @id @default(uuid())
-  email            String   @unique
-  name             String
-  phone            String?
-  role             Role     @default(PASSENGER)
-  isDriverApproved Boolean  @default(false)
-  licenceUrl       String?  // Supabase Storage URL for uploaded driving licence
-  avatarUrl        String?  // Supabase Storage URL for profile picture
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  vehicle         Vehicle?
-  ridesAsDriver   Ride[]    @relation("DriverRides")
-  bookings        Booking[] @relation("PassengerBookings")
-  reviewsGiven    Review[]  @relation("ReviewsGiven")
-  reviewsReceived Review[]  @relation("ReviewsReceived")
-  reports         Report[]  @relation("FiledReports")
-}
-
-model Vehicle {
-  id          String   @id @default(uuid())
-  userId      String   @unique // one vehicle per driver
-  make        String
-  model       String
-  year        Int
-  colour      String
-  plateNumber String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Ride {
-  id                 String     @id @default(uuid())
-  driverId           String
-  originAddress      String
-  originLat          Float
-  originLng          Float
-  destinationAddress String
-  destinationLat     Float
-  destinationLng     Float
-  departureTime      DateTime
-  totalSeats         Int
-  availableSeats     Int
-  pricePerSeat       Decimal    @db.Decimal(10, 2)
-  status             RideStatus @default(OPEN)
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-
-  driver   User      @relation("DriverRides", fields: [driverId], references: [id])
-  bookings Booking[]
-}
-
-model Booking {
   id             String        @id @default(uuid())
-  rideId         String
-  passengerId    String
-  seatsBooked    Int
-  totalFare      Decimal       @db.Decimal(10, 2)
-  platformFee    Decimal       @db.Decimal(10, 2) // 10% of totalFare
-  driverEarnings Decimal       @db.Decimal(10, 2) // 90% of totalFare
-  status         BookingStatus @default(PENDING)
-  // Sprint 3: Stripe fields
-  stripePaymentIntentId String?
-  paymentStatus         String  @default("UNPAID") // UNPAID | PAID | REFUNDED
+  email          String        @unique
+  name           String
+  phone          String?
+  role           Role          @default(PASSENGER)
+  accountStatus  AccountStatus @default(ACTIVE)
+  suspendedUntil DateTime?
+  avatarPath     String? // Supabase Storage URL for profile picture
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  ride      Ride    @relation(fields: [rideId], references: [id])
-  passenger User    @relation("PassengerBookings", fields: [passengerId], references: [id])
-  review    Review?
+  driverProfile            DriverProfile?
+  ridesAsDriver            Ride[]              @relation("DriverRides")
+  rideSeries              RideSeries[]        @relation("DriverRideSeries")
+  bookings                Booking[]           @relation("PassengerBookings")
+  reviewsGiven            Review[]            @relation("ReviewsGiven")
+  reviewsReceived         Review[]            @relation("ReviewsReceived")
+  reports                 Report[]            @relation("FiledReports")
+  moderationActionsGiven  ModerationAction[]  @relation("AdminModerationActions")
+  moderationActionsTaken  ModerationAction[]  @relation("TargetModerationActions")
+}
+
+model DriverProfile {
+  id                  String       @id @default(cuid())
+  userId              String       @unique
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licencePath         String
+  vehicleInfo         Json
+  status              DriverStatus @default(PENDING)
+  approvedAt          DateTime?
+  cancellationStrikes Int          @default(0)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
+model Ride {
+  id                   String                @id @default(uuid())
+  driverId             String
+  rideSeriesId         String?
+  originAddress        String
+  originLat            Float
+  originLng            Float
+  destinationAddress   String
+  destinationLat       Float
+  destinationLng       Float
+  departureTime        DateTime
+  totalSeats           Int
+  availableSeats       Int
+  pricePerSeat         Decimal               @db.Decimal(10, 2)
+  detourFlexibilityKm  Float                 @default(0)
+  preferences          String[]              @default([])
+  routePolyline        String?
+  routeDistanceKm      Float?
+  routeDurationMinutes Int?
+  recurrencePattern    RideRecurrencePattern @default(NONE)
+  recurrenceDays       Int[]                 @default([])
+  recurrenceInstanceAt DateTime?
+  status               RideStatus            @default(OPEN)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  driver     User        @relation("DriverRides", fields: [driverId], references: [id])
+  rideSeries RideSeries? @relation(fields: [rideSeriesId], references: [id], onDelete: SetNull)
+  stops      RideStop[]
+  bookings   Booking[]
+  reviews    Review[]
+
+  @@index([rideSeriesId])
+}
+
+model Booking {
+  id                    String        @id @default(uuid())
+  rideId                String
+  passengerId           String
+  seatsBooked           Int
+  pickupAddress         String?
+  pickupLat             Float?
+  pickupLng             Float?
+  dropoffAddress        String?
+  dropoffLat            Float?
+  dropoffLng            Float?
+  messageToDriver       String?
+  totalFare             Decimal       @db.Decimal(10, 2)
+  platformFee           Decimal       @db.Decimal(10, 2) // 10% of totalFare
+  driverEarnings        Decimal       @db.Decimal(10, 2) // 90% of totalFare
+  refundedAmount        Decimal       @default(0) @db.Decimal(10, 2)
+  status                BookingStatus @default(PENDING)
+  stripePaymentIntentId String?
+  paymentStatus         PaymentStatus @default(UNPAID)
+  paidAt                DateTime?
+  refundedAt            DateTime?
+  cancelledAt           DateTime?
+  checkedInAt           DateTime?
+  pickedUpAt            DateTime?
+  noShowMarkedAt        DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  ride      Ride @relation(fields: [rideId], references: [id])
+  passenger User @relation("PassengerBookings", fields: [passengerId], references: [id])
+}
+
+model RideStop {
+  id        String   @id @default(cuid())
+  rideId     String
+  address   String
+  lat       Float
+  lng       Float
+  orderIndex Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ride Ride @relation(fields: [rideId], references: [id], onDelete: Cascade)
+
+  @@unique([rideId, orderIndex])
+  @@index([rideId])
+}
+
+model RideSeries {
+  id                String                @id @default(cuid())
+  driverId          String
+  originAddress     String
+  originLat         Float
+  originLng         Float
+  destinationAddress String
+  destinationLat    Float
+  destinationLng    Float
+  departureTimeLocal String
+  recurrencePattern RideRecurrencePattern @default(WEEKLY)
+  recurrenceDays    Int[]                 @default([])
+  startDate         DateTime
+  endDate           DateTime?
+  totalSeats        Int
+  pricePerSeat      Decimal               @db.Decimal(10, 2)
+  detourFlexibilityKm Float               @default(0)
+  preferences       String[]              @default([])
+  routePolyline     String?
+  routeDistanceKm   Float?
+  routeDurationMinutes Int?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  driver User   @relation("DriverRideSeries", fields: [driverId], references: [id], onDelete: Cascade)
+  rides  Ride[]
 }
 
 model Review {
   id         String   @id @default(uuid())
-  bookingId  String   @unique // one review per completed booking
+  rideId     String
   reviewerId String
   revieweeId String
-  rating     Int      // 1–5; enforced at application layer via Zod
+  rating     Int // 1–5; enforced at application layer via Zod
   comment    String?
   createdAt  DateTime @default(now())
 
-  booking  Booking @relation(fields: [bookingId], references: [id])
+  ride     Ride    @relation(fields: [rideId], references: [id])
   reviewer User    @relation("ReviewsGiven", fields: [reviewerId], references: [id])
   reviewee User    @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+
+  @@unique([rideId, reviewerId, revieweeId])
+  @@index([revieweeId, createdAt])
+  @@index([rideId])
 }
 
 // Audit log for emails dispatched through the BullMQ worker.
 // The actual queue lives in Redis; this table is for debugging and admin visibility.
 model EmailJob {
   id             String    @id @default(uuid())
-  type           String    // welcome | booking-confirmed | ride-started | etc.
+  type           String // welcome | booking-confirmed | ride-started | etc.
   recipientEmail String
   payload        Json
   sentAt         DateTime? // null until the worker processes the job
@@ -141,15 +253,37 @@ model Config {
 
 // User-filed reports about other users or rides.
 model Report {
-  id           String   @id @default(uuid())
-  reporterId   String
-  targetUserId String?
-  targetRideId String?
-  reason       String
-  status       String   @default("OPEN") // OPEN | RESOLVED | DISMISSED
-  note         String?  // admin resolution note
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(uuid())
+  reporterId     String
+  targetUserId   String
+  targetRideId   String
+  targetUserRole Role // "DRIVER" | "PASSENGER" 
+  reason         String
+  status         String   @default("OPEN") // OPEN | RESOLVED | DISMISSED
+  note           String? // admin resolution note
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   reporter User @relation("FiledReports", fields: [reporterId], references: [id])
+  moderationActions ModerationAction[]
+}
+
+model ModerationAction {
+  id           String               @id @default(cuid())
+  adminId      String
+  targetUserId String
+  reportId     String?
+  actionType   ModerationActionType
+  reason       String
+  note         String?
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime             @default(now())
+
+  admin      User   @relation("AdminModerationActions", fields: [adminId], references: [id], onDelete: Restrict)
+  targetUser User   @relation("TargetModerationActions", fields: [targetUserId], references: [id], onDelete: Cascade)
+  report      Report? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([targetUserId, createdAt])
+  @@index([adminId, createdAt])
 }

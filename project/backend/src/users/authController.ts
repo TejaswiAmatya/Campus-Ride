@@ -1,10 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { RegisterSchema, LoginSchema } from "./schemas";
 import { prisma } from "../lib/prisma";
-import { supabaseAdmin } from "../lib/supabase";
-import { AppError } from "../middleware/error";
+import { createAuthUser, deleteAuthUser, supabaseAuth } from "../lib/supabase";
+import { AppError, getBlockedAccountError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
-
 // POST /api/auth/register
 export async function register(
   req: Request,
@@ -24,11 +23,7 @@ export async function register(
     }
 
     // create Supabase auth user
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: body.password,
-      email_confirm: true,
-    });
+    const { data, error } = await createAuthUser(email, body.password);
     if (error || !data?.user) {
       throw new AppError(
         "AUTH_PROVIDER_ERROR",
@@ -45,8 +40,7 @@ export async function register(
       });
     } catch (prismaErr) {
       // Compensate Supabase user creation to avoid orphaned auth users.
-      const { error: rollbackError } =
-        await supabaseAdmin.auth.admin.deleteUser(data.user.id);
+      const { error: rollbackError } = await deleteAuthUser(data.user.id);
       if (rollbackError) {
         console.error(
           "[auth/register] Failed to rollback Supabase user after Prisma failure",
@@ -60,7 +54,15 @@ export async function register(
     }
 
     // TODO: enqueue welcome email
-    // await emailQueue.add('welcome', { recipientEmail: body.email, payload: { name: body.name } })
+    try {
+      await emailQueue.welcomeEmail(user.id, user.email);
+    } catch (queueErr) {
+      console.error("[auth/register] welcomeEmail queue failed", {
+        userId: user.id,
+        email: user.email,
+        error: queueErr,
+      });
+    }
 
     res.status(201).json({
       data: {
@@ -83,9 +85,10 @@ export async function login(
   try {
     // validate the request body
     const body = LoginSchema.parse(req.body);
+    const email = body.email.toLowerCase();
 
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-      email: body.email,
+    const { data, error } = await supabaseAuth.auth.signInWithPassword({
+      email,
       password: body.password,
     });
 
@@ -96,6 +99,27 @@ export async function login(
         "Email or password is incorrect",
         401,
       );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { accountStatus: true, suspendedUntil: true },
+    });
+
+    if (!user) {
+      throw new AppError("UNAUTHORIZED", "Authenticated user not found", 401);
+    }
+
+    const blockedAccountError = getBlockedAccountError({
+      accountStatus:
+        user.accountStatus === "SUSPENDED" && hasSuspensionExpired(user.suspendedUntil)
+          ? "ACTIVE"
+          : user.accountStatus,
+      suspendedUntil: user.suspendedUntil,
+    });
+
+    if (blockedAccountError) {
+      throw blockedAccountError;
     }
 
     // return the access_token and refresh_token
@@ -109,4 +133,8 @@ export async function login(
   } catch (err) {
     next(err);
   }
+}
+
+function hasSuspensionExpired(suspendedUntil: Date | null): boolean {
+  return suspendedUntil !== null && suspendedUntil.getTime() <= Date.now();
 }

@@ -17,14 +17,14 @@ const prisma = new PrismaClient({
 
 // ── Fixed IDs (stable across re-seeds) ───────────────────────────────────────
 const IDS = {
-  admin: "248faa97-078b-49ff-a97e-c3f0d75518a3",
+  admin: "24ceae05-aacd-4939-840d-a69e54e216df",
   alice: "a0000000-0000-0000-0000-000000000002", // passenger
   bob: "a0000000-0000-0000-0000-000000000003", // passenger
   carol: "a0000000-0000-0000-0000-000000000004", // passenger
   dave: "a0000000-0000-0000-0000-000000000005", // driver (approved)
-  eve: "a0000000-0000-0000-0000-000000000006", // driver (pending)
-  vehicle1: "v0000000-0000-0000-0000-000000000001",
-  vehicle2: "v0000000-0000-0000-0000-000000000002",
+  eve: "a0000000-0000-0000-0000-000000000006", // driver application pending
+  driverProfile1: "dp000000-0000-0000-0000-000000000001",
+  driverProfile2: "dp000000-0000-0000-0000-000000000002",
   ride1: "r0000000-0000-0000-0000-000000000001", // OPEN
   ride2: "r0000000-0000-0000-0000-000000000002", // COMPLETED
   ride3: "r0000000-0000-0000-0000-000000000003", // IN_PROGRESS
@@ -32,6 +32,8 @@ const IDS = {
   booking2: "b0000000-0000-0000-0000-000000000002", // PENDING on ride1
   booking3: "b0000000-0000-0000-0000-000000000003", // COMPLETED on ride2
   booking4: "b0000000-0000-0000-0000-000000000004", // CANCELLED on ride1
+  review1: "v0000000-0000-0000-0000-000000000001",
+  review2: "v0000000-0000-0000-0000-000000000002",
 };
 
 async function main() {
@@ -43,7 +45,7 @@ async function main() {
   await prisma.emailJob.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.ride.deleteMany();
-  await prisma.vehicle.deleteMany();
+  await prisma.driverProfile.deleteMany();
   await prisma.config.deleteMany();
   await prisma.user.deleteMany();
 
@@ -56,10 +58,9 @@ async function main() {
     data: [
       {
         id: IDS.admin,
-        email: "admin@campus-ride.app",
-        name: "Campus Admin",
+        email: "amatte01@gettysburg.edu",
+        name: "Tejaswi",
         role: "ADMIN",
-        isDriverApproved: false,
       },
       {
         id: IDS.alice,
@@ -88,42 +89,47 @@ async function main() {
         name: "Dave Dahl",
         phone: "+4791000004",
         role: "DRIVER",
-        isDriverApproved: true,
-        licenceUrl: "https://placehold.co/licence-dave.jpg",
       },
       {
         id: IDS.eve,
         email: "eve@university.edu",
         name: "Eve Eriksen",
         phone: "+4791000005",
-        role: "DRIVER",
-        isDriverApproved: false,
-        licenceUrl: "https://placehold.co/licence-eve.jpg",
+        role: "PASSENGER",
       },
     ],
   });
 
-  console.log("[seed] Creating vehicles…");
+  console.log("[seed] Creating driver profiles…");
 
-  await prisma.vehicle.createMany({
+  await prisma.driverProfile.createMany({
     data: [
       {
-        id: IDS.vehicle1,
+        id: IDS.driverProfile1,
         userId: IDS.dave,
-        make: "Toyota",
-        model: "Prius",
-        year: 2020,
-        colour: "Silver",
-        plateNumber: "AB12345",
+        licencePath: "https://placehold.co/licence-dave.jpg",
+        vehicleInfo: {
+          make: "Toyota",
+          model: "Prius",
+          year: 2020,
+          colour: "Silver",
+          plateNumber: "AB12345",
+        },
+        status: "APPROVED",
+        approvedAt: now,
       },
       {
-        id: IDS.vehicle2,
+        id: IDS.driverProfile2,
         userId: IDS.eve,
-        make: "Volkswagen",
-        model: "Golf",
-        year: 2019,
-        colour: "Blue",
-        plateNumber: "CD67890",
+        licencePath: "https://placehold.co/licence-eve.jpg",
+        vehicleInfo: {
+          make: "Volkswagen",
+          model: "Golf",
+          year: 2019,
+          colour: "Blue",
+          plateNumber: "CD67890",
+        },
+        status: "PENDING",
       },
     ],
   });
@@ -240,15 +246,25 @@ async function main() {
 
   console.log("[seed] Creating reviews…");
 
-  // Alice reviews Dave after their completed ride
-  await prisma.review.create({
-    data: {
-      bookingId: IDS.booking3,
-      reviewerId: IDS.alice,
-      revieweeId: IDS.dave,
-      rating: 5,
-      comment: "Great driver, very punctual and friendly. Highly recommend!",
-    },
+  await prisma.review.createMany({
+    data: [
+      {
+        id: IDS.review1,
+        rideId: IDS.ride2,
+        reviewerId: IDS.alice,
+        revieweeId: IDS.dave,
+        rating: 5,
+        comment: "Great driver, very punctual and friendly. Highly recommend!",
+      },
+      {
+        id: IDS.review2,
+        rideId: IDS.ride2,
+        reviewerId: IDS.dave,
+        revieweeId: IDS.alice,
+        rating: 5,
+        comment: "Excellent passenger, ready on time and easy to coordinate with.",
+      },
+    ],
   });
 
   console.log("[seed] Creating config…");
@@ -291,7 +307,7 @@ async function main() {
   console.log("  2 vehicles");
   console.log("  3 rides (OPEN, COMPLETED, IN_PROGRESS)");
   console.log("  4 bookings (CONFIRMED, PENDING, COMPLETED, CANCELLED)");
-  console.log("  1 review");
+  console.log("  2 reviews");
   console.log("  3 config entries");
   console.log("  3 email job log entries");
 }
