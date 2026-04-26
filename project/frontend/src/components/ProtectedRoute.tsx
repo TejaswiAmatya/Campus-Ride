@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ProtectedRouteProps {
@@ -31,6 +31,7 @@ export function ProtectedRoute({
   blockedRole,
 }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -46,6 +47,15 @@ export function ProtectedRoute({
 
   if (requiredRole && user.role !== requiredRole) {
     return <Navigate to={getDefaultAuthenticatedPath(user.role)} replace />;
+  }
+
+  if (
+    requiredRole === "ADMIN" &&
+    user.role === "ADMIN" &&
+    user.mustChangePassword &&
+    location.pathname !== "/admin/change-password"
+  ) {
+    return <Navigate to="/admin/change-password" replace />;
   }
 
   if (blockedRole && user.role === blockedRole) {
