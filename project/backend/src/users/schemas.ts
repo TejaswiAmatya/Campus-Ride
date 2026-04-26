@@ -2,6 +2,18 @@ import { z } from 'zod'
 
 const UNIVERSITY_EMAIL_RE = /@[a-zA-Z0-9.-]+\.(edu|no)$/i
 
+export const AccountStatusSchema = z.enum([
+  'ACTIVE',
+  'WARNED',
+  'SUSPENDED',
+  'BANNED',
+])
+
+export const ModerationStateSchema = z.object({
+  accountStatus: AccountStatusSchema,
+  suspendedUntil: z.string().datetime().nullable(),
+})
+
 export const RegisterSchema = z.object({
   email: z
     .string()
@@ -23,7 +35,7 @@ export const UpdateProfileSchema = z
   .object({
     name: z.string().min(2).max(100).optional(),
     phone: z.string().optional(),
-    avatarPath: z.string().url().optional(),
+    avatarPath: z.string().optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'At least one field must be provided',
@@ -53,7 +65,40 @@ export const DriverApplicationSchema = z.object({
   }, VehicleInfoSchema),
 })
 
+export const MeResponseSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  name: z.string(),
+  role: z.enum(['PASSENGER', 'DRIVER', 'ADMIN']),
+  avatarPath: z.string().nullable(),
+  driverStatus: z.enum(['PENDING', 'APPROVED', 'REJECTED']).nullable(),
+  createdAt: z.string().datetime(),
+  ...ModerationStateSchema.shape,
+})
+
+export const BlockedAuthErrorSchema = z.object({
+  error: z.union([
+    z.object({
+      code: z.literal('ACCOUNT_SUSPENDED'),
+      message: z.string(),
+      details: z
+        .object({
+          suspendedUntil: z.string().datetime(),
+        })
+        .optional(),
+    }),
+    z.object({
+      code: z.literal('ACCOUNT_BANNED'),
+      message: z.string(),
+    }),
+  ]),
+})
+
 export type RegisterInput = z.infer<typeof RegisterSchema>
 export type LoginInput = z.infer<typeof LoginSchema>
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>
 export type DriverApplicationInput = z.infer<typeof DriverApplicationSchema>
+export type AccountStatus = z.infer<typeof AccountStatusSchema>
+export type ModerationState = z.infer<typeof ModerationStateSchema>
+export type MeResponse = z.infer<typeof MeResponseSchema>
+export type BlockedAuthError = z.infer<typeof BlockedAuthErrorSchema>
