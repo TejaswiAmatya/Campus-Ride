@@ -1,6 +1,7 @@
 export type EmailJobType =
   | "welcome"
   | "booking-confirmed"
+  | "ride-updated"
   | "ride-started"
   | "booking-cancelled"
   | "driver-approved"
@@ -30,6 +31,16 @@ export type RideStartedEmailPayload = BaseEmailPayload & {
   driverName: string;
 };
 
+export type RideUpdatedEmailPayload = BaseEmailPayload & {
+  type: "ride-updated";
+  passengerName: string;
+  rideDate: string;
+  driverName: string;
+  originAddress: string;
+  destinationAddress: string;
+  updateMessage?: string;
+};
+
 export type BookingCancelledEmailPayload = BaseEmailPayload & {
   type: "booking-cancelled";
   passengerName: string;
@@ -51,6 +62,7 @@ export type DriverRejectedEmailPayload = BaseEmailPayload & {
 export type EmailJobPayload =
   | WelcomeEmailPayload
   | BookingConfirmedEmailPayload
+  | RideUpdatedEmailPayload
   | RideStartedEmailPayload
   | BookingCancelledEmailPayload
   | DriverApprovedEmailPayload
@@ -118,6 +130,27 @@ export function buildEmail(payload: EmailJobPayload): BuiltEmail {
             <p>Your ride has now started.</p>
             <p><strong>Ride date:</strong> ${payload.rideDate}</p>
             <p><strong>Driver:</strong> ${payload.driverName}</p>
+          `,
+        ),
+      };
+
+    case "ride-updated":
+      return {
+        subject: "Your ride details were updated",
+        html: wrapHtml(
+          "Ride Updated",
+          `
+            <p>Hi ${payload.passengerName},</p>
+            <p>Your driver updated the details for your upcoming ride.</p>
+            <p><strong>Route:</strong> ${payload.originAddress} to ${payload.destinationAddress}</p>
+            <p><strong>Ride date:</strong> ${payload.rideDate}</p>
+            <p><strong>Driver:</strong> ${payload.driverName}</p>
+            ${
+              payload.updateMessage
+                ? `<p><strong>Driver note:</strong> ${payload.updateMessage}</p>`
+                : ""
+            }
+            <p>Please review the latest ride details in Campus Ride.</p>
           `,
         ),
       };

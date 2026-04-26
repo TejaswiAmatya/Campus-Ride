@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   Clock,
@@ -81,6 +82,22 @@ export function RideDetailPage() {
       return;
     }
 
+    if (ride.routePolyline) {
+      try {
+        const parsed = JSON.parse(ride.routePolyline) as Array<[number, number]>;
+        setRoutePreview({
+          geometry: parsed,
+          distanceMeters: (ride.routeDistanceKm ?? 0) * 1000,
+          durationSeconds: (ride.routeDurationMinutes ?? 0) * 60,
+        });
+        setRouteError(null);
+        setIsLoadingRoute(false);
+        return;
+      } catch {
+        setRoutePreview(null);
+      }
+    }
+
     const controller = new AbortController();
     setIsLoadingRoute(true);
     setRouteError(null);
@@ -88,6 +105,7 @@ export function RideDetailPage() {
     void fetchRoutePreview(
       [
         { lat: ride.originLat, lng: ride.originLng },
+        ...(ride.stops ?? []).map((stop) => ({ lat: stop.lat, lng: stop.lng })),
         { lat: ride.destinationLat, lng: ride.destinationLng },
       ],
       controller.signal,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
 import { useSocket } from '@/lib/socket'
-import type { CreateRideDto, Ride, RideStatusUpdate, SearchRidesParams } from './types'
+import type { CreateRideDto, Ride, RideStatusUpdate, SearchRidesParams, UpdateRideDto } from './types'
 
 export interface DriverLocation {
   lat: number
@@ -20,6 +20,47 @@ export function usePostRide() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['rides'] })
+    },
+  })
+}
+
+export function useUpdateRide() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      rideId,
+      payload,
+    }: {
+      rideId: string
+      payload: UpdateRideDto
+    }): Promise<{
+      data: Ride
+      meta?: {
+        notificationRequired?: boolean
+        notificationsTriggered?: boolean
+        confirmedPassengers?: number
+        updateMessage?: string | null
+      }
+    }> => {
+      const response = await api.patch<{
+        data: Ride
+        meta?: {
+          notificationRequired?: boolean
+          notificationsTriggered?: boolean
+          confirmedPassengers?: number
+          updateMessage?: string | null
+        }
+      }>(`/api/rides/${rideId}`, payload)
+      return response.data
+    },
+    onSuccess: async ({ data: ride }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['rides'] }),
+        queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] }),
+        queryClient.invalidateQueries({ queryKey: ['rides', 'detail', ride.id] }),
+        queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+      ])
     },
   })
 }
