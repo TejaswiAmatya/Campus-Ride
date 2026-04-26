@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import {
+  AcademicDecisionSchema,
   CreateModerationActionSchema,
   DriverDecisionSchema,
   UpdateConfigSchema,
@@ -205,6 +206,68 @@ export async function listPendingAcademicVerifications(
 
     res.json({
       data: serializedUsers,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/admin/verifications/academic/:userId
+ *
+ * Approve or reject an academic verification submission.
+ */
+export async function academicDecision(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { userId } = req.params;
+    const body = AcademicDecisionSchema.parse(req.body);
+
+    const existingUser = await prismaUntyped.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        academicVerificationStatus: true,
+      },
+    });
+
+    if (!existingUser) {
+      throw new AppError("NOT_FOUND", "Academic verification not found", 404);
+    }
+
+    const user = await prismaUntyped.user.update({
+      where: { id: userId },
+      data: {
+        academicVerificationStatus: body.approved ? "VERIFIED" : "REJECTED",
+        academicVerifiedAt: body.approved ? new Date() : null,
+        academicRejectionReason: body.approved ? null : body.reason,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        academicRole: true,
+        academicVerificationStatus: true,
+        academicVerifiedAt: true,
+        academicRejectionReason: true,
+      },
+    });
+
+    res.json({
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        academicRole: user.academicRole,
+        academicVerificationStatus: user.academicVerificationStatus,
+        academicVerifiedAt: user.academicVerifiedAt,
+        academicRejectionReason: user.academicRejectionReason,
+      },
     });
   } catch (err) {
     next(err);
