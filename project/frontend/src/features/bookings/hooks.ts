@@ -88,6 +88,7 @@ function invalidateBookingAndRideQueries(queryClient: ReturnType<typeof useQuery
 }
 
 export function useMarkBookingPickedUp() {
+export function useConfirmBooking() {
   const queryClient = useQueryClient()
 
   return useMutation({

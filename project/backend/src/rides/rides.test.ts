@@ -41,6 +41,8 @@ type UserRecord = {
   id: string;
   name: string;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
+  accountStatus?: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
+  suspendedUntil?: Date | null;
   driverProfileStatus?: "PENDING" | "APPROVED" | "REJECTED";
   avatarUrl?: string | null;
 };
@@ -48,6 +50,7 @@ type UserRecord = {
 type RideRecord = {
   id: string;
   driverId: string;
+  rideSeriesId: string | null;
   originAddress: string;
   originLat: number;
   originLng: number;
@@ -58,6 +61,14 @@ type RideRecord = {
   totalSeats: number;
   availableSeats: number;
   pricePerSeat: Prisma.Decimal;
+  detourFlexibilityKm: number;
+  preferences: string[];
+  routePolyline: string | null;
+  routeDistanceKm: number | null;
+  routeDurationMinutes: number | null;
+  recurrencePattern: "NONE" | "DAILY" | "WEEKLY" | "SPECIFIC_DAYS";
+  recurrenceDays: number[];
+  recurrenceInstanceAt: Date | null;
   status: "OPEN" | "FULL" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   createdAt: Date;
   updatedAt: Date;
@@ -69,6 +80,40 @@ type RideRecord = {
     reviewsReceived: Array<{ rating: number }>;
   };
 };
+
+function makeRideRecord(
+  overrides: Partial<RideRecord> & Pick<RideRecord, "id" | "driverId">,
+): RideRecord {
+  const departureTime = overrides.departureTime ?? new Date(futureDate);
+
+  return {
+    id: overrides.id,
+    driverId: overrides.driverId,
+    rideSeriesId: overrides.rideSeriesId ?? null,
+    originAddress: overrides.originAddress ?? "University",
+    originLat: overrides.originLat ?? 58.9,
+    originLng: overrides.originLng ?? 5.7,
+    destinationAddress: overrides.destinationAddress ?? "Station",
+    destinationLat: overrides.destinationLat ?? 58.97,
+    destinationLng: overrides.destinationLng ?? 5.73,
+    departureTime,
+    totalSeats: overrides.totalSeats ?? 3,
+    availableSeats: overrides.availableSeats ?? 3,
+    pricePerSeat: overrides.pricePerSeat ?? new Prisma.Decimal(80),
+    detourFlexibilityKm: overrides.detourFlexibilityKm ?? 0,
+    preferences: overrides.preferences ?? [],
+    routePolyline: overrides.routePolyline ?? null,
+    routeDistanceKm: overrides.routeDistanceKm ?? null,
+    routeDurationMinutes: overrides.routeDurationMinutes ?? null,
+    recurrencePattern: overrides.recurrencePattern ?? "NONE",
+    recurrenceDays: overrides.recurrenceDays ?? [],
+    recurrenceInstanceAt: overrides.recurrenceInstanceAt ?? null,
+    status: overrides.status ?? "OPEN",
+    createdAt: overrides.createdAt ?? departureTime,
+    updatedAt: overrides.updatedAt ?? departureTime,
+    driver: overrides.driver,
+  };
+}
 
 type BookingRecord = {
   id: string;
@@ -238,7 +283,13 @@ vi.mock("../lib/prisma", () => ({
     user: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => {
         const user = testState.users.find((entry) => entry.id === where.id);
-        return user ? { role: user.role } : null;
+        return user
+          ? {
+              role: user.role,
+              accountStatus: user.accountStatus ?? "ACTIVE",
+              suspendedUntil: user.suspendedUntil ?? null,
+            }
+          : null;
       }),
       findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
         const user = testState.users.find((entry) => entry.id === where.id);
@@ -553,7 +604,7 @@ describe("searchRidesByLocation", () => {
   });
 
   it("excludes rides outside the radius", async () => {
-    const nearbyRide: RideRecord = {
+    const nearbyRide: RideRecord = makeRideRecord({
       id: "nearby-ride",
       driverId: "driver-1",
       originAddress: "Oslo S",
@@ -562,14 +613,7 @@ describe("searchRidesByLocation", () => {
       destinationAddress: "Majorstuen",
       destinationLat: 59.93,
       destinationLng: 10.71,
-      departureTime: new Date(futureDate),
-      totalSeats: 3,
-      availableSeats: 3,
-      pricePerSeat: new Prisma.Decimal(80),
-      status: "OPEN",
-      createdAt: new Date(futureDate),
-      updatedAt: new Date(futureDate),
-    };
+    });
 
     vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
       { id: "nearby-ride", sortDistanceMeters: 800 },
@@ -649,24 +693,16 @@ describe("searchRidesByLocation", () => {
       driverProfileStatus: "APPROVED",
     });
     testState.rides.push(
-      {
+      makeRideRecord({
         id: "ride-rated-low",
         driverId: "driver-1",
         originAddress: "A",
-        originLat: 58.9,
-        originLng: 5.7,
         destinationAddress: "B",
-        destinationLat: 58.97,
-        destinationLng: 5.73,
         departureTime,
-        totalSeats: 3,
-        availableSeats: 3,
-        pricePerSeat: new Prisma.Decimal(80),
-        status: "OPEN",
         createdAt: departureTime,
         updatedAt: departureTime,
-      },
-      {
+      }),
+      makeRideRecord({
         id: "ride-rated-high",
         driverId: "driver-2",
         originAddress: "C",
@@ -676,13 +712,10 @@ describe("searchRidesByLocation", () => {
         destinationLat: 58.98,
         destinationLng: 5.74,
         departureTime: new Date(departureTime.getTime() + 60_000),
-        totalSeats: 3,
-        availableSeats: 3,
         pricePerSeat: new Prisma.Decimal(90),
-        status: "OPEN",
         createdAt: departureTime,
         updatedAt: departureTime,
-      },
+      }),
     );
     testState.reviews.push(
       {
@@ -712,24 +745,17 @@ describe("searchRidesByLocation", () => {
   it("filters by price range and sorts by price", async () => {
     const departureTime = new Date(futureDate);
     testState.rides.push(
-      {
+      makeRideRecord({
         id: "ride-cheap",
         driverId: "driver-1",
         originAddress: "A",
-        originLat: 58.9,
-        originLng: 5.7,
         destinationAddress: "B",
-        destinationLat: 58.97,
-        destinationLng: 5.73,
         departureTime,
-        totalSeats: 3,
-        availableSeats: 3,
         pricePerSeat: new Prisma.Decimal(50),
-        status: "OPEN",
         createdAt: departureTime,
         updatedAt: departureTime,
-      },
-      {
+      }),
+      makeRideRecord({
         id: "ride-mid",
         driverId: "driver-1",
         originAddress: "C",
@@ -739,14 +765,10 @@ describe("searchRidesByLocation", () => {
         destinationLat: 58.98,
         destinationLng: 5.74,
         departureTime: new Date(departureTime.getTime() + 60_000),
-        totalSeats: 3,
-        availableSeats: 3,
-        pricePerSeat: new Prisma.Decimal(80),
-        status: "OPEN",
         createdAt: departureTime,
         updatedAt: departureTime,
-      },
-      {
+      }),
+      makeRideRecord({
         id: "ride-expensive",
         driverId: "driver-1",
         originAddress: "E",
@@ -756,13 +778,10 @@ describe("searchRidesByLocation", () => {
         destinationLat: 58.99,
         destinationLng: 5.75,
         departureTime: new Date(departureTime.getTime() + 120_000),
-        totalSeats: 3,
-        availableSeats: 3,
         pricePerSeat: new Prisma.Decimal(120),
-        status: "OPEN",
         createdAt: departureTime,
         updatedAt: departureTime,
-      },
+      }),
     );
 
     const results = await searchRidesByLocation({
@@ -989,23 +1008,16 @@ describe("UpdateRideStatusSchema", () => {
 describe("rides API integration", () => {
   it("returns the driver's rides with booking request details", async () => {
     const departureTime = new Date(futureDate);
-    testState.rides.push({
-      id: "ride-mine-1",
-      driverId: "driver-1",
-      originAddress: "University",
-      originLat: 58.9,
-      originLng: 5.7,
-      destinationAddress: "Station",
-      destinationLat: 58.97,
-      destinationLng: 5.73,
-      departureTime,
-      totalSeats: 3,
-      availableSeats: 1,
-      pricePerSeat: new Prisma.Decimal(80),
-      status: "OPEN",
-      createdAt: departureTime,
-      updatedAt: departureTime,
-    });
+    testState.rides.push(
+      makeRideRecord({
+        id: "ride-mine-1",
+        driverId: "driver-1",
+        departureTime,
+        availableSeats: 1,
+        createdAt: departureTime,
+        updatedAt: departureTime,
+      }),
+    );
     testState.bookings.push({
       id: "booking-1",
       rideId: "ride-mine-1",
@@ -1211,23 +1223,15 @@ describe("rides API integration", () => {
 
   it("allows the ride driver to cancel a scheduled ride with no confirmed bookings", async () => {
     const departureTime = new Date(futureDate);
-    testState.rides.push({
-      id: "ride-cancel-open",
-      driverId: "driver-1",
-      originAddress: "University",
-      originLat: 58.9,
-      originLng: 5.7,
-      destinationAddress: "Station",
-      destinationLat: 58.97,
-      destinationLng: 5.73,
-      departureTime,
-      totalSeats: 3,
-      availableSeats: 3,
-      pricePerSeat: new Prisma.Decimal(80),
-      status: "OPEN",
-      createdAt: departureTime,
-      updatedAt: departureTime,
-    });
+    testState.rides.push(
+      makeRideRecord({
+        id: "ride-cancel-open",
+        driverId: "driver-1",
+        departureTime,
+        createdAt: departureTime,
+        updatedAt: departureTime,
+      }),
+    );
     testState.bookings.push({
       id: "booking-pending-1",
       rideId: "ride-cancel-open",
@@ -1266,23 +1270,18 @@ describe("rides API integration", () => {
       name: "Parker Passenger",
       role: "PASSENGER",
     });
-    testState.rides.push({
-      id: "ride-cancel-confirmed",
-      driverId: "driver-1",
-      originAddress: "University",
-      originLat: 58.9,
-      originLng: 5.7,
-      destinationAddress: "Station",
-      destinationLat: 58.97,
-      destinationLng: 5.73,
-      departureTime,
-      totalSeats: 4,
-      availableSeats: 1,
-      pricePerSeat: new Prisma.Decimal(80),
-      status: "FULL",
-      createdAt: departureTime,
-      updatedAt: departureTime,
-    });
+    testState.rides.push(
+      makeRideRecord({
+        id: "ride-cancel-confirmed",
+        driverId: "driver-1",
+        departureTime,
+        totalSeats: 4,
+        availableSeats: 1,
+        status: "FULL",
+        createdAt: departureTime,
+        updatedAt: departureTime,
+      }),
+    );
     testState.bookings.push(
       {
         id: "booking-confirmed-1",
@@ -1340,23 +1339,15 @@ describe("rides API integration", () => {
       role: "DRIVER",
       driverProfileStatus: "APPROVED",
     });
-    testState.rides.push({
-      id: "ride-cancel-forbidden",
-      driverId: "driver-1",
-      originAddress: "University",
-      originLat: 58.9,
-      originLng: 5.7,
-      destinationAddress: "Station",
-      destinationLat: 58.97,
-      destinationLng: 5.73,
-      departureTime,
-      totalSeats: 3,
-      availableSeats: 3,
-      pricePerSeat: new Prisma.Decimal(80),
-      status: "OPEN",
-      createdAt: departureTime,
-      updatedAt: departureTime,
-    });
+    testState.rides.push(
+      makeRideRecord({
+        id: "ride-cancel-forbidden",
+        driverId: "driver-1",
+        departureTime,
+        createdAt: departureTime,
+        updatedAt: departureTime,
+      }),
+    );
 
     const response = await runHandlers(
       [requireAuth, requireRole("DRIVER"), cancelRide],

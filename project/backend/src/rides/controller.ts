@@ -352,6 +352,14 @@ export async function getMyRides(
                 avatarPath: true,
               },
             },
+            review: {
+              select: {
+                id: true,
+                rating: true,
+                comment: true,
+                createdAt: true,
+              },
+            },
           },
           orderBy: { createdAt: "desc" },
         },
@@ -559,6 +567,14 @@ export async function updateRideStatus(
         rideId: id,
         bookingId: "",
         status: "in_progress",
+      });
+    }
+
+    if (body.status === "COMPLETED") {
+      await notify.rideStatus(id, {
+        rideId: id,
+        bookingId: "",
+        status: "finished",
       });
     }
 
