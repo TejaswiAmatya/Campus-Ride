@@ -101,7 +101,9 @@ export function RideDetailPage() {
   }, [driverReviews, ride, user]);
   const activeRideBookings = useMemo(
     () =>
-      driverBookings.filter((booking) => booking.ride.id === ride?.id),
+      driverBookings.filter(
+        (booking) => booking.ride.id === ride?.id && booking.status === "CONFIRMED",
+      ),
     [driverBookings, ride?.id],
   );
   const pickedUpSet = useMemo(() => new Set(locallyPickedUpBookingIds), [locallyPickedUpBookingIds]);
@@ -313,13 +315,12 @@ export function RideDetailPage() {
 
           <div className="mt-4 space-y-3">
             {activeRideBookings.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No passenger bookings are attached to this ride yet.</p>
+              <p className="text-sm text-muted-foreground">No confirmed passengers are available to mark for this active ride.</p>
             ) : (
               activeRideBookings.map((booking) => {
                 const pickedUpLocally = pickedUpSet.has(booking.id);
                 const noShowLocally = noShowSet.has(booking.id);
                 const canHandleBooking =
-                  booking.status === "CONFIRMED" &&
                   !pickedUpLocally &&
                   !noShowLocally;
 
@@ -382,7 +383,7 @@ export function RideDetailPage() {
                           ? "Passenger already marked as picked up."
                           : noShowLocally
                             ? "Passenger already marked as no-show."
-                            : "Only confirmed bookings can be handled here."}
+                            : "Already handled."}
                       </p>
                     )}
                   </div>

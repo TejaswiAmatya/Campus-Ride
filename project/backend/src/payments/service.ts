@@ -19,7 +19,7 @@ export interface RefundPaymentInput {
   bookingId: string;
   providerPaymentId?: string | null;
   amount: Prisma.Decimal | string | number;
-  reason: "PASSENGER_CANCELLATION" | "NO_SHOW";
+  reason: "PASSENGER_CANCELLATION" | "DRIVER_DECLINE" | "NO_SHOW";
 }
 
 export interface RefundPaymentResult {

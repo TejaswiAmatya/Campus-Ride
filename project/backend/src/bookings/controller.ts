@@ -628,7 +628,9 @@ export async function declineBooking(
     await prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({
         where: { id },
-        include: { ride: { select: { driverId: true, id: true } } },
+        include: {
+          ride: { select: { driverId: true, id: true } },
+        },
       });
 
       if (!booking) {
@@ -649,9 +651,22 @@ export async function declineBooking(
         );
       }
 
+      const refundCapture = await payments.refund({
+        bookingId: booking.id,
+        providerPaymentId: booking.stripePaymentIntentId,
+        amount: booking.totalFare,
+        reason: "DRIVER_DECLINE",
+      });
+
       await tx.booking.update({
         where: { id },
-        data: { status: "CANCELLED" },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          refundedAmount: booking.totalFare,
+          refundedAt: refundCapture.refundedAt,
+          paymentStatus: refundCapture.status,
+        },
       });
 
       const ride = await tx.ride.findUniqueOrThrow({
