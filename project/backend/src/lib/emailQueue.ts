@@ -74,7 +74,22 @@ async function driverRejected(
   reason?: string,
 ) {
   console.log("[emailQueue] driverRejected queued", { driverId, email });
-  await enqueue("driverRejected", { driverId, email, name });
+  await enqueue("driverRejected", { driverId, email, name, reason });
+}
+
+async function academicApproved(userId: string, email: string, name: string) {
+  console.log("[emailQueue] academicApproved queued", { userId, email });
+  await enqueue("academicApproved", { userId, email, name });
+}
+
+async function academicRejected(
+  userId: string,
+  email: string,
+  name: string,
+  reason?: string,
+) {
+  console.log("[emailQueue] academicRejected queued", { userId, email });
+  await enqueue("academicRejected", { userId, email, name, reason });
 }
 // 4. Export as one clean object
 export const emailQueue = {
@@ -85,4 +100,6 @@ export const emailQueue = {
   rideUpdated,
   driverApproved,
   driverRejected,
+  academicApproved,
+  academicRejected,
 };
