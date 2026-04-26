@@ -44,15 +44,8 @@ export const UpdateBookingCheckpointSchema = z.object({
   note: z.string().trim().max(500).optional(),
 })
 
-export const CreateReviewSchema = z.object({
-  bookingId: z.string().uuid(),
-  rating: z.number().int().min(1).max(5),
-  comment: z.string().max(1000).optional(),
-})
-
 export type CreateBookingInput = z.infer<typeof CreateBookingSchema>
 export type UpdateBookingStatusInput = z.infer<typeof UpdateBookingStatusSchema>
 export type ListBookingsInput = z.infer<typeof ListBookingsSchema>
 export type CancelBookingInput = z.infer<typeof CancelBookingSchema>
 export type UpdateBookingCheckpointInput = z.infer<typeof UpdateBookingCheckpointSchema>
-export type CreateReviewInput = z.infer<typeof CreateReviewSchema>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import axios from 'axios'
 import {
   AlertCircle,
   ArrowRight,
@@ -18,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { MapView } from '@/components/MapView'
 import { useRide } from '@/features/rides/hooks'
 import { reverseGeocode, searchPlaces, type GeocodingSuggestion } from '@/features/rides/geocoding'
+import { useAuth } from '@/hooks/useAuth'
 import { useBookRide } from './hooks'
 
 interface CheckoutLocation {
@@ -162,6 +164,7 @@ function LocationFieldset({
 export function BookingCheckoutPage() {
   const { rideId } = useParams<{ rideId: string }>()
   const { data: ride, isLoading, isError } = useRide(rideId)
+  const { isAuthenticated } = useAuth()
   const [seats, setSeats] = useState(1)
   const [pickup, setPickup] = useState<CheckoutLocation>({ address: '', lat: null, lng: null })
   const [dropoff, setDropoff] = useState<CheckoutLocation>({ address: '', lat: null, lng: null })
@@ -302,6 +305,11 @@ export function BookingCheckoutPage() {
         ]
 
   const handleSubmit = () => {
+    if (!isAuthenticated || !localStorage.getItem('access_token')) {
+      setMapError('You need to log in again before you can book this ride.')
+      return
+    }
+
     if (pickup.lat === null || pickup.lng === null || dropoff.lat === null || dropoff.lng === null) {
       setMapError('Select both pickup and drop-off points from search or by clicking the map.')
       return
@@ -323,6 +331,14 @@ export function BookingCheckoutPage() {
       messageToDriver: messageToDriver.trim() || undefined,
     })
   }
+
+  const bookingErrorMessage =
+    mapError ??
+    (axios.isAxiosError(bookMutation.error)
+      ? (bookMutation.error.response?.data as { error?: { message?: string } } | undefined)
+          ?.error?.message ??
+        'Could not complete booking. Try refreshing the ride page.'
+      : 'Could not complete booking. Try refreshing the ride page.')
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -465,9 +481,15 @@ export function BookingCheckoutPage() {
             {(bookMutation.isError || mapError) && (
               <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{bookingErrorMessage}</span>
+              </div>
+            )}
+
+            {!isAuthenticated && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-900">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                  {mapError ??
-                    'Could not complete booking. The ride may be full or no longer available. Try refreshing the ride page.'}
+                  Your session is not active. Log in before confirming this booking.
                 </span>
               </div>
             )}
@@ -476,11 +498,17 @@ export function BookingCheckoutPage() {
             <Button asChild variant="outline">
               <Link to={`/rides/${ride.id}`}>Back to ride</Link>
             </Button>
+            {!isAuthenticated && (
+              <Button asChild variant="outline">
+                <Link to="/login">Log in</Link>
+              </Button>
+            )}
             <Button
               size="lg"
               className="min-w-[180px]"
               disabled={
                 bookMutation.isPending ||
+                !isAuthenticated ||
                 ride.availableSeats < 1 ||
                 seats < 1 ||
                 seats > maxBookable ||

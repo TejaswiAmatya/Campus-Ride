@@ -518,6 +518,9 @@ vi.mock("../lib/prisma", () => ({
         const driver = testState.users.find(
           (entry) => entry.id === ride.driverId,
         );
+        const bookings = testState.bookings
+          .filter((booking) => booking.rideId === ride.id)
+          .map((booking) => ({ ...booking }));
 
         return {
           ...ride,
@@ -528,6 +531,7 @@ vi.mock("../lib/prisma", () => ({
                 avatarUrl: driver.avatarUrl ?? null,
               }
             : null,
+          bookings,
         };
       }),
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => {
@@ -1157,6 +1161,14 @@ describe("rides API integration", () => {
     );
 
     const createdRide = createResponse.body.data as RideRecord;
+    testState.bookings.push({
+      id: "booking-1",
+      rideId: createdRide.id,
+      passengerId: "passenger-1",
+      seatsBooked: 1,
+      status: "CONFIRMED",
+      createdAt: new Date(),
+    });
 
     const startResponse = await runHandlers(
       [requireAuth, requireRole("DRIVER"), startRide],
@@ -1189,6 +1201,12 @@ describe("rides API integration", () => {
 
     expect(completeResponse.statusCode).toBe(200);
     expect((completeResponse.body.data as RideRecord).status).toBe("COMPLETED");
+    expect(testState.bookings[0]?.status).toBe("COMPLETED");
+    expect(notifyRideStatusMock).toHaveBeenLastCalledWith(createdRide.id, {
+      rideId: createdRide.id,
+      bookingId: "",
+      status: "finished",
+    });
   });
 
   it("rejects illegal status transitions", async () => {
