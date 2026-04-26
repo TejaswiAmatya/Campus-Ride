@@ -39,6 +39,11 @@ type MeResponse = {
   accountStatus: 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED'
   suspendedUntil: string | null
   avatarPath: string | null
+  academicRole: 'STUDENT' | 'STAFF' | null
+  academicVerificationStatus: 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED'
+  academicIdPath: string | null
+  academicVerifiedAt: string | null
+  academicRejectionReason: string | null
   driverStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | null
   createdAt: string
 }
@@ -103,6 +108,11 @@ describeLiveIntegration('Users/Auth integration', () => {
     expect(meBody.email).toBe(email)
     expect(meBody.accountStatus).toBe('ACTIVE')
     expect(meBody.suspendedUntil).toBeNull()
+    expect(meBody.academicRole).toBeNull()
+    expect(meBody.academicVerificationStatus).toBe('NOT_SUBMITTED')
+    expect(meBody.academicIdPath).toBeNull()
+    expect(meBody.academicVerifiedAt).toBeNull()
+    expect(meBody.academicRejectionReason).toBeNull()
     expect(meBody.driverStatus).toBeNull()
   })
 
