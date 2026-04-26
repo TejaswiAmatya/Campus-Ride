@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 import { ReportsTable } from "./ReportsTable";
-import { useReports, useUpdateReportStatus } from "./useReports";
+import { useReports, useUpdateReportAction } from "./useReports";
 
 export function ReportsPage() {
   const {
@@ -15,16 +15,16 @@ export function ReportsPage() {
     refetch,
     isFetching,
   } = useReports();
-  const updateReportStatusMutation = useUpdateReportStatus();
+  const updateReportActionMutation = useUpdateReportAction();
 
   const errorMessage =
     error instanceof Error ? error.message : "Unable to load reports.";
   const updateErrorMessage =
-    updateReportStatusMutation.error instanceof Error
-      ? updateReportStatusMutation.error.message
-      : "Unable to update the report status.";
-  const activeReportId = updateReportStatusMutation.isPending
-    ? updateReportStatusMutation.variables?.id ?? null
+    updateReportActionMutation.error instanceof Error
+      ? updateReportActionMutation.error.message
+      : "Unable to apply the moderation action.";
+  const activeReportId = updateReportActionMutation.isPending
+    ? updateReportActionMutation.variables?.id ?? null
     : null;
 
   return (
@@ -45,7 +45,7 @@ export function ReportsPage() {
         </Button>
       </div>
 
-      {updateReportStatusMutation.isError ? (
+      {updateReportActionMutation.isError ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {updateErrorMessage}
         </div>
@@ -87,9 +87,18 @@ export function ReportsPage() {
         <ReportsTable
           reports={reports}
           activeReportId={activeReportId}
-          onUpdateStatus={(id, status) =>
-            updateReportStatusMutation.mutate({ id, status })
-          }
+          onUpdateAction={(report, action) => {
+            if (!report.targetUserId) {
+              return;
+            }
+
+            updateReportActionMutation.mutate({
+              id: report.id,
+              targetUserId: report.targetUserId,
+              action,
+              reason: report.reason,
+            });
+          }}
         />
       )}
     </div>
