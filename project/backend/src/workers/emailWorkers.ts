@@ -158,6 +158,41 @@ export function startEmailWorker(): Worker {
           to: email,
           ...built,
         });
+      } else if (job.name === "moderationAction") {
+        const {
+          userId,
+          email,
+          userName,
+          actionType,
+          reason,
+          note,
+          suspendedUntil,
+        } = job.data as {
+          userId: string;
+          email: string;
+          userName: string;
+          actionType: "WARNING" | "SUSPENSION" | "BAN";
+          reason: string;
+          note?: string;
+          suspendedUntil?: string | null;
+        };
+        console.log(
+          `[emailWorker] moderationAction email → ${email} for user ${userId}`,
+        );
+        const built = buildEmail({
+          type: "moderation-action",
+          to: email,
+          userName,
+          actionType,
+          reason,
+          note,
+          suspendedUntil,
+        });
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM,
+          to: email,
+          ...built,
+        });
       } else {
         console.warn(`[emailWorker] unknown job type: ${job.name}`);
       }

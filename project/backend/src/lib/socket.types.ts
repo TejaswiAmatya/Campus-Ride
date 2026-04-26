@@ -55,3 +55,11 @@ export interface RideUpdatePayload {
   changedFields: string[]; // list of fields that were updated, e.g. ["pickupLocation", "departureTime"]
   updateMessage?: string;
 }
+
+export interface ModerationActionPayload {
+  actionType: "WARNING" | "SUSPENSION" | "BAN";
+  reason: string;
+  note?: string;
+  suspendedUntil?: string | null;
+  updatedAt: string;
+}

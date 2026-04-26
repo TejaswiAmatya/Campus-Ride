@@ -74,7 +74,28 @@ async function driverRejected(
   reason?: string,
 ) {
   console.log("[emailQueue] driverRejected queued", { driverId, email });
-  await enqueue("driverRejected", { driverId, email, name });
+  await enqueue("driverRejected", { driverId, email, name, reason });
+}
+
+async function moderationAction(
+  userId: string,
+  email: string,
+  userName: string,
+  actionType: "WARNING" | "SUSPENSION" | "BAN",
+  reason: string,
+  note?: string,
+  suspendedUntil?: string | null,
+) {
+  console.log("[emailQueue] moderationAction queued", { userId, actionType });
+  await enqueue("moderationAction", {
+    userId,
+    email,
+    userName,
+    actionType,
+    reason,
+    note,
+    suspendedUntil,
+  });
 }
 // 4. Export as one clean object
 export const emailQueue = {
@@ -85,4 +106,5 @@ export const emailQueue = {
   rideUpdated,
   driverApproved,
   driverRejected,
+  moderationAction,
 };

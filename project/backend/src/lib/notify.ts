@@ -1,6 +1,7 @@
 import {
   notifyBookingNew,
   notifyBookingStatus,
+  notifyModerationAction,
   notifyRideStatus,
   notifyRideUpdate,
 } from "./socket";
@@ -8,6 +9,7 @@ import {
 import type {
   BookingNewPayload,
   BookingStatusPayload,
+  ModerationActionPayload,
   RideStatusPayload,
   RideUpdatePayload,
 } from "./socket.types";
@@ -42,9 +44,16 @@ async function rideUpdate(rideId: string, update: RideUpdatePayload) {
   notifyRideUpdate(rideId, update);
 }
 
+async function moderationAction(userId: string, payload: ModerationActionPayload) {
+  console.log("[notify] moderationAction", { userId, payload });
+
+  notifyModerationAction(userId, payload);
+}
+
 export const notify = {
   bookingNew,
   bookingStatus,
+  moderationAction,
   rideStatus,
   rideUpdate,
 };
