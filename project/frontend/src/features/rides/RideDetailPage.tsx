@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { LeaveReviewSection } from "@/components/LeaveReviewSection";
 import {
   ArrowRight,
   Clock,
@@ -14,9 +19,12 @@ import {
   UserRoundX,
   Users,
 } from "lucide-react";
+
+import { api } from "@/api/client";
+import { LeaveReviewSection } from "@/components/LeaveReviewSection";
 import { MapView } from "@/components/MapView";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   useBookings,
   useMarkBookingNoShow,
@@ -27,7 +35,7 @@ import {
   useDriverRideReviewPassengers,
   useUserReviews,
 } from "@/hooks/useProfile";
-import { api } from "@/api/client";
+
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
 import {
   useDriverLocation,
@@ -43,25 +51,6 @@ import {
   type RoutePreview,
 } from "./routing";
 
-const rideStatusLabels: Record<Ride["status"], string> = {
-  OPEN: "Scheduled",
-  FULL: "Scheduled",
-  IN_PROGRESS: "In Progress",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-};
-
-const rideStatusVariants: Record<
-  Ride["status"],
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  OPEN: "secondary",
-  FULL: "secondary",
-  IN_PROGRESS: "default",
-  COMPLETED: "outline",
-  CANCELLED: "destructive",
-};
-
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: ride, isLoading, isError } = useRide(id);
@@ -75,13 +64,18 @@ export function RideDetailPage() {
   const [routePreview, setRoutePreview] = useState<RoutePreview | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<
+    string[]
+  >([]);
+  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<
+    string[]
+  >([]);
+
   const driverLocation = useDriverLocation(
     ride?.status === "IN_PROGRESS" ? ride.id : undefined,
   );
   const { data: driverReviews = [] } = useUserReviews(ride?.driver.id);
-  const { data: driverBookings = [] } = useBookings({
-    asDriver: true,
-  });
+  const { data: driverBookings = [] } = useBookings({ asDriver: true });
   const { data: myBookings = [] } = useQuery({
     queryKey: ["bookings", "ride-detail-review-check"],
     queryFn: async () => {
@@ -102,22 +96,17 @@ export function RideDetailPage() {
       user?.id === ride?.driver.id ? user?.id : undefined,
       ride?.status,
     );
+
   const isDriverViewingOwnActiveRide =
     !!user &&
     !!ride &&
     user.id === ride.driver.id &&
     ride.status === "IN_PROGRESS";
   const { isSharingLocation } = useDriverLocationEmitter(
-    isDriverViewingOwnActiveRide ? ride?.id : undefined,
+    isDriverViewingOwnActiveRide ? ride.id : undefined,
   );
   const markBookingPickedUp = useMarkBookingPickedUp();
   const markBookingNoShow = useMarkBookingNoShow();
-  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<
-    string[]
-  >([]);
-  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<
-    string[]
-  >([]);
 
   useEffect(() => {
     if (!ride) {
@@ -214,6 +203,7 @@ export function RideDetailPage() {
       (review) => review.rideId === ride.id && review.reviewer.id === user.id,
     );
   }, [driverReviews, ride, user]);
+
   const activeRideBookings = useMemo(
     () =>
       driverBookings.filter(
@@ -235,7 +225,7 @@ export function RideDetailPage() {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <p className="animate-pulse text-muted-foreground">
-          Loading ride details…
+          Loading ride details...
         </p>
       </div>
     );
@@ -270,11 +260,9 @@ export function RideDetailPage() {
     user.id === ride.driver.id &&
     pendingDriverReviewPassengers.length > 0;
 
-  const handleReportSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
+  const handleReportSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!ride || !selectedUserId) {
+    if (!selectedUserId) {
       return;
     }
 
@@ -302,7 +290,7 @@ export function RideDetailPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">
-          {ride.originAddress} → {ride.destinationAddress}
+          {ride.originAddress} to {ride.destinationAddress}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={rideStatusVariants[ride.status]}>
@@ -311,7 +299,7 @@ export function RideDetailPage() {
           <p className="text-sm text-muted-foreground">
             Driver: {ride.driver.name}
             {ride.driver.vehicle
-              ? ` • ${ride.driver.vehicle.colour} ${ride.driver.vehicle.make} ${ride.driver.vehicle.model}`
+              ? ` - ${ride.driver.vehicle.colour} ${ride.driver.vehicle.make} ${ride.driver.vehicle.model}`
               : ""}
           </p>
           {isSharingLocation && (
@@ -692,7 +680,7 @@ export function RideDetailPage() {
                 value={selectedUserId}
                 onChange={(event) => setSelectedUserId(event.target.value)}
               >
-                <option value="">Choose a rider…</option>
+                <option value="">Choose a rider...</option>
                 {reportableMembers.map((member) => (
                   <option key={member.id} value={member.id}>
                     {member.id === ride.driver.id
@@ -731,7 +719,7 @@ export function RideDetailPage() {
               type="submit"
               disabled={!canSubmitReport || reportableMembers.length === 0}
             >
-              {isSubmitting ? "Submitting…" : "Submit report"}
+              {isSubmitting ? "Submitting..." : "Submit report"}
             </Button>
           </form>
         )}
@@ -745,7 +733,7 @@ function RouteMeta({
   label,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 }) {

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Car, Star } from "lucide-react";
 import { api } from "@/api/client";
+import { AccountStatusBanner } from "@/components/AccountStatusBanner";
 import { UserProfileCard } from "@/components/UserProfileCard";
 import { useProfile } from "@/hooks/useProfile";
 
@@ -33,6 +34,10 @@ export function ProfilePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <h1 className="text-2xl font-bold">Your Profile</h1>
+      <AccountStatusBanner
+        accountStatus={user.accountStatus}
+        suspendedUntil={user.suspendedUntil}
+      />
 
       {/* Profile card */}
       <UserProfileCard
