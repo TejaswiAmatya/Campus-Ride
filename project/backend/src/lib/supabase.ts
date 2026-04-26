@@ -102,31 +102,68 @@ function buildPrivateDocumentPath(
   return `${folder}/${userId}/${timestamp}-${safeFilename}`
 }
 
-export async function uploadLicense(
+async function uploadPrivateDocument(
+  folder: 'licences' | 'insurance' | 'academic-ids',
   userId: string,
   buffer: Buffer,
   filetype: string,
   filename: string,
-) : Promise<string> {
-  const path = buildPrivateDocumentPath('licences', userId, filename)
+  errorLabel: string,
+): Promise<string> {
+  const path = buildPrivateDocumentPath(folder, userId, filename)
 
-  // Upload the file to Supabase Storage
-  const { error } = await getSupabaseAdminClient().storage.from(PRIVATE_DOCUMENTS_BUCKET).upload(path, buffer, {
-    contentType: filetype,
-    upsert: true,
-  })
+  const { error } = await getSupabaseAdminClient()
+    .storage
+    .from(PRIVATE_DOCUMENTS_BUCKET)
+    .upload(path, buffer, {
+      contentType: filetype,
+      upsert: true,
+    })
 
   if (error) {
-    console.error('Supabase license upload failed:', {
+    console.error(`Supabase ${errorLabel} upload failed:`, {
       message: error.message,
       name: error.name,
       userId,
       path,
       filetype,
     })
-    throw new AppError('UPLOAD_FAILED', 'Failed to upload license', 500)
+    throw new AppError('UPLOAD_FAILED', `Failed to upload ${errorLabel}`, 500)
   }
+
   return path
+}
+
+export async function uploadLicense(
+  userId: string,
+  buffer: Buffer,
+  filetype: string,
+  filename: string,
+) : Promise<string> {
+  return uploadPrivateDocument(
+    'licences',
+    userId,
+    buffer,
+    filetype,
+    filename,
+    'license',
+  )
+}
+
+export async function uploadInsurance(
+  userId: string,
+  buffer: Buffer,
+  filetype: string,
+  filename: string,
+): Promise<string> {
+  return uploadPrivateDocument(
+    'insurance',
+    userId,
+    buffer,
+    filetype,
+    filename,
+    'insurance',
+  )
 }
 
 export async function createSignedLicenseUrl(path: string): Promise<string> {
@@ -152,28 +189,14 @@ export async function uploadAcademicId(
   filetype: string,
   filename: string,
 ): Promise<string> {
-  const path = buildPrivateDocumentPath('academic-ids', userId, filename)
-
-  const { error } = await getSupabaseAdminClient()
-    .storage
-    .from(PRIVATE_DOCUMENTS_BUCKET)
-    .upload(path, buffer, {
-      contentType: filetype,
-      upsert: true,
-    })
-
-  if (error) {
-    console.error('Supabase academic ID upload failed:', {
-      message: error.message,
-      name: error.name,
-      userId,
-      path,
-      filetype,
-    })
-    throw new AppError('UPLOAD_FAILED', 'Failed to upload academic ID', 500)
-  }
-
-  return path
+  return uploadPrivateDocument(
+    'academic-ids',
+    userId,
+    buffer,
+    filetype,
+    filename,
+    'academic ID',
+  )
 }
 
 export async function uploadAvatar(
