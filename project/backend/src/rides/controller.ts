@@ -1052,13 +1052,14 @@ export async function cancelRide(
       });
 
     if (cancelledBookings.length > 0) {
-      const updatedAt = new Date().toISOString();
+      const updatedAt = new Date();
       await Promise.all(
         cancelledBookings.map((booking) =>
           notify.bookingStatus(booking.passengerId, {
             bookingId: booking.id,
-            status: "cancelled",
-            updatedAt,
+            rideId: id,
+            status: "CANCELLED",
+            updatedAt: updatedAt.toISOString(),
           }),
         ),
       );

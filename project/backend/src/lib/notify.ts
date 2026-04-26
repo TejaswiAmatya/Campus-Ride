@@ -14,7 +14,7 @@ import type {
 
 async function bookingNew(
   driverId: string,
-  booking: Pick<BookingNewPayload, "bookingId" | "passengerId" | "rideId">,
+  booking: BookingNewPayload,
 ) {
   console.log("[notify] bookingNew", { driverId, booking });
 
