@@ -14,6 +14,7 @@ services:
     volumes:
       - ./backend/src:/app/src
       - ./backend/prisma:/app/prisma
+    command: sh -c "npx prisma migrate deploy && npm run dev"
     networks:
       - campus-ride
     depends_on:
