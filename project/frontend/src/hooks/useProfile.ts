@@ -13,6 +13,7 @@ export interface ProfileUser {
   email: string;
   name: string;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
+  mustChangePassword: boolean;
   accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
   suspendedUntil: string | null;
   driverStatus?: "PENDING" | "APPROVED" | "REJECTED" | null;
@@ -30,6 +31,7 @@ interface MeApiResponse {
   email: string;
   name: string;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
+  mustChangePassword: boolean;
   accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
   suspendedUntil: string | null;
   avatarPath: string | null;
@@ -45,6 +47,7 @@ const normalizeProfileUser = (payload: ProfileUser | MeApiResponse): ProfileUser
     email: payload.email,
     name: payload.name,
     role: payload.role,
+    mustChangePassword: payload.mustChangePassword,
     accountStatus: payload.accountStatus,
     suspendedUntil: payload.suspendedUntil,
     avatarPath: payload.avatarPath ?? undefined,
