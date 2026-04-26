@@ -307,9 +307,9 @@ export function RideDetailPage() {
       {isDriverViewingOwnActiveRide && (
         <section className="rounded-lg border p-5">
           <div className="space-y-1">
-            <p className="text-sm font-semibold">Passenger handling</p>
+            <p className="text-sm font-semibold">Passengers</p>
             <p className="text-xs text-muted-foreground">
-              Mark each confirmed passenger as picked up or no-show while this ride is active.
+              Mark confirmed passengers as picked up or no-show while this ride is active.
             </p>
           </div>
 

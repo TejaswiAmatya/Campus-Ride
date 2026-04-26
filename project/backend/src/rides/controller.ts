@@ -495,7 +495,8 @@ export async function updateRideStatus(
         409,
       );
     }
-    if (body.status === "ACTIVE" && ride.bookings.length === 0) {
+    const confirmedBookings = ride.bookings ?? [];
+    if (body.status === "ACTIVE" && confirmedBookings.length === 0) {
       throw new AppError(
         "NO_CONFIRMED_PASSENGERS",
         "Cannot start a ride without at least one confirmed passenger",
@@ -503,20 +504,46 @@ export async function updateRideStatus(
       );
     }
 
-    const updatedRide = await prisma.ride.update({
-      where: { id },
-      data: { status: mapRequestedRideStatus(body.status) },
-      include: {
-        driver: {
-          select: {
-            id: true,
-            name: true,
-            avatarPath: true,
-            driverProfile: { select: { vehicleInfo: true } },
-          },
-        },
-      },
-    });
+    const updatedRide =
+      body.status === "COMPLETED"
+        ? await prisma.$transaction(async (tx) => {
+            await tx.booking.updateMany({
+              where: {
+                rideId: id,
+                status: "CONFIRMED",
+              },
+              data: { status: "COMPLETED" },
+            });
+
+            return tx.ride.update({
+              where: { id },
+              data: { status: mapRequestedRideStatus(body.status) },
+              include: {
+                driver: {
+                  select: {
+                    id: true,
+                    name: true,
+                    avatarPath: true,
+                    driverProfile: { select: { vehicleInfo: true } },
+                  },
+                },
+              },
+            });
+          })
+        : await prisma.ride.update({
+            where: { id },
+            data: { status: mapRequestedRideStatus(body.status) },
+            include: {
+              driver: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatarPath: true,
+                  driverProfile: { select: { vehicleInfo: true } },
+                },
+              },
+            },
+          });
 
     if (body.status === "ACTIVE") {
       try {

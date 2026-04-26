@@ -100,6 +100,8 @@ function MyRideCard({
   const { isSharingLocation } = useDriverLocationEmitter(ride.status === 'IN_PROGRESS' ? ride.id : undefined)
   const canCancelRide = ride.status === 'OPEN' || ride.status === 'FULL'
   const canManagePassengers = ride.status === 'IN_PROGRESS' && confirmedBookings.length > 0
+  const showRequestsToggle = ride.status !== 'IN_PROGRESS'
+  const showExpandedSection = ride.status === 'IN_PROGRESS' ? true : isExpanded
 
   return (
     <div className="rounded-xl border p-4 shadow-sm">
@@ -144,10 +146,12 @@ function MyRideCard({
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          <Button variant="outline" onClick={onToggleExpanded}>
-            {isExpanded ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
-            {isExpanded ? 'Hide Requests' : 'View Requests'}
-          </Button>
+          {showRequestsToggle && (
+            <Button variant="outline" onClick={onToggleExpanded}>
+              {isExpanded ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
+              {isExpanded ? 'Hide Requests' : 'View Requests'}
+            </Button>
+          )}
           {actions.map((status) => (
             <Button key={status} variant={actionVariant(status)} disabled={isUpdatingStatus} onClick={() => onUpdateStatus(status)}>
               {actionLabel(status)}
@@ -161,15 +165,13 @@ function MyRideCard({
         </div>
       </div>
 
-      {isExpanded && (
+      {showExpandedSection && (
         <div className="mt-4 rounded-lg border bg-muted/20">
           <div className="border-b px-4 py-3">
-            <h2 className="text-sm font-semibold">
-              {canManagePassengers ? 'Passenger handling' : 'Booking Requests'}
-            </h2>
+            <h2 className="text-sm font-semibold">{canManagePassengers ? 'Passengers' : 'Booking Requests'}</h2>
             {canManagePassengers && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Mark each confirmed passenger as picked up or no-show while the ride is active.
+                Mark confirmed passengers as picked up or no-show while the ride is active.
               </p>
             )}
           </div>
