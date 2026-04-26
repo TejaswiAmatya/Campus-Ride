@@ -2,12 +2,14 @@ import {
   notifyBookingNew,
   notifyBookingStatus,
   notifyRideStatus,
+  notifyRideUpdate,
 } from "./socket";
 
 import type {
   BookingNewPayload,
   BookingStatusPayload,
   RideStatusPayload,
+  RideUpdatePayload,
 } from "./socket.types";
 
 async function bookingNew(
@@ -34,8 +36,15 @@ async function rideStatus(rideId: string, status: RideStatusPayload) {
   notifyRideStatus(rideId, status);
 }
 
+async function rideUpdate(rideId: string, update: RideUpdatePayload) {
+  console.log("[notify] rideUpdate", { rideId, update });
+
+  notifyRideUpdate(rideId, update);
+}
+
 export const notify = {
   bookingNew,
   bookingStatus,
   rideStatus,
+  rideUpdate,
 };

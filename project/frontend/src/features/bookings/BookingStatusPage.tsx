@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, useParams } from "react-router-dom";
 import {
   CalendarCheck,
   CheckCircle2,
@@ -10,52 +10,51 @@ import {
   Timer,
   UserRound,
   Wallet,
-} from 'lucide-react'
+} from "lucide-react";
 
-import { MapView } from '@/components/MapView'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MapView } from "@/components/MapView";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { useBooking, useBookingRealtime, useCancelBooking } from './hooks'
-import { StatusBadge } from './StatusBadge'
+import { useBooking, useCancelBooking } from "./hooks";
+import { StatusBadge } from "./StatusBadge";
 
 function formatCountdown(target: string, now: number) {
-  const diff = new Date(target).getTime() - now
+  const diff = new Date(target).getTime() - now;
 
   if (diff <= 0) {
-    return 'Departing now'
+    return "Departing now";
   }
 
-  const totalMinutes = Math.floor(diff / 60_000)
-  const days = Math.floor(totalMinutes / (24 * 60))
-  const hours = Math.floor((totalMinutes % (24 * 60)) / 60)
-  const minutes = totalMinutes % 60
+  const totalMinutes = Math.floor(diff / 60_000);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
 
   if (days > 0) {
-    return `${days}d ${hours}h ${minutes}m`
+    return `${days}d ${hours}h ${minutes}m`;
   }
 
   if (hours > 0) {
-    return `${hours}h ${minutes}m`
+    return `${hours}h ${minutes}m`;
   }
 
-  return `${minutes}m`
+  return `${minutes}m`;
 }
 
 export function BookingStatusPage() {
-  useBookingRealtime()
-  const { id } = useParams<{ id: string }>()
-  const { data: booking, isLoading, isError } = useBooking(id)
-  const cancelMutation = useCancelBooking()
-  const [now, setNow] = useState(() => Date.now())
+  const { id } = useParams<{ id: string }>();
+  const { data: booking, isLoading, isError } = useBooking(id);
+  const cancelMutation = useCancelBooking();
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setNow(Date.now())
-    }, 30_000)
+      setNow(Date.now());
+    }, 30_000);
 
-    return () => window.clearInterval(timer)
-  }, [])
+    return () => window.clearInterval(timer);
+  }, []);
 
   if (isLoading) {
     return (
@@ -101,13 +100,13 @@ export function BookingStatusPage() {
   const refund = booking.refund ?? {
     amount: booking.refundedAmount,
     remainingCharged: String(
-      Number(booking.totalFare) - Number(booking.refundedAmount ?? '0'),
+      Number(booking.totalFare) - Number(booking.refundedAmount ?? "0"),
     ),
-  }
+  };
 
   const isUpcomingConfirmed =
-    booking.status === 'CONFIRMED' &&
-    new Date(booking.ride.departureTime).getTime() > now
+    booking.status === "CONFIRMED" &&
+    new Date(booking.ride.departureTime).getTime() > now;
 
   const statusMessage =
     booking.status === "CONFIRMED"
@@ -124,7 +123,10 @@ export function BookingStatusPage() {
         <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
-              <StatusBadge status={booking.status} className="rounded-full px-3 py-1" />
+              <StatusBadge
+                status={booking.status}
+                className="rounded-full px-3 py-1"
+              />
               {isUpcomingConfirmed && (
                 <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
                   Upcoming ride
@@ -239,12 +241,12 @@ export function BookingStatusPage() {
                 {
                   position: [pickup.lat, pickup.lng],
                   label: `Pickup: ${pickup.address}`,
-                  type: 'origin',
+                  type: "origin",
                 },
                 {
                   position: [dropoff.lat, dropoff.lng],
                   label: `Dropoff: ${dropoff.address}`,
-                  type: 'destination',
+                  type: "destination",
                 },
               ]}
             />
@@ -283,11 +285,14 @@ export function BookingStatusPage() {
                   {booking.ride.driver.name}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Open the driver profile if you need to double-check ride details before departure.
+                  Open the driver profile if you need to double-check ride
+                  details before departure.
                 </p>
                 <div className="mt-3">
                   <Button asChild size="sm" variant="outline">
-                    <Link to={`/profile/${booking.ride.driver.id}`}>View driver profile</Link>
+                    <Link to={`/profile/${booking.ride.driver.id}`}>
+                      View driver profile
+                    </Link>
                   </Button>
                 </div>
               </div>
@@ -310,19 +315,19 @@ export function BookingStatusPage() {
                   Cancellation refund policy
                 </p>
                 <p className="mt-2 text-muted-foreground">
-                  Full refund if cancelled more than{' '}
+                  Full refund if cancelled more than{" "}
                   {cancellation.rules.fullRefundBeforeHours} hours before
                   departure, {cancellation.rules.partialRefundPercent}% refund
-                  if cancelled within that final window, and{' '}
+                  if cancelled within that final window, and{" "}
                   {cancellation.rules.noShowRefundPercent}% refund for no-shows.
                 </p>
                 {cancellation.policyApplied && (
                   <p className="mt-2 font-medium text-foreground">
-                    Applied policy:{' '}
-                    {cancellation.policyApplied.replace('_', ' ')}
+                    Applied policy:{" "}
+                    {cancellation.policyApplied.replace("_", " ")}
                   </p>
                 )}
-                {booking.status === 'CANCELLED' && (
+                {booking.status === "CANCELLED" && (
                   <p className="mt-2 text-muted-foreground">
                     Refunded: {refund.amount} NOK
                   </p>
@@ -339,7 +344,7 @@ export function BookingStatusPage() {
                 disabled={cancelMutation.isPending}
                 onClick={() => cancelMutation.mutate(booking.id)}
               >
-                {cancelMutation.isPending ? 'Cancelling...' : 'Quick cancel'}
+                {cancelMutation.isPending ? "Cancelling..." : "Quick cancel"}
               </Button>
             )}
             <Button asChild variant="outline">

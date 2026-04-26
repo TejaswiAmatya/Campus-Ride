@@ -12,7 +12,10 @@ import type {
   BookingStatusPayload,
   BookingLocation,
 } from "./types";
-import type { RideStatusPayload } from "@/features/rides/types";
+import type {
+  RideStatusPayload,
+  RideStatusUpdatePayload,
+} from "@/features/rides/types";
 
 export function useBookingRealtime() {
   const queryClient = useQueryClient();
@@ -223,10 +226,34 @@ export function useBookingRealtime() {
       });
     }
 
+    function handleRideUpdated(payload: RideStatusUpdatePayload) {
+      void queryClient.invalidateQueries({ queryKey: ["rides"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["rides", "detail", payload.rideId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["rides", "mine"] });
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+
+      const eventKey = `${payload.rideId}:${payload.updatedAt}`;
+      if (seenRideEventsRef.current.has(eventKey)) {
+        return;
+      }
+      seenRideEventsRef.current.add(eventKey);
+
+      showToast({
+        id: `ride-updated:${eventKey}`,
+        tone: "default",
+        title: "Ride details updated",
+        description: payload.updateMessage ?? "Your driver updated this ride.",
+      });
+    }
+
     socket.on("ride:status", handleRideStatus);
+    socket.on("ride:updated", handleRideUpdated);
 
     return () => {
       socket.off("ride:status", handleRideStatus);
+      socket.off("ride:updated", handleRideUpdated);
     };
   }, [isConnected, queryClient, showToast, socket, user]);
 }
@@ -255,24 +282,24 @@ export function useBookings(params?: {
 }
 
 export function useUpcomingPassengerBookings() {
-  const bookingsQuery = useBookings()
+  const bookingsQuery = useBookings();
 
   return {
     ...bookingsQuery,
     data: (bookingsQuery.data ?? [])
       .filter((booking) => {
-        if (booking.status !== 'CONFIRMED') {
-          return false
+        if (booking.status !== "CONFIRMED") {
+          return false;
         }
 
-        return new Date(booking.ride.departureTime).getTime() > Date.now()
+        return new Date(booking.ride.departureTime).getTime() > Date.now();
       })
       .sort(
         (left, right) =>
           new Date(left.ride.departureTime).getTime() -
           new Date(right.ride.departureTime).getTime(),
       ),
-  }
+  };
 }
 
 export function useBooking(id: string | undefined) {
