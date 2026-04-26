@@ -166,18 +166,18 @@ export async function uploadInsurance(
   )
 }
 
-export async function createSignedLicenseUrl(path: string): Promise<string> {
+export async function createSignedPrivateDocumentUrl(path: string): Promise<string> {
   const { data, error } = await supabaseAdmin.storage
     .from(PRIVATE_DOCUMENTS_BUCKET)
     .createSignedUrl(path, 60 * 60)
 
   if (error || !data?.signedUrl) {
-    console.error('Supabase signed license URL creation failed:', {
+    console.error('Supabase signed private document URL creation failed:', {
       message: error?.message,
       name: error?.name,
       path,
     })
-    throw new AppError('UPLOAD_FAILED', 'Failed to access license', 500)
+    throw new AppError('UPLOAD_FAILED', 'Failed to access document', 500)
   }
 
   return data.signedUrl
