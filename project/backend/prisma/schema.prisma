@@ -79,15 +79,16 @@ model User {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  driverProfile            DriverProfile?
-  ridesAsDriver            Ride[]              @relation("DriverRides")
-  rideSeries              RideSeries[]        @relation("DriverRideSeries")
-  bookings                Booking[]           @relation("PassengerBookings")
-  reviewsGiven            Review[]            @relation("ReviewsGiven")
-  reviewsReceived         Review[]            @relation("ReviewsReceived")
-  reports                 Report[]            @relation("FiledReports")
-  moderationActionsGiven  ModerationAction[]  @relation("AdminModerationActions")
-  moderationActionsTaken  ModerationAction[]  @relation("TargetModerationActions")
+  driverProfile          DriverProfile?
+  ridesAsDriver          Ride[]             @relation("DriverRides")
+  rideSeries             RideSeries[]       @relation("DriverRideSeries")
+  bookings               Booking[]          @relation("PassengerBookings")
+  reviewsGiven           Review[]           @relation("ReviewsGiven")
+  reviewsReceived        Review[]           @relation("ReviewsReceived")
+  reports                Report[]           @relation("FiledReports")
+  moderationActionsGiven ModerationAction[] @relation("AdminModerationActions")
+  moderationActionsTaken ModerationAction[] @relation("TargetModerationActions")
+  mustChangePassword     Boolean            @default(false)
 }
 
 model DriverProfile {
@@ -171,14 +172,14 @@ model Booking {
 }
 
 model RideStop {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   rideId     String
-  address   String
-  lat       Float
-  lng       Float
+  address    String
+  lat        Float
+  lng        Float
   orderIndex Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   ride Ride @relation(fields: [rideId], references: [id], onDelete: Cascade)
 
@@ -187,28 +188,28 @@ model RideStop {
 }
 
 model RideSeries {
-  id                String                @id @default(cuid())
-  driverId          String
-  originAddress     String
-  originLat         Float
-  originLng         Float
-  destinationAddress String
-  destinationLat    Float
-  destinationLng    Float
-  departureTimeLocal String
-  recurrencePattern RideRecurrencePattern @default(WEEKLY)
-  recurrenceDays    Int[]                 @default([])
-  startDate         DateTime
-  endDate           DateTime?
-  totalSeats        Int
-  pricePerSeat      Decimal               @db.Decimal(10, 2)
-  detourFlexibilityKm Float               @default(0)
-  preferences       String[]              @default([])
-  routePolyline     String?
-  routeDistanceKm   Float?
+  id                   String                @id @default(cuid())
+  driverId             String
+  originAddress        String
+  originLat            Float
+  originLng            Float
+  destinationAddress   String
+  destinationLat       Float
+  destinationLng       Float
+  departureTimeLocal   String
+  recurrencePattern    RideRecurrencePattern @default(WEEKLY)
+  recurrenceDays       Int[]                 @default([])
+  startDate            DateTime
+  endDate              DateTime?
+  totalSeats           Int
+  pricePerSeat         Decimal               @db.Decimal(10, 2)
+  detourFlexibilityKm  Float                 @default(0)
+  preferences          String[]              @default([])
+  routePolyline        String?
+  routeDistanceKm      Float?
   routeDurationMinutes Int?
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   driver User   @relation("DriverRideSeries", fields: [driverId], references: [id], onDelete: Cascade)
   rides  Ride[]
@@ -223,9 +224,9 @@ model Review {
   comment    String?
   createdAt  DateTime @default(now())
 
-  ride     Ride    @relation(fields: [rideId], references: [id])
-  reviewer User    @relation("ReviewsGiven", fields: [reviewerId], references: [id])
-  reviewee User    @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+  ride     Ride @relation(fields: [rideId], references: [id])
+  reviewer User @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewee User @relation("ReviewsReceived", fields: [revieweeId], references: [id])
 
   @@unique([rideId, reviewerId, revieweeId])
   @@index([revieweeId, createdAt])
@@ -264,7 +265,7 @@ model Report {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  reporter User @relation("FiledReports", fields: [reporterId], references: [id])
+  reporter          User               @relation("FiledReports", fields: [reporterId], references: [id])
   moderationActions ModerationAction[]
 }
 
@@ -280,9 +281,9 @@ model ModerationAction {
   revokedAt    DateTime?
   createdAt    DateTime             @default(now())
 
-  admin      User   @relation("AdminModerationActions", fields: [adminId], references: [id], onDelete: Restrict)
-  targetUser User   @relation("TargetModerationActions", fields: [targetUserId], references: [id], onDelete: Cascade)
-  report      Report? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  admin      User    @relation("AdminModerationActions", fields: [adminId], references: [id], onDelete: Restrict)
+  targetUser User    @relation("TargetModerationActions", fields: [targetUserId], references: [id], onDelete: Cascade)
+  report     Report? @relation(fields: [reportId], references: [id], onDelete: SetNull)
 
   @@index([targetUserId, createdAt])
   @@index([adminId, createdAt])
