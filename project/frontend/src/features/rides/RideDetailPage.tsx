@@ -27,6 +27,8 @@ import {
   formatRouteDuration,
   type RoutePreview,
 } from "./routing";
+import { useQuery } from "@tanstack/react-query";
+import { LeaveReviewSection } from "@/components/LeaveReviewSection";
 
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -102,7 +104,9 @@ export function RideDetailPage() {
 
         setRoutePreview(null);
         setRouteError(
-          error instanceof Error ? error.message : "Unable to load route preview.",
+          error instanceof Error
+            ? error.message
+            : "Unable to load route preview.",
         );
       })
       .finally(() => {
@@ -144,8 +148,7 @@ export function RideDetailPage() {
     }
 
     return driverReviews.some(
-      (review) =>
-        review.rideId === ride.id && review.reviewer.id === user.id,
+      (review) => review.rideId === ride.id && review.reviewer.id === user.id,
     );
   }, [driverReviews, ride, user]);
 
@@ -264,12 +267,24 @@ export function RideDetailPage() {
           <RouteMeta
             icon={<Map className="h-4 w-4" />}
             label="Distance"
-            value={routePreview ? formatRouteDistance(routePreview.distanceMeters) : isLoadingRoute ? "Loading..." : "Unavailable"}
+            value={
+              routePreview
+                ? formatRouteDistance(routePreview.distanceMeters)
+                : isLoadingRoute
+                  ? "Loading..."
+                  : "Unavailable"
+            }
           />
           <RouteMeta
             icon={<Timer className="h-4 w-4" />}
             label="Drive time"
-            value={routePreview ? formatRouteDuration(routePreview.durationSeconds) : isLoadingRoute ? "Loading..." : "Unavailable"}
+            value={
+              routePreview
+                ? formatRouteDuration(routePreview.durationSeconds)
+                : isLoadingRoute
+                  ? "Loading..."
+                  : "Unavailable"
+            }
           />
           <div className="rounded-xl border bg-white px-3 py-3 text-sm text-slate-600">
             {routeError
@@ -325,9 +340,13 @@ export function RideDetailPage() {
                 Reserve your seat
               </div>
               <div>
-                <h2 className="text-lg font-semibold">Book this ride in a couple of taps</h2>
+                <h2 className="text-lg font-semibold">
+                  Book this ride in a couple of taps
+                </h2>
                 <p className="text-sm text-muted-foreground">
-                  {ride.availableSeats} seat{ride.availableSeats === 1 ? "" : "s"} left at {ride.pricePerSeat} NOK each.
+                  {ride.availableSeats} seat
+                  {ride.availableSeats === 1 ? "" : "s"} left at{" "}
+                  {ride.pricePerSeat} NOK each.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
@@ -341,7 +360,11 @@ export function RideDetailPage() {
                 </span>
               </div>
             </div>
-            <Button asChild size="lg" className="min-w-[180px] justify-center text-base">
+            <Button
+              asChild
+              size="lg"
+              className="min-w-[180px] justify-center text-base"
+            >
               <Link to={`/rides/${ride.id}/book`}>
                 Book Ride
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -412,7 +435,8 @@ export function RideDetailPage() {
               Review your passengers
             </h2>
             <p className="text-sm text-slate-600">
-              Leave one short review for each confirmed passenger from this completed ride.
+              Leave one short review for each confirmed passenger from this
+              completed ride.
             </p>
           </div>
 
