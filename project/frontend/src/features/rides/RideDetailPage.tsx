@@ -293,9 +293,6 @@ export function RideDetailPage() {
           {ride.originAddress} to {ride.destinationAddress}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={rideStatusVariants[ride.status]}>
-            {rideStatusLabels[ride.status]}
-          </Badge>
           <p className="text-sm text-muted-foreground">
             Driver: {ride.driver.name}
             {ride.driver.vehicle
