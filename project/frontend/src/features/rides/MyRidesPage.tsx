@@ -13,7 +13,30 @@ import {
   UserCheck,
   UserRoundX,
   Users,
-} from "lucide-react";
+} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { useAuth } from '@/hooks/useAuth'
+import { useCreateReview, useConfirmBooking, useDeclineBooking } from '@/features/bookings/hooks'
+import { EditRideForm } from './components/EditRideForm'
+import { useCancelRide, useDriverLocationEmitter, useFinishRide, useMyRides, useStartRide, useUpdateRide } from './hooks'
+import type { Ride, RideBooking, RideStatusUpdate } from './types'
+
+const statusLabels: Record<Ride['status'], string> = {
+  OPEN: 'Scheduled',
+  FULL: 'Full',
+  IN_PROGRESS: 'On the road',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+}
+
+const statusVariants: Record<Ride['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  OPEN: 'secondary',
+  FULL: 'secondary',
+  IN_PROGRESS: 'default',
+  COMPLETED: 'outline',
+  CANCELLED: 'destructive',
+}
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -99,37 +122,20 @@ function actionVariant(
 }
 
 export function MyRidesPage() {
-  const { user } = useAuth();
-  const { data: rides, isLoading } = useMyRides();
-  const updateRideStatus = useUpdateRideStatus();
-  const updateRide = useUpdateRide();
-  const cancelRide = useCancelRide();
-  const confirmBooking = useConfirmBooking();
-  const declineBooking = useDeclineBooking();
-  const createReview = useCreateReview();
-  const markBookingPickedUp = useMarkBookingPickedUp();
-  const markBookingNoShow = useMarkBookingNoShow();
+  const { user } = useAuth()
+  const { data: rides, isLoading } = useMyRides()
+  const startRide = useStartRide()
+  const finishRide = useFinishRide()
+  const updateRide = useUpdateRide()
+  const cancelRide = useCancelRide()
+  const confirmBooking = useConfirmBooking()
+  const declineBooking = useDeclineBooking()
+  const createReview = useCreateReview()
+  const [expandedRideId, setExpandedRideId] = useState<string | null>(null)
+  const [rideToCancel, setRideToCancel] = useState<Ride | null>(null)
+  const [rideToEdit, setRideToEdit] = useState<Ride | null>(null)
 
-  const [expandedRideId, setExpandedRideId] = useState<string | null>(null);
-  const [rideToCancel, setRideToCancel] = useState<Ride | null>(null);
-  const [rideToEdit, setRideToEdit] = useState<Ride | null>(null);
-  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<
-    string[]
-  >([]);
-  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<
-    string[]
-  >([]);
-
-  const pickedUpSet = useMemo(
-    () => new Set(locallyPickedUpBookingIds),
-    [locallyPickedUpBookingIds],
-  );
-  const noShowSet = useMemo(
-    () => new Set(locallyNoShowBookingIds),
-    [locallyNoShowBookingIds],
-  );
-
-  if (!user || user.role !== "DRIVER") {
+  if (!user || user.role !== 'DRIVER') {
     return (
       <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
         This page is only available to drivers.
@@ -222,33 +228,22 @@ export function MyRidesPage() {
               key={ride.id}
               ride={ride}
               isExpanded={expandedRideId === ride.id}
-              isUpdatingStatus={updateRideStatus.isPending}
-              isCancellingRide={
-                cancelRide.isPending && rideToCancel?.id === ride.id
-              }
+              isUpdatingStatus={startRide.isPending || finishRide.isPending}
+              isCancellingRide={cancelRide.isPending && rideToCancel?.id === ride.id}
               isConfirming={confirmBooking.isPending}
               isDeclining={declineBooking.isPending}
               isReviewing={createReview.isPending}
-              locallyPickedUpBookingIds={pickedUpSet}
-              locallyNoShowBookingIds={noShowSet}
-              pickupPendingBookingId={
-                markBookingPickedUp.isPending
-                  ? (markBookingPickedUp.variables ?? null)
-                  : null
-              }
-              noShowPendingBookingId={
-                markBookingNoShow.isPending
-                  ? (markBookingNoShow.variables ?? null)
-                  : null
-              }
-              onToggleExpanded={() =>
-                setExpandedRideId((current) =>
-                  current === ride.id ? null : ride.id,
-                )
-              }
-              onUpdateStatus={(status) =>
-                updateRideStatus.mutate({ rideId: ride.id, status })
-              }
+              onToggleExpanded={() => setExpandedRideId((current) => (current === ride.id ? null : ride.id))}
+              onUpdateStatus={(status) => {
+                if (status === 'ACTIVE') {
+                  startRide.mutate(ride.id)
+                  return
+                }
+
+                if (status === 'COMPLETED') {
+                  finishRide.mutate(ride.id)
+                }
+              }}
               onRequestCancel={() => setRideToCancel(ride)}
               onRequestEdit={() => setRideToEdit(ride)}
               onConfirmBooking={(bookingId) => confirmBooking.mutate(bookingId)}

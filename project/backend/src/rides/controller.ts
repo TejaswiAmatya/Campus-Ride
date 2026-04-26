@@ -536,6 +536,21 @@ export async function startRide(
       },
     });
 
+    try {
+      await emailQueue.rideStarted(updated.id);
+    } catch (queueErr) {
+      console.error("[rides/start] rideStarted queue failed", {
+        rideId: updated.id,
+        error: queueErr,
+      });
+    }
+
+    await notify.rideStatus(id, {
+      rideId: id,
+      bookingId: "",
+      status: "in_progress",
+    });
+
     res.json({
       data: serializeRideList(updated),
       meta: {
@@ -879,7 +894,7 @@ export async function cancelRide(
       throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
     }
 
-    const { ride, notifiedPassengerIds } = await prisma.$transaction(
+    const { ride, cancelledBookings, cancellationStrikeApplied } = await prisma.$transaction(
       async (tx) => {
         const ride = await tx.ride.findUnique({
           where: { id },
@@ -938,6 +953,15 @@ export async function cancelRide(
             },
             data: { status: "CANCELLED" },
           });
+
+          await tx.driverProfile.updateMany({
+            where: { userId },
+            data: {
+              cancellationStrikes: {
+                increment: 1,
+              },
+            },
+          });
         }
 
         if (pendingBookings.length > 0) {
@@ -973,26 +997,43 @@ export async function cancelRide(
 
         return {
           ride: updatedRide,
-          notifiedPassengerIds: confirmedBookings.map(
-            (booking) => booking.passengerId,
+          cancelledBookings: [...confirmedBookings, ...pendingBookings].map(
+            (booking) => ({
+              id: booking.id,
+              passengerId: booking.passengerId,
+            }),
           ),
+          cancellationStrikeApplied: confirmedBookings.length > 0,
         };
       },
     );
 
-    if (notifiedPassengerIds.length > 0) {
-      try {
-        await notify.rideStatus(id, {
-          rideId: id,
-          bookingId: "",
-          status: "cancelled",
-        });
-      } catch (err) {
-        console.warn("[socket] notifyRideStatus failed", err);
-      }
+    if (cancelledBookings.length > 0) {
+      const updatedAt = new Date().toISOString();
+      await Promise.all(
+        cancelledBookings.map((booking) =>
+          notify.bookingStatus(booking.passengerId, {
+            bookingId: booking.id,
+            status: "cancelled",
+            updatedAt,
+          }),
+        ),
+      );
+
+      await notify.rideStatus(id, {
+        rideId: id,
+        bookingId: "",
+        status: "cancelled",
+      });
     }
 
-    res.json({ data: serializeRideList(ride) });
+    res.json({
+      data: serializeRideList(ride),
+      meta: {
+        cancellationStrikeApplied,
+        affectedPassengers: cancelledBookings.length,
+      },
+    });
   } catch (err) {
     next(err);
   }

@@ -152,6 +152,12 @@ export interface SearchRidesParams {
   dest?: string;
   date?: string;
   seats?: number;
+  pickup?: string;
+  dropoff?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  dropoffLat?: number;
+  dropoffLng?: number;
   originLat?: number;
   originLng?: number;
   destLat?: number;
@@ -160,7 +166,10 @@ export interface SearchRidesParams {
   minPrice?: number;
   maxPrice?: number;
   minRating?: number;
-  sortBy?: "departureTime" | "price" | "rating";
+  preferences?: string[];
+  earliestDepartureTime?: string;
+  latestDepartureTime?: string;
+  sortBy?: "bestMatch" | "departureTime" | "price" | "rating";
 }
 
 export type RideStatusUpdate = "ACTIVE" | "COMPLETED" | "CANCELLED";

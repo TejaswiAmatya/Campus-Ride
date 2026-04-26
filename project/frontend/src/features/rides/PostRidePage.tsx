@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import { Car, LocateFixed, Map, Repeat, Route, Timer } from 'lucide-react'
 import { extractApiError } from '@/api/client'
 import { MapView } from '@/components/MapView'
@@ -14,6 +15,7 @@ import {
   fetchRoutePreview,
   formatRouteDistance,
   formatRouteDuration,
+  serializeRouteGeometry,
   type RoutePreview,
 } from './routing'
 import type { RideRecurrencePattern } from './types'
@@ -61,6 +63,7 @@ export function PostRidePage() {
   })
   const [mapSelectionTarget, setMapSelectionTarget] = useState<'origin' | 'destination' | null>(null)
   const [mapError, setMapError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [routePreview, setRoutePreview] = useState<RoutePreview | null>(null)
   const [routeError, setRouteError] = useState<string | null>(null)
   const [isLoadingRoute, setIsLoadingRoute] = useState(false)
@@ -91,6 +94,7 @@ export function PostRidePage() {
       lng: null,
     })
     setRoutePreview(null)
+    setSubmitError(null)
   }
 
   const handleSuggestionSelect = (segment: 'origin' | 'destination', suggestion: GeocodingSuggestion) => {
@@ -204,6 +208,7 @@ export function PostRidePage() {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
+    setSubmitError(null)
 
     if (
       form.origin.lat === null ||
@@ -217,6 +222,12 @@ export function PostRidePage() {
 
     if (form.offerType === 'RECURRING' && form.recurrencePattern === 'SPECIFIC_DAYS' && form.recurrenceDays.length === 0) {
       setMapError('Choose at least one weekday for a recurring ride.')
+      return
+    }
+
+    const parsedDepartureTime = new Date(form.departureTime)
+    if (Number.isNaN(parsedDepartureTime.getTime())) {
+      setMapError('Choose a valid departure time before posting the ride.')
       return
     }
 
@@ -241,7 +252,7 @@ export function PostRidePage() {
         })),
         totalSeats: parseInt(form.totalSeats, 10),
         pricePerSeat: parseFloat(form.pricePerSeat),
-        departureTime: new Date(form.departureTime).toISOString(),
+        departureTime: parsedDepartureTime.toISOString(),
         detourFlexibilityKm: parseFloat(form.detourFlexibilityKm || '0'),
         preferences: form.preferences,
         recurrencePattern: form.offerType === 'RECURRING' ? form.recurrencePattern : 'NONE',
@@ -250,13 +261,23 @@ export function PostRidePage() {
           form.offerType === 'RECURRING' && form.recurrenceEndDate
             ? new Date(form.recurrenceEndDate).toISOString()
             : null,
-        routePolyline: routePreview ? JSON.stringify(routePreview.geometry) : null,
+        routePolyline: routePreview ? serializeRouteGeometry(routePreview.geometry) : null,
         routeDistanceKm: routePreview ? Number((routePreview.distanceMeters / 1000).toFixed(2)) : null,
         routeDurationMinutes: routePreview ? Math.round(routePreview.durationSeconds / 60) : null,
       },
       {
         onSuccess: (ride) => {
           navigate(`/rides/${ride.id}`)
+        },
+        onError: (error) => {
+          if (axios.isAxiosError<{ error?: { message?: string } }>(error)) {
+            setSubmitError(
+              error.response?.data?.error?.message ?? 'Failed to post ride. Please check your details and try again.',
+            )
+            return
+          }
+
+          setSubmitError('Failed to post ride. Please check your details and try again.')
         },
       },
     )
@@ -440,8 +461,9 @@ export function PostRidePage() {
           onChange={(preferences) => setForm((prev) => ({ ...prev, preferences }))}
         />
 
-        {(postRide.isError || mapError) && (
+        {(postRide.isError || mapError || submitError) && (
           <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {mapError ?? submitError ?? 'Failed to post ride. Please check your details and try again.'}
             {mapError ?? postRideError ?? 'Failed to post ride. Please check your details and try again.'}
           </p>
         )}
