@@ -57,6 +57,11 @@ async function rideStarted(rideId: string) {
   await enqueue("rideStarted", { rideId });
 }
 
+async function rideUpdated(rideId: string, updateMessage?: string) {
+  console.log("[emailQueue] rideUpdated queued", { rideId });
+  await enqueue("rideUpdated", { rideId, updateMessage });
+}
+
 async function driverApproved(driverId: string, email: string, name: string) {
   console.log("[emailQueue] driverApproved queued", { driverId, email });
   await enqueue("driverApproved", { driverId, email, name });
@@ -77,6 +82,7 @@ export const emailQueue = {
   bookingConfirmed,
   bookingCancelled,
   rideStarted,
+  rideUpdated,
   driverApproved,
   driverRejected,
 };

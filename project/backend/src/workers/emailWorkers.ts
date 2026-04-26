@@ -94,6 +94,39 @@ export function startEmailWorker(): Worker {
             }),
           );
         }
+      } else if (job.name === "rideUpdated") {
+        const { rideId, updateMessage } = job.data as {
+          rideId: string;
+          updateMessage?: string;
+        };
+        console.log(`[emailWorker] rideUpdated email → rideId: ${rideId}`);
+        const bookings = await prisma.booking.findMany({
+          where: { rideId, status: "CONFIRMED" },
+          include: { passenger: true, ride: { include: { driver: true } } },
+        });
+        if (bookings.length === 0) {
+          console.log(`[emailWorker] no confirmed bookings for ride ${rideId}`);
+        } else {
+          await Promise.all(
+            bookings.map(async (booking) => {
+              const built = buildEmail({
+                type: "ride-updated",
+                to: booking.passenger.email,
+                passengerName: booking.passenger.name,
+                rideDate: new Date(booking.ride.departureTime).toLocaleString(),
+                driverName: booking.ride.driver.name,
+                originAddress: booking.ride.originAddress,
+                destinationAddress: booking.ride.destinationAddress,
+                updateMessage,
+              });
+              await transporter.sendMail({
+                from: process.env.SMTP_FROM,
+                to: booking.passenger.email,
+                ...built,
+              });
+            }),
+          );
+        }
       } else if (job.name === "driverRejected") {
         const { driverId, email, name, reason } = job.data;
         console.log(
