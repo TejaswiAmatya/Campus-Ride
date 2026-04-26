@@ -2,6 +2,7 @@ import {
   notifyBookingNew,
   notifyBookingStatus,
   notifyRideStatus,
+  getIO,
 } from "./socket";
 
 import type {
