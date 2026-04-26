@@ -6,6 +6,7 @@ import {
   useCancelBooking,
   useCreateReview,
   usePassengerBookingStatusListener,
+  useBookingRealtime,
 } from "./hooks";
 import {
   CalendarCheck,
@@ -28,15 +29,10 @@ function formatMoney(value: string | undefined) {
 }
 
 export function BookingStatusPage() {
+  useBookingRealtime();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { data: booking, isLoading, isError } = useBooking(id);
-  usePassengerBookingStatusListener(true);
-  useRideStatusListener({
-    rideId: booking?.ride.id,
-    bookingId: booking?.id,
-    enabled: true,
-  });
   const cancelMutation = useCancelBooking();
   const reviewMutation = useCreateReview();
   const [rating, setRating] = useState(5);
@@ -67,14 +63,28 @@ export function BookingStatusPage() {
 
   const canCancel =
     booking.status === "PENDING" || booking.status === "CONFIRMED";
-  const isDriverViewing = user?.id === booking.ride.driver.id;
-  const reviewerLabel = isDriverViewing
-    ? "Rate this passenger"
-    : "Rate your driver";
-  const reviewTarget = isDriverViewing
-    ? booking.passenger.name
-    : booking.ride.driver.name;
-  const canReview = booking.status === "COMPLETED" && !booking.review;
+  const pickup = booking.pickup ?? {
+    address: booking.ride.originAddress,
+    lat: booking.ride.originLat,
+    lng: booking.ride.originLng,
+  };
+  const dropoff = booking.dropoff ?? {
+    address: booking.ride.destinationAddress,
+    lat: booking.ride.destinationLat,
+    lng: booking.ride.destinationLng,
+  };
+  const payment = booking.payment ?? {
+    status: booking.paymentStatus,
+    paidAt: booking.paidAt ?? null,
+    refundedAt: booking.refundedAt ?? null,
+  };
+  const cancellation = booking.cancellation;
+  const refund = booking.refund ?? {
+    amount: booking.refundedAmount,
+    remainingCharged: String(
+      Number(booking.totalFare) - Number(booking.refundedAmount ?? "0"),
+    ),
+  };
 
   const statusMessage =
     booking.status === "CONFIRMED"
@@ -232,105 +242,98 @@ export function BookingStatusPage() {
             <CardHeader>
               <CardTitle className="text-lg">Current status</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-slate-600">
-              <p>
-                Payment status:{" "}
-                <span className="font-medium text-slate-900">
-                  {booking.paymentStatus}
-                </span>
-              </p>
-              <p>
-                Ride state:{" "}
-                <span className="font-medium text-slate-900">
-                  {booking.ride.status.replace("_", " ")}
-                </span>
-              </p>
-              <p>
-                Last updated:{" "}
-                <span className="font-medium text-slate-900">
-                  {new Date(booking.updatedAt).toLocaleString("en-GB")}
-                </span>
-              </p>
-            </CardContent>
-          </Card>
-
-          {canReview && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle className="text-lg">{reviewerLabel}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-slate-600">
-                  Share quick feedback for {reviewTarget} now that the trip is
-                  complete.
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Payment status
                 </p>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setRating(value)}
-                      className="rounded-full border p-2 transition hover:bg-amber-50"
-                    >
-                      <Star
-                        className={
-                          value <= rating
-                            ? "h-5 w-5 fill-amber-400 text-amber-400"
-                            : "h-5 w-5 text-slate-300"
-                        }
-                      />
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  value={comment}
-                  onChange={(event) => setComment(event.target.value)}
-                  rows={4}
-                  placeholder="Optional feedback"
-                  className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-                <Button
-                  disabled={reviewMutation.isPending}
-                  onClick={() =>
-                    reviewMutation.mutate({
-                      bookingId: booking.id,
-                      rating,
-                      comment: comment.trim() || undefined,
-                    })
-                  }
-                >
-                  {reviewMutation.isPending ? "Saving..." : "Submit rating"}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {booking.review && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle className="text-lg">Rating submitted</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex gap-1">
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <Star
-                      key={index}
-                      className={
-                        index < booking.review!.rating
-                          ? "h-4 w-4 fill-amber-400 text-amber-400"
-                          : "h-4 w-4 text-slate-300"
-                      }
-                    />
-                  ))}
-                </div>
-                {booking.review.comment && (
-                  <p className="text-sm text-slate-600">
-                    {booking.review.comment}
+                <p className="mt-1 text-sm font-semibold">{payment.status}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {payment.paidAt
+                    ? `Captured at ${new Date(payment.paidAt).toLocaleString()}`
+                    : "No capture timestamp available."}
+                </p>
+                {payment.refundedAt && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Refunded at {new Date(payment.refundedAt).toLocaleString()}
                   </p>
                 )}
-              </CardContent>
-            </Card>
-          )}
+              </div>
+
+              {canReview && (
+                <Card className="rounded-2xl">
+                  <CardHeader>
+                    <CardTitle className="text-lg">{reviewerLabel}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-slate-600">
+                      Share quick feedback for {reviewTarget} now that the trip
+                      is complete.
+                    </p>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setRating(value)}
+                          className="rounded-full border p-2 transition hover:bg-amber-50"
+                        >
+                          <Star
+                            className={
+                              value <= rating
+                                ? "h-5 w-5 fill-amber-400 text-amber-400"
+                                : "h-5 w-5 text-slate-300"
+                            }
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={comment}
+                      onChange={(event) => setComment(event.target.value)}
+                      rows={4}
+                      placeholder="Optional feedback"
+                      className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                    <Button
+                      disabled={reviewMutation.isPending}
+                      onClick={() =>
+                        reviewMutation.mutate({
+                          bookingId: booking.id,
+                          rating,
+                          comment: comment.trim() || undefined,
+                        })
+                      }
+                    >
+                      {reviewMutation.isPending ? "Saving..." : "Submit rating"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+                <p className="flex items-center gap-2 font-medium text-foreground">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  Cancellation refund policy
+                </p>
+                <p className="mt-2 text-muted-foreground">
+                  Full refund if cancelled more than{" "}
+                  {cancellation.rules.fullRefundBeforeHours} hours before
+                  departure,
+                  {` ${cancellation.rules.partialRefundPercent}%`} refund if
+                  cancelled after {cancellation.rules.fullRefundBeforeHours}{" "}
+                  hours, and {cancellation.rules.noShowRefundPercent}% refund
+                  for no-shows.
+                </p>
+                {cancellation.policyApplied && (
+                  <p className="mt-2 font-medium text-foreground">
+                    Applied policy:{" "}
+                    {cancellation.policyApplied.replace("_", " ")}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="flex flex-wrap gap-2">
             {canCancel && (

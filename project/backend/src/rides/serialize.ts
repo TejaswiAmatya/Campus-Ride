@@ -32,6 +32,14 @@ export type RideBookingApi = {
   } | null
 }
 
+export type RideStopApi = {
+  id?: string
+  address: string
+  lat: number
+  lng: number
+  orderIndex: number
+}
+
 type DriverRow = {
   id: string
   name: string
@@ -98,6 +106,7 @@ function toDecimalString(value: Prisma.Decimal | string | number | null | undefi
 
 export function serializeRideList(ride: {
   id: string
+  rideSeriesId?: string | null
   originAddress: string
   originLat: number
   originLng: number
@@ -108,11 +117,27 @@ export function serializeRideList(ride: {
   availableSeats: number
   totalSeats: number
   pricePerSeat: Prisma.Decimal
+  detourFlexibilityKm?: number
+  preferences?: string[]
+  routePolyline?: string | null
+  routeDistanceKm?: number | null
+  routeDurationMinutes?: number | null
+  recurrencePattern?: string
+  recurrenceDays?: number[]
+  recurrenceInstanceAt?: Date | null
   status: string
   driver: DriverRow
+  stops?: Array<{
+    id?: string
+    address: string
+    lat: number
+    lng: number
+    orderIndex: number
+  }>
 }) {
   return {
     id: ride.id,
+    rideSeriesId: ride.rideSeriesId ?? null,
     originAddress: ride.originAddress,
     originLat: ride.originLat,
     originLng: ride.originLng,
@@ -123,6 +148,26 @@ export function serializeRideList(ride: {
     availableSeats: ride.availableSeats,
     totalSeats: ride.totalSeats,
     pricePerSeat: ride.pricePerSeat.toString(),
+    detourFlexibilityKm: ride.detourFlexibilityKm ?? 0,
+    preferences: ride.preferences ?? [],
+    routePolyline: ride.routePolyline ?? null,
+    routeDistanceKm: ride.routeDistanceKm ?? null,
+    routeDurationMinutes: ride.routeDurationMinutes ?? null,
+    recurrencePattern: ride.recurrencePattern ?? 'NONE',
+    recurrenceDays: ride.recurrenceDays ?? [],
+    recurrenceInstanceAt: ride.recurrenceInstanceAt?.toISOString() ?? null,
+    offerType:
+      ride.rideSeriesId ||
+      (ride.recurrencePattern && ride.recurrencePattern !== 'NONE')
+        ? 'RECURRING'
+        : 'ONE_TIME',
+    stops: (Array.isArray(ride.stops) ? ride.stops : []).map((stop) => ({
+      id: stop.id,
+      address: stop.address,
+      lat: stop.lat,
+      lng: stop.lng,
+      orderIndex: stop.orderIndex,
+    })),
     status: ride.status,
     driver: mapDriverForApi(ride.driver),
   }
@@ -142,6 +187,22 @@ export function serializeMyRide(ride: {
   pricePerSeat: Prisma.Decimal
   status: string
   driver: DriverRow
+  rideSeriesId?: string | null
+  detourFlexibilityKm?: number
+  preferences?: string[]
+  routePolyline?: string | null
+  routeDistanceKm?: number | null
+  routeDurationMinutes?: number | null
+  recurrencePattern?: string
+  recurrenceDays?: number[]
+  recurrenceInstanceAt?: Date | null
+  stops?: Array<{
+    id?: string
+    address: string
+    lat: number
+    lng: number
+    orderIndex: number
+  }>
   bookings: Array<{
     id: string
     seatsBooked: number
@@ -149,12 +210,14 @@ export function serializeMyRide(ride: {
     totalFare: Prisma.Decimal
     driverEarnings: Prisma.Decimal
     passenger: PassengerRow
-    review: {
-      id: string
-      rating: number
-      comment: string | null
-      createdAt: Date
-    } | null
+  }>
+  reviews?: Array<{
+    id: string
+    reviewerId: string
+    revieweeId: string
+    rating: number
+    comment: string | null
+    createdAt: Date
   }>
   _count?: {
     bookings: number
@@ -175,22 +238,30 @@ export function serializeMyRide(ride: {
 
   return {
     ...serializeRideList(ride),
-    bookings: ride.bookings.map((booking) => ({
-      id: booking.id,
-      seatsBooked: booking.seatsBooked,
-      status: booking.status,
-      totalFare: toDecimalString(booking.totalFare),
-      driverEarnings: toDecimalString(booking.driverEarnings),
-      passenger: mapPassengerForApi(booking.passenger),
-      review: booking.review
-        ? {
-            id: booking.review.id,
-            rating: booking.review.rating,
-            comment: booking.review.comment,
-            createdAt: booking.review.createdAt.toISOString(),
-          }
-        : null,
-    })),
+    bookings: ride.bookings.map((booking) => {
+      const review = (ride.reviews ?? []).find(
+        (entry) =>
+          entry.reviewerId === ride.driver.id &&
+          entry.revieweeId === booking.passenger.id,
+      )
+
+      return {
+        id: booking.id,
+        seatsBooked: booking.seatsBooked,
+        status: booking.status,
+        totalFare: toDecimalString(booking.totalFare),
+        driverEarnings: toDecimalString(booking.driverEarnings),
+        passenger: mapPassengerForApi(booking.passenger),
+        review: review
+          ? {
+              id: review.id,
+              rating: review.rating,
+              comment: review.comment,
+              createdAt: review.createdAt.toISOString(),
+            }
+          : null,
+      }
+    }),
     _count: ride._count,
     stats: {
       totalPassengers,

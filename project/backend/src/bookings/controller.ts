@@ -14,7 +14,6 @@ import { notify } from "../lib/notify";
 
 const PLATFORM_FEE_PERCENT = 0.1;
 import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
-import { getStartOfWeek } from "../lib/date";
 import { payments } from "../payments/service";
 import { randomUUID } from "crypto";
 
@@ -46,17 +45,7 @@ function sumDecimal(
 //   return start;
 // }
 
-function serializeBookingList(
-  b: Prisma.BookingGetPayload<{
-    include: {
-      ride: { include: { driver: { select: { id: true; name: true } } } };
-      passenger: { select: { id: true; name: true } };
-      review: {
-        select: { id: true; rating: true; comment: true; createdAt: true };
-      };
-    };
-  }>,
-) {
+function serializeBookingList(b: any) {
   return {
     id: b.id,
     status: b.status,
@@ -85,6 +74,8 @@ function serializeBookingList(
         }
       : null,
     messageToDriver: b.messageToDriver ?? null,
+    ...buildPaymentSnapshot(b),
+    cancellation: buildCancellationSnapshot(b),
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
     passenger: b.passenger,
@@ -107,28 +98,7 @@ function serializeBookingList(
   };
 }
 
-function serializeBookingDetail(
-  b: Prisma.BookingGetPayload<{
-    include: {
-      ride: {
-        include: {
-          driver: { select: { id: true; name: true; avatarPath: true } };
-        };
-      };
-      passenger: { select: { id: true; name: true; avatarPath: true } };
-      review: {
-        select: {
-          id: true;
-          rating: true;
-          comment: true;
-          createdAt: true;
-          reviewerId: true;
-          revieweeId: true;
-        };
-      };
-    };
-  }>,
-) {
+function serializeBookingDetail(b: any) {
   return {
     id: b.id,
     status: b.status,
@@ -159,6 +129,7 @@ function serializeBookingDetail(
         }
       : null,
     messageToDriver: b.messageToDriver ?? null,
+    cancellation: buildCancellationSnapshot(b),
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
     passenger: {
@@ -205,6 +176,41 @@ function buildPaymentSnapshot(booking: {
   paidAt?: Date | null;
   refundedAt?: Date | null;
 }) {
+async function findBookingReview(
+  client: typeof prisma,
+  booking: {
+    rideId: string;
+    passengerId: string;
+    ride: { driver: { id: string } };
+  },
+) {
+  return client.review.findFirst({
+    where: {
+      rideId: booking.rideId,
+      OR: [
+        {
+          reviewerId: booking.passengerId,
+          revieweeId: booking.ride.driver.id,
+        },
+        {
+          reviewerId: booking.ride.driver.id,
+          revieweeId: booking.passengerId,
+        },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+function buildPaymentSnapshot(
+  booking: {
+    totalFare: Prisma.Decimal | string | number;
+    refundedAmount?: Prisma.Decimal | string | number | null;
+    paymentStatus: string;
+    paidAt?: Date | null;
+    refundedAt?: Date | null;
+  },
+) {
   const totalFare = new Prisma.Decimal(booking.totalFare?.toString() ?? "0");
   const refundedAmount = new Prisma.Decimal(
     booking.refundedAmount?.toString() ?? "0",
@@ -223,12 +229,45 @@ function buildPaymentSnapshot(booking: {
   };
 }
 
+function buildCancellationSnapshot(booking: {
+  status?: string;
+  totalFare: Prisma.Decimal | string | number;
+  refundedAmount?: Prisma.Decimal | string | number | null;
+  noShowMarkedAt?: Date | null;
+}) {
+  const totalFare = new Prisma.Decimal(booking.totalFare?.toString() ?? "0");
+  const refundedAmount = new Prisma.Decimal(
+    booking.refundedAmount?.toString() ?? "0",
+  );
+
+  let policyApplied: "FREE" | "PARTIAL" | "NO_REFUND" | null = null;
+  if (booking.noShowMarkedAt) {
+    policyApplied = "NO_REFUND";
+  } else if (booking.status === "CANCELLED") {
+    if (refundedAmount.gte(totalFare) && totalFare.gt(0)) {
+      policyApplied = "FREE";
+    } else if (refundedAmount.gt(0)) {
+      policyApplied = "PARTIAL";
+    } else {
+      policyApplied = "NO_REFUND";
+    }
+  }
+
+  return {
+    policyApplied,
+    rules: {
+      fullRefundBeforeHours: 2,
+      partialRefundPercent: 50,
+      noShowRefundPercent: 0,
+    },
+  };
+}
+
 function getCancellationRefundResult(
   departureTime: Date,
   totalFare: Prisma.Decimal,
 ): {
   refundAmount: Prisma.Decimal;
-  paymentStatus: string;
   policyWindow: "FREE" | "PARTIAL" | "NO_REFUND";
 } {
   const now = new Date();
@@ -238,7 +277,6 @@ function getCancellationRefundResult(
   if (millisecondsUntilDeparture > twoHoursInMs) {
     return {
       refundAmount: totalFare,
-      paymentStatus: "REFUNDED",
       policyWindow: "FREE",
     };
   }
@@ -246,14 +284,12 @@ function getCancellationRefundResult(
   if (millisecondsUntilDeparture > 0) {
     return {
       refundAmount: totalFare.mul(0.5),
-      paymentStatus: "PARTIALLY_REFUNDED",
       policyWindow: "PARTIAL",
     };
   }
 
   return {
     refundAmount: new Prisma.Decimal(0),
-    paymentStatus: "PAID",
     policyWindow: "NO_REFUND",
   };
 }
@@ -383,14 +419,6 @@ export async function createBooking(
                   include: { driver: { select: { id: true, name: true } } },
                 },
                 passenger: { select: { id: true, name: true } },
-                review: {
-                  select: {
-                    id: true,
-                    rating: true,
-                    comment: true,
-                    createdAt: true,
-                  },
-                },
               },
             });
 
@@ -419,10 +447,11 @@ export async function createBooking(
         } catch (err) {
           console.warn("[socket] notifyBookingNew failed", err);
         }
+        const review = await findBookingReview(prisma, booking as any);
 
         res.status(201).json({
           data: {
-            ...serializeBookingList(booking),
+            ...serializeBookingList({ ...booking, review }),
             ...buildPaymentSnapshot(booking),
           },
         });
@@ -486,13 +515,16 @@ export async function listBookings(
         include: {
           passenger: { select: { id: true, name: true } },
           ride: { include: { driver: { select: { id: true, name: true } } } },
-          review: {
-            select: { id: true, rating: true, comment: true, createdAt: true },
-          },
         },
         orderBy: { createdAt: "desc" },
       });
-      res.json({ data: bookings.map(serializeBookingList) });
+      const bookingsWithReviews = await Promise.all(
+        bookings.map(async (booking) => ({
+          ...booking,
+          review: await findBookingReview(prisma, booking as any),
+        })),
+      );
+      res.json({ data: bookingsWithReviews.map(serializeBookingList) });
       return;
     }
 
@@ -509,13 +541,16 @@ export async function listBookings(
       include: {
         passenger: { select: { id: true, name: true } },
         ride: { include: { driver: { select: { id: true, name: true } } } },
-        review: {
-          select: { id: true, rating: true, comment: true, createdAt: true },
-        },
       },
       orderBy: { createdAt: "desc" },
     });
-    res.json({ data: bookings.map(serializeBookingList) });
+    const bookingsWithReviews = await Promise.all(
+      bookings.map(async (booking) => ({
+        ...booking,
+        review: await findBookingReview(prisma, booking as any),
+      })),
+    );
+    res.json({ data: bookingsWithReviews.map(serializeBookingList) });
   } catch (err) {
     next(err);
   }
@@ -545,16 +580,6 @@ export async function getBooking(
           },
         },
         passenger: { select: { id: true, name: true, avatarPath: true } },
-        review: {
-          select: {
-            id: true,
-            rating: true,
-            comment: true,
-            createdAt: true,
-            reviewerId: true,
-            revieweeId: true,
-          },
-        },
       },
     });
 
@@ -568,7 +593,8 @@ export async function getBooking(
       throw new AppError("FORBIDDEN", "You cannot view this booking", 403);
     }
 
-    res.json({ data: serializeBookingDetail(booking) });
+    const review = await findBookingReview(prisma, booking as any);
+    res.json({ data: serializeBookingDetail({ ...booking, review }) });
   } catch (err) {
     next(err);
   }
@@ -590,15 +616,7 @@ export async function confirmBooking(
     }
 
     const maxRetries = 3;
-    let updated: Prisma.BookingGetPayload<{
-      include: {
-        ride: { include: { driver: { select: { id: true; name: true } } } };
-        passenger: { select: { id: true; name: true } };
-        review: {
-          select: { id: true; rating: true; comment: true; createdAt: true };
-        };
-      };
-    }> | null = null;
+    let updated: any = null;
 
     for (let attempt = 1; ; attempt += 1) {
       try {
@@ -640,14 +658,6 @@ export async function confirmBooking(
                   include: { driver: { select: { id: true, name: true } } },
                 },
                 passenger: { select: { id: true, name: true } },
-                review: {
-                  select: {
-                    id: true,
-                    rating: true,
-                    comment: true,
-                    createdAt: true,
-                  },
-                },
               },
             });
 
@@ -670,7 +680,7 @@ export async function confirmBooking(
     if (!updated) {
       throw new AppError("INTERNAL_ERROR", "Booking confirmation failed", 500);
     }
-
+updated = { ...updated, review: await findBookingReview(prisma, updated) };
     // TODO: add notifications later
     try {
       await notify.bookingStatus(updated.passengerId, {
@@ -681,6 +691,8 @@ export async function confirmBooking(
     } catch (err) {
       console.warn("[socket] notifyBookingStatus failed", err);
     }
+
+    
 
     try {
       await emailQueue.bookingConfirmed(updated.id);
@@ -715,7 +727,9 @@ export async function declineBooking(
     await prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({
         where: { id },
-        include: { ride: { select: { driverId: true, id: true } } },
+        include: {
+          ride: { select: { driverId: true, id: true } },
+        },
       });
 
       if (!booking) {
@@ -736,9 +750,22 @@ export async function declineBooking(
         );
       }
 
+      const refundCapture = await payments.refund({
+        bookingId: booking.id,
+        providerPaymentId: booking.stripePaymentIntentId,
+        amount: booking.totalFare,
+        reason: "DRIVER_DECLINE",
+      });
+
       await tx.booking.update({
         where: { id },
-        data: { status: "CANCELLED" },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          refundedAmount: booking.totalFare,
+          refundedAt: refundCapture.refundedAt,
+          paymentStatus: refundCapture.status,
+        },
       });
 
       const ride = await tx.ride.findUniqueOrThrow({
@@ -762,11 +789,9 @@ export async function declineBooking(
       include: {
         ride: { include: { driver: { select: { id: true, name: true } } } },
         passenger: { select: { id: true, name: true } },
-        review: {
-          select: { id: true, rating: true, comment: true, createdAt: true },
-        },
       },
     });
+    const review = await findBookingReview(prisma, updated as any);
 
     // TODO: add notifications later
     try {
@@ -779,7 +804,7 @@ export async function declineBooking(
       console.warn("[socket] notifyBookingStatus failed", err);
     }
 
-    res.json({ data: serializeBookingList(updated) });
+    res.json({ data: serializeBookingList({ ...updated, review }) });
   } catch (err) {
     next(err);
   }
@@ -842,6 +867,12 @@ export async function cancelBooking(
         booking.ride.departureTime,
         new Prisma.Decimal(booking.totalFare.toString()),
       );
+      const refundCapture = await payments.refund({
+        bookingId: booking.id,
+        providerPaymentId: booking.stripePaymentIntentId,
+        amount: refundResult.refundAmount,
+        reason: "PASSENGER_CANCELLATION",
+      });
 
       // Update booking status to CANCELLED
       await tx.booking.update({
@@ -850,10 +881,8 @@ export async function cancelBooking(
           status: "CANCELLED",
           cancelledAt: new Date(),
           refundedAmount: refundResult.refundAmount,
-          refundedAt: refundResult.refundAmount.gt(0)
-            ? new Date()
-            : booking.refundedAt,
-          paymentStatus: refundResult.paymentStatus,
+          refundedAt: refundCapture.refundedAt,
+          paymentStatus: refundCapture.status,
           messageToDriver: body.reason ?? booking.messageToDriver,
         } as any,
       });
@@ -877,15 +906,11 @@ export async function cancelBooking(
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
           passenger: { select: { id: true, name: true } },
-          review: {
-            select: { id: true, rating: true, comment: true, createdAt: true },
-          },
         },
       });
 
       return {
         booking: updatedBooking,
-        refundPolicy: refundResult.policyWindow,
       };
     });
 
@@ -898,21 +923,18 @@ export async function cancelBooking(
       });
     }
 
-    await notify.bookingStatus(updated.passenger.id, {
-      bookingId: updated.id,
+    const cancelReview = await findBookingReview(prisma, updated.booking as any);
+
+    await notify.bookingStatus(updated.booking.passenger.id, {
+      bookingId: updated.booking.id,
       status: "cancelled",
       updatedAt: new Date().toISOString(),
     });
 
-    res.json({ data: serializeBookingList(updated) });
     res.json({
       data: {
-        ...serializeBookingList(updated.booking),
+        ...serializeBookingList({ ...updated.booking, review: cancelReview }),
         ...buildPaymentSnapshot(updated.booking),
-        cancellation: {
-          policyApplied: updated.refundPolicy,
-          cutoffHours: 2,
-        },
       },
     });
   } catch (err) {
@@ -1046,6 +1068,13 @@ export async function markBookingNoShow(
         );
       }
 
+      const refundCapture = await payments.refund({
+        bookingId: booking.id,
+        providerPaymentId: booking.stripePaymentIntentId,
+        amount: new Prisma.Decimal(0),
+        reason: "NO_SHOW",
+      });
+
       await tx.booking.update({
         where: { id },
         data: {
@@ -1053,7 +1082,8 @@ export async function markBookingNoShow(
           cancelledAt: new Date(),
           noShowMarkedAt: new Date(),
           refundedAmount: new Prisma.Decimal(0),
-          paymentStatus: "PAID",
+          refundedAt: refundCapture.refundedAt,
+          paymentStatus: refundCapture.status,
         } as any,
       });
 
@@ -1085,10 +1115,6 @@ export async function markBookingNoShow(
       data: {
         ...serializeBookingList(updated),
         ...buildPaymentSnapshot(updated),
-        cancellation: {
-          policyApplied: "NO_REFUND",
-          cutoffHours: 2,
-        },
       },
     });
   } catch (err) {
@@ -1311,12 +1337,11 @@ export async function completeBooking(
         include: {
           ride: { include: { driver: { select: { id: true, name: true } } } },
           passenger: { select: { id: true, name: true } },
-          review: {
-            select: { id: true, rating: true, comment: true, createdAt: true },
-          },
         },
       });
     });
+
+    const completedReview = await findBookingReview(prisma, updated as any);
 
     await notify.bookingStatus(updated.passenger.id, {
       bookingId: updated.id,
@@ -1324,7 +1349,7 @@ export async function completeBooking(
       updatedAt: new Date().toISOString(),
     });
 
-    res.json({ data: serializeBookingList(updated) });
+    res.json({ data: serializeBookingList({ ...updated, review: completedReview }) });
   } catch (err) {
     next(err);
   }
@@ -1357,8 +1382,7 @@ export async function createReview(
       const booking = await tx.booking.findUnique({
         where: { id },
         include: {
-          ride: { select: { driverId: true } },
-          review: true,
+          ride: { select: { id: true, driverId: true } },
         },
       });
 
@@ -1372,7 +1396,20 @@ export async function createReview(
           409,
         );
       }
-      if (booking.review) {
+      const revieweeId =
+        booking.ride.driverId === userId
+          ? booking.passengerId
+          : booking.ride.driverId;
+
+      const existingReview = await tx.review.findFirst({
+        where: {
+          rideId: booking.rideId,
+          reviewerId: userId,
+          revieweeId,
+        },
+      });
+
+      if (existingReview) {
         throw new AppError(
           "INVALID_STATE",
           "A review has already been submitted for this booking",
@@ -1392,9 +1429,9 @@ export async function createReview(
 
       return tx.review.create({
         data: {
-          bookingId: booking.id,
+          rideId: booking.rideId,
           reviewerId: userId,
-          revieweeId: isDriver ? booking.passengerId : booking.ride.driverId,
+          revieweeId,
           rating: body.rating,
           comment: body.comment,
         },
@@ -1404,7 +1441,7 @@ export async function createReview(
     res.status(201).json({
       data: {
         id: review.id,
-        bookingId: review.bookingId,
+        bookingId: id,
         rating: review.rating,
         comment: review.comment,
         reviewerId: review.reviewerId,
