@@ -14,6 +14,19 @@ export const DriverDecisionSchema = z.object({
   }
 });
 
+export const AcademicDecisionSchema = z.object({
+  approved: z.boolean(),
+  reason: z.string().max(500).optional(), // required when approved = false
+}).superRefine((data, ctx) => {
+  if (!data.approved && (!data.reason || data.reason.trim().length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["reason"],
+      message: "Reason is required when rejecting an academic verification",
+    });
+  }
+});
+
 export const UpdateConfigSchema = z.object({
   key: z.enum(ALLOWED_CONFIG_KEYS),
   value: z.string().min(1),
@@ -52,6 +65,7 @@ export const CreateReportSchema = z.object({
 });
 
 export type DriverDecisionInput = z.infer<typeof DriverDecisionSchema>;
+export type AcademicDecisionInput = z.infer<typeof AcademicDecisionSchema>;
 export type UpdateConfigInput = z.infer<typeof UpdateConfigSchema>;
 export type ResolveReportInput = z.infer<typeof ResolveReportSchema>;
 export type CreateReportInput = z.infer<typeof CreateReportSchema>;

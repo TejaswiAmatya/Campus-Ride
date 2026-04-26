@@ -14,6 +14,10 @@ adminRouter.get(
   "/verifications/academic/pending",
   controller.listPendingAcademicVerifications,
 );
+adminRouter.patch(
+  "/verifications/academic/:userId",
+  controller.academicDecision,
+);
 adminRouter.patch("/drivers/:id/decision", controller.driverDecision);
 adminRouter.get("/reports", controller.listReports);
 adminRouter.get("/reports/:id", controller.getReportDetail);
