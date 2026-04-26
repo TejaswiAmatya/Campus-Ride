@@ -24,4 +24,12 @@ usersRouter.post(
   upload.single('document'),
   userController.submitAcademicVerification,
 )
-usersRouter.post('/me/driver', requireAuth, upload.single('licence'), userController.applyAsDriver)
+usersRouter.post(
+  '/me/driver',
+  requireAuth,
+  upload.fields([
+    { name: 'licence', maxCount: 1 },
+    { name: 'insurance', maxCount: 1 },
+  ]),
+  userController.applyAsDriver,
+)
