@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/api/client";
 
-import type { AdminReport, AdminReportStatus } from "./types";
+import type { AdminModerationAction, AdminReport } from "./types";
 
 export const reportsQueryKey = ["admin", "reports"] as const;
 
@@ -16,17 +16,32 @@ export function useReports() {
   });
 }
 
-interface UpdateReportStatusVariables {
+interface UpdateReportActionVariables {
   id: string;
-  status: AdminReportStatus;
+  targetUserId: string;
+  action: AdminModerationAction;
+  reason: string;
 }
 
-export function useUpdateReportStatus() {
+export function useUpdateReportAction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, status }: UpdateReportStatusVariables) =>
-      api.patch(`/api/admin/reports/${id}`, { resolution: status }),
+    mutationFn: ({
+      id,
+      targetUserId,
+      action,
+      reason,
+    }: UpdateReportActionVariables) =>
+      api.post(`/api/admin/users/${targetUserId}/moderation-actions`, {
+        actionType: action,
+        reason,
+        reportId: id,
+        suspendedUntil:
+          action === "SUSPENSION"
+            ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+            : undefined,
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: reportsQueryKey });
       await queryClient.invalidateQueries({ queryKey: ["adminStats"] });

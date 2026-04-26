@@ -11,12 +11,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import type { AdminReport, AdminReportStatus } from "./types";
+import type {
+  AdminModerationAction,
+  AdminReport,
+} from "./types";
 
 interface ReportsTableProps {
   reports: AdminReport[];
   activeReportId: string | null;
-  onUpdateStatus: (id: string, status: AdminReportStatus) => void;
+  onUpdateAction: (report: AdminReport, action: AdminModerationAction) => void;
 }
 
 function getStatusVariant(status: AdminReport["status"]) {
@@ -34,17 +37,17 @@ function getStatusVariant(status: AdminReport["status"]) {
 export function ReportsTable({
   reports,
   activeReportId,
-  onUpdateStatus,
+  onUpdateAction,
 }: ReportsTableProps) {
-  const [draftStatuses, setDraftStatuses] = useState<
-    Record<string, AdminReportStatus>
+  const [draftActions, setDraftActions] = useState<
+    Record<string, AdminModerationAction | "">
   >({});
 
   useEffect(() => {
-    setDraftStatuses(
+    setDraftActions(
       Object.fromEntries(
-        reports.map((report) => [report.id, report.status]),
-      ) as Record<string, AdminReportStatus>,
+        reports.map((report) => [report.id, ""]),
+      ) as Record<string, AdminModerationAction | "">,
     );
   }, [reports]);
 
@@ -71,9 +74,9 @@ export function ReportsTable({
         </TableHeader>
         <TableBody>
           {reports.map((report) => {
-            const selectedStatus = draftStatuses[report.id] ?? report.status;
+            const selectedAction = draftActions[report.id] ?? "";
             const isSaving = activeReportId === report.id;
-            const isUnchanged = selectedStatus === report.status;
+            const isActionSelected = selectedAction !== "";
 
             return (
               <TableRow key={report.id}>
@@ -85,14 +88,19 @@ export function ReportsTable({
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   <div>
-                    {report.targetUserId
-                      ? `User: ${report.targetUserId}`
-                      : "No user target"}
+                    User: {report.targetUserSummary.name ?? "Unknown user"}
                   </div>
                   <div>
-                    {report.targetRideId
-                      ? `Ride: ${report.targetRideId}`
-                      : "No ride target"}
+                    Ride-Count: {report.targetUserSummary.rideCount}
+                  </div>
+                  <div>
+                    Rating:{" "}
+                    {report.targetUserSummary.rating === null
+                      ? "No ratings"
+                      : report.targetUserSummary.rating.toFixed(1)}
+                  </div>
+                  <div>
+                    Report: {report.targetUserSummary.reportCount}
                   </div>
                 </TableCell>
                 <TableCell className="max-w-sm whitespace-normal break-words text-sm">
@@ -114,28 +122,29 @@ export function ReportsTable({
                 <TableCell>
                   <div className="flex min-w-52 items-center gap-2">
                     <select
-                      value={selectedStatus}
+                      value={selectedAction}
                       onChange={(event) =>
-                        setDraftStatuses((current) => ({
+                        setDraftActions((current) => ({
                           ...current,
-                          [report.id]: event.target.value as AdminReportStatus,
+                          [report.id]: event.target.value as AdminModerationAction | "",
                         }))
                       }
                       disabled={isSaving}
-                      aria-label={`Status for report ${report.id}`}
+                      aria-label={`Action for report ${report.id}`}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <option value="OPEN">OPEN</option>
-                      <option value="RESOLVED">RESOLVED</option>
-                      <option value="DISMISSED">DISMISSED</option>
+                      <option value="">Select action</option>
+                      <option value="WARNING">Warning</option>
+                      <option value="BAN">Banned</option>
+                      <option value="SUSPENSION">Suspend (1 week)</option>
                     </select>
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={isSaving || isUnchanged}
-                      onClick={() => onUpdateStatus(report.id, selectedStatus)}
+                      disabled={isSaving || !isActionSelected}
+                      onClick={() => onUpdateAction(report, selectedAction)}
                     >
-                      {isSaving ? "Saving..." : "Save"}
+                      {isSaving ? "Saving..." : "Apply"}
                     </Button>
                   </div>
                 </TableCell>

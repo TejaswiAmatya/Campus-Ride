@@ -249,12 +249,75 @@ export async function listReports(
       orderBy: { createdAt: "desc" },
     });
 
+    const targetUserIds = Array.from(
+      new Set(reports.map((report) => report.targetUserId)),
+    );
+
+    const [targetUsers, targetUserReviews, completedRides, targetUserReports] =
+      await Promise.all([
+        prisma.user.findMany({
+          where: { id: { in: targetUserIds } },
+          select: { id: true, name: true },
+        }),
+        prisma.review.groupBy({
+          by: ["revieweeId"],
+          where: { revieweeId: { in: targetUserIds } },
+          _avg: { rating: true },
+        }),
+        prisma.ride.groupBy({
+          by: ["driverId"],
+          where: {
+            driverId: { in: targetUserIds },
+            status: "COMPLETED",
+          },
+          _count: { _all: true },
+        }),
+        prisma.report.findMany({
+          where: { targetUserId: { in: targetUserIds } },
+          select: { id: true, targetUserId: true, createdAt: true },
+          orderBy: [{ targetUserId: "asc" }, { createdAt: "asc" }],
+        }),
+      ]);
+
+    const targetUserNameById = new Map(
+      targetUsers.map((user) => [user.id, user.name]),
+    );
+    const averageRatingByUserId = new Map(
+      targetUserReviews.map((review) => [
+        review.revieweeId,
+        review._avg.rating ?? null,
+      ]),
+    );
+    const completedRideCountByUserId = new Map(
+      completedRides.map((ride) => [ride.driverId, ride._count._all]),
+    );
+
+    const previousReportCountByReportId = new Map<string, number>();
+    const processedReportCountsByUserId = new Map<string, number>();
+
+    for (const targetReport of targetUserReports) {
+      const previousCount =
+        processedReportCountsByUserId.get(targetReport.targetUserId) ?? 0;
+      previousReportCountByReportId.set(targetReport.id, previousCount);
+      processedReportCountsByUserId.set(
+        targetReport.targetUserId,
+        previousCount + 1,
+      );
+    }
+
     res.json({
       data: reports.map((report) => ({
         id: report.id,
         reporter: report.reporter,
         targetUserId: report.targetUserId,
         targetRideId: report.targetRideId,
+        targetUserSummary: {
+          name: targetUserNameById.get(report.targetUserId) ?? null,
+          rideCount: completedRideCountByUserId.get(report.targetUserId) ?? 0,
+          rating: averageRatingByUserId.get(report.targetUserId) ?? null,
+          reportCount:
+            previousReportCountByReportId.get(report.id) ?? 0,
+        },
         targetUserRole: report.targetUserRole,
         reason: report.reason,
         status: report.status,
@@ -445,6 +508,13 @@ export async function createModerationAction(
           suspendedUntil: true,
         },
       });
+
+      if (body.reportId) {
+        await (tx as any).report.update({
+          where: { id: body.reportId },
+          data: { status: "RESOLVED" },
+        });
+      }
 
       return { action, user };
     });
