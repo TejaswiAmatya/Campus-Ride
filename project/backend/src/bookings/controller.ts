@@ -253,7 +253,7 @@ function buildCancellationSnapshot(booking: {
   };
 }
 
-function getCancellationRefundResult(
+export function getCancellationRefundResult(
   departureTime: Date,
   totalFare: Prisma.Decimal,
 ): {
