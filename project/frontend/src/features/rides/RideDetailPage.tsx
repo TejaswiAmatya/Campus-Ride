@@ -1,27 +1,50 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   Clock,
-  Map,
   MapPin,
+  Map,
   ShieldCheck,
   Ticket,
   Timer,
+  UserCheck,
+  UserRoundX,
   Users,
 } from "lucide-react";
+
+import { api } from "@/api/client";
+import { LeaveReviewSection } from "@/components/LeaveReviewSection";
 import { MapView } from "@/components/MapView";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  useBookings,
+  useMarkBookingNoShow,
+  useMarkBookingPickedUp,
+} from "@/features/bookings/hooks";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useDriverRideReviewPassengers,
   useUserReviews,
 } from "@/hooks/useProfile";
-import { api } from "@/api/client";
+
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
 import { useCancelRide, useDriverLocation, useDriverLocationEmitter, useFinishRide, useRide, useStartRide } from "./hooks";
+import {
+  useDriverLocation,
+  useDriverLocationEmitter,
+  useRide,
+  useRideStatusListener,
+} from "./hooks";
+import type { Ride } from "./types";
 import {
   fetchRoutePreview,
   formatRouteDistance,
@@ -32,6 +55,7 @@ import {
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: ride, isLoading, isError } = useRide(id);
+  useRideStatusListener({ rideId: ride?.id, enabled: true });
   const { user } = useAuth();
   const [showReportForm, setShowReportForm] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -41,6 +65,13 @@ export function RideDetailPage() {
   const [routePreview, setRoutePreview] = useState<RoutePreview | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<
+    string[]
+  >([]);
+  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<
+    string[]
+  >([]);
+
   const driverLocation = useDriverLocation(
     ride?.status === "IN_PROGRESS" ? ride.id : undefined,
   );
@@ -48,6 +79,7 @@ export function RideDetailPage() {
   const finishRide = useFinishRide();
   const cancelRide = useCancelRide();
   const { data: driverReviews = [] } = useUserReviews(ride?.driver.id);
+  const { data: driverBookings = [] } = useBookings({ asDriver: true });
   const { data: myBookings = [] } = useQuery({
     queryKey: ["bookings", "ride-detail-review-check"],
     queryFn: async () => {
@@ -68,6 +100,7 @@ export function RideDetailPage() {
       user?.id === ride?.driver.id ? user?.id : undefined,
       ride?.status,
     );
+
   const isDriverViewingOwnActiveRide =
     !!user &&
     !!ride &&
@@ -79,8 +112,10 @@ export function RideDetailPage() {
     user.id === ride.driver.id &&
     (ride.status === "OPEN" || ride.status === "FULL");
   const { isSharingLocation } = useDriverLocationEmitter(
-    isDriverViewingOwnActiveRide ? ride?.id : undefined,
+    isDriverViewingOwnActiveRide ? ride.id : undefined,
   );
+  const markBookingPickedUp = useMarkBookingPickedUp();
+  const markBookingNoShow = useMarkBookingNoShow();
 
   useEffect(() => {
     if (!ride) {
@@ -92,7 +127,9 @@ export function RideDetailPage() {
 
     if (ride.routePolyline) {
       try {
-        const parsed = JSON.parse(ride.routePolyline) as Array<[number, number]>;
+        const parsed = JSON.parse(ride.routePolyline) as Array<
+          [number, number]
+        >;
         setRoutePreview({
           geometry: parsed,
           distanceMeters: (ride.routeDistanceKm ?? 0) * 1000,
@@ -128,7 +165,9 @@ export function RideDetailPage() {
 
         setRoutePreview(null);
         setRouteError(
-          error instanceof Error ? error.message : "Unable to load route preview.",
+          error instanceof Error
+            ? error.message
+            : "Unable to load route preview.",
         );
       })
       .finally(() => {
@@ -170,16 +209,32 @@ export function RideDetailPage() {
     }
 
     return driverReviews.some(
-      (review) =>
-        review.rideId === ride.id && review.reviewer.id === user.id,
+      (review) => review.rideId === ride.id && review.reviewer.id === user.id,
     );
   }, [driverReviews, ride, user]);
+
+  const activeRideBookings = useMemo(
+    () =>
+      driverBookings.filter(
+        (booking) =>
+          booking.ride.id === ride?.id && booking.status === "CONFIRMED",
+      ),
+    [driverBookings, ride?.id],
+  );
+  const pickedUpSet = useMemo(
+    () => new Set(locallyPickedUpBookingIds),
+    [locallyPickedUpBookingIds],
+  );
+  const noShowSet = useMemo(
+    () => new Set(locallyNoShowBookingIds),
+    [locallyNoShowBookingIds],
+  );
 
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <p className="animate-pulse text-muted-foreground">
-          Loading ride details…
+          Loading ride details...
         </p>
       </div>
     );
@@ -214,11 +269,9 @@ export function RideDetailPage() {
     user.id === ride.driver.id &&
     pendingDriverReviewPassengers.length > 0;
 
-  const handleReportSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
+  const handleReportSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!ride || !selectedUserId) {
+    if (!selectedUserId) {
       return;
     }
 
@@ -246,13 +299,13 @@ export function RideDetailPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">
-          {ride.originAddress} → {ride.destinationAddress}
+          {ride.originAddress} to {ride.destinationAddress}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm text-muted-foreground">
             Driver: {ride.driver.name}
             {ride.driver.vehicle
-              ? ` • ${ride.driver.vehicle.colour} ${ride.driver.vehicle.make} ${ride.driver.vehicle.model}`
+              ? ` - ${ride.driver.vehicle.colour} ${ride.driver.vehicle.make} ${ride.driver.vehicle.model}`
               : ""}
           </p>
           {isSharingLocation && (
@@ -290,12 +343,24 @@ export function RideDetailPage() {
           <RouteMeta
             icon={<Map className="h-4 w-4" />}
             label="Distance"
-            value={routePreview ? formatRouteDistance(routePreview.distanceMeters) : isLoadingRoute ? "Loading..." : "Unavailable"}
+            value={
+              routePreview
+                ? formatRouteDistance(routePreview.distanceMeters)
+                : isLoadingRoute
+                  ? "Loading..."
+                  : "Unavailable"
+            }
           />
           <RouteMeta
             icon={<Timer className="h-4 w-4" />}
             label="Drive time"
-            value={routePreview ? formatRouteDuration(routePreview.durationSeconds) : isLoadingRoute ? "Loading..." : "Unavailable"}
+            value={
+              routePreview
+                ? formatRouteDuration(routePreview.durationSeconds)
+                : isLoadingRoute
+                  ? "Loading..."
+                  : "Unavailable"
+            }
           />
           <div className="rounded-xl border bg-white px-3 py-3 text-sm text-slate-600">
             {routeError
@@ -351,9 +416,13 @@ export function RideDetailPage() {
                 Reserve your seat
               </div>
               <div>
-                <h2 className="text-lg font-semibold">Book this ride in a couple of taps</h2>
+                <h2 className="text-lg font-semibold">
+                  Book this ride in a couple of taps
+                </h2>
                 <p className="text-sm text-muted-foreground">
-                  {ride.availableSeats} seat{ride.availableSeats === 1 ? "" : "s"} left at {ride.pricePerSeat} NOK each.
+                  {ride.availableSeats} seat
+                  {ride.availableSeats === 1 ? "" : "s"} left at{" "}
+                  {ride.pricePerSeat} NOK each.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
@@ -367,7 +436,11 @@ export function RideDetailPage() {
                 </span>
               </div>
             </div>
-            <Button asChild size="lg" className="min-w-[180px] justify-center text-base">
+            <Button
+              asChild
+              size="lg"
+              className="min-w-[180px] justify-center text-base"
+            >
               <Link to={`/rides/${ride.id}/book`}>
                 Book Ride
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -447,6 +520,121 @@ export function RideDetailPage() {
         </div>
       </div>
 
+      {isDriverViewingOwnActiveRide && (
+        <section className="rounded-lg border p-5">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">Passengers</p>
+            <p className="text-xs text-muted-foreground">
+              Mark confirmed passengers as picked up or no-show while this ride
+              is active.
+            </p>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {activeRideBookings.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No confirmed passengers are available to mark for this active
+                ride.
+              </p>
+            ) : (
+              activeRideBookings.map((booking) => {
+                const pickedUpLocally = pickedUpSet.has(booking.id);
+                const noShowLocally = noShowSet.has(booking.id);
+                const canHandleBooking = !pickedUpLocally && !noShowLocally;
+
+                return (
+                  <div
+                    key={booking.id}
+                    className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">
+                        {booking.passenger?.name ?? "Passenger"}
+                      </p>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        <span>{booking.seatsBooked} seat(s)</span>
+                        <span>Status: {booking.status}</span>
+                        {pickedUpLocally && (
+                          <span className="text-emerald-700">Picked up</span>
+                        )}
+                        {noShowLocally && (
+                          <span className="text-destructive">
+                            Marked no-show
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {canHandleBooking ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={
+                            markBookingPickedUp.isPending ||
+                            markBookingNoShow.isPending
+                          }
+                          onClick={() =>
+                            markBookingPickedUp.mutate(booking.id, {
+                              onSuccess: () =>
+                                setLocallyPickedUpBookingIds((current) =>
+                                  current.includes(booking.id)
+                                    ? current
+                                    : [...current, booking.id],
+                                ),
+                            })
+                          }
+                        >
+                          <UserCheck className="mr-2 h-4 w-4" />
+                          {markBookingPickedUp.isPending &&
+                          markBookingPickedUp.variables === booking.id
+                            ? "Saving..."
+                            : "Picked up"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          disabled={
+                            markBookingPickedUp.isPending ||
+                            markBookingNoShow.isPending
+                          }
+                          onClick={() =>
+                            markBookingNoShow.mutate(booking.id, {
+                              onSuccess: () =>
+                                setLocallyNoShowBookingIds((current) =>
+                                  current.includes(booking.id)
+                                    ? current
+                                    : [...current, booking.id],
+                                ),
+                            })
+                          }
+                        >
+                          <UserRoundX className="mr-2 h-4 w-4" />
+                          {markBookingNoShow.isPending &&
+                          markBookingNoShow.variables === booking.id
+                            ? "Saving..."
+                            : "No-show"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        {pickedUpLocally
+                          ? "Passenger already marked as picked up."
+                          : noShowLocally
+                            ? "Passenger already marked as no-show."
+                            : "Already handled."}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+      )}
+
       {showLeaveReviewSection && (
         <div className="rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(255,255,255,0.98))] p-2 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
           <LeaveReviewSection
@@ -487,7 +675,8 @@ export function RideDetailPage() {
               Review your passengers
             </h2>
             <p className="text-sm text-slate-600">
-              Leave one short review for each confirmed passenger from this completed ride.
+              Leave one short review for each confirmed passenger from this
+              completed ride.
             </p>
           </div>
 
@@ -546,7 +735,7 @@ export function RideDetailPage() {
                 value={selectedUserId}
                 onChange={(event) => setSelectedUserId(event.target.value)}
               >
-                <option value="">Choose a rider…</option>
+                <option value="">Choose a rider...</option>
                 {reportableMembers.map((member) => (
                   <option key={member.id} value={member.id}>
                     {member.id === ride.driver.id
@@ -585,7 +774,7 @@ export function RideDetailPage() {
               type="submit"
               disabled={!canSubmitReport || reportableMembers.length === 0}
             >
-              {isSubmitting ? "Submitting…" : "Submit report"}
+              {isSubmitting ? "Submitting..." : "Submit report"}
             </Button>
           </form>
         )}
@@ -599,7 +788,7 @@ function RouteMeta({
   label,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 }) {
