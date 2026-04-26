@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { useCreateReview, useConfirmBooking, useDeclineBooking } from '@/features/bookings/hooks'
 import { EditRideForm } from './components/EditRideForm'
-import { useCancelRide, useDriverLocationEmitter, useMyRides, useUpdateRide, useUpdateRideStatus } from './hooks'
+import { useCancelRide, useDriverLocationEmitter, useFinishRide, useMyRides, useStartRide, useUpdateRide } from './hooks'
 import type { Ride, RideBooking, RideStatusUpdate } from './types'
 
 const statusLabels: Record<Ride['status'], string> = {
@@ -64,7 +64,8 @@ function actionVariant(status: RideStatusUpdate): 'default' | 'outline' | 'destr
 export function MyRidesPage() {
   const { user } = useAuth()
   const { data: rides, isLoading } = useMyRides()
-  const updateRideStatus = useUpdateRideStatus()
+  const startRide = useStartRide()
+  const finishRide = useFinishRide()
   const updateRide = useUpdateRide()
   const cancelRide = useCancelRide()
   const confirmBooking = useConfirmBooking()
@@ -138,13 +139,22 @@ export function MyRidesPage() {
               key={ride.id}
               ride={ride}
               isExpanded={expandedRideId === ride.id}
-              isUpdatingStatus={updateRideStatus.isPending}
+              isUpdatingStatus={startRide.isPending || finishRide.isPending}
               isCancellingRide={cancelRide.isPending && rideToCancel?.id === ride.id}
               isConfirming={confirmBooking.isPending}
               isDeclining={declineBooking.isPending}
               isReviewing={createReview.isPending}
               onToggleExpanded={() => setExpandedRideId((current) => (current === ride.id ? null : ride.id))}
-              onUpdateStatus={(status) => updateRideStatus.mutate({ rideId: ride.id, status })}
+              onUpdateStatus={(status) => {
+                if (status === 'ACTIVE') {
+                  startRide.mutate(ride.id)
+                  return
+                }
+
+                if (status === 'COMPLETED') {
+                  finishRide.mutate(ride.id)
+                }
+              }}
               onRequestCancel={() => setRideToCancel(ride)}
               onRequestEdit={() => setRideToEdit(ride)}
               onConfirmBooking={(bookingId) => confirmBooking.mutate(bookingId)}

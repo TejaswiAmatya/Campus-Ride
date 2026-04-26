@@ -192,6 +192,44 @@ export function useUpdateRideStatus() {
   })
 }
 
+export function useStartRide() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (rideId: string): Promise<Ride> => {
+      const response = await api.patch<{ data: Ride }>(`/api/rides/${rideId}/start`, {})
+      return response.data.data
+    },
+    onSuccess: async (ride) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] }),
+        queryClient.invalidateQueries({ queryKey: ['rides', 'detail', ride.id] }),
+        queryClient.invalidateQueries({ queryKey: ['rides', 'search'] }),
+        queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+      ])
+    },
+  })
+}
+
+export function useFinishRide() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (rideId: string): Promise<Ride> => {
+      const response = await api.patch<{ data: Ride }>(`/api/rides/${rideId}/status`, { status: 'COMPLETED' })
+      return response.data.data
+    },
+    onSuccess: async (ride) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] }),
+        queryClient.invalidateQueries({ queryKey: ['rides', 'detail', ride.id] }),
+        queryClient.invalidateQueries({ queryKey: ['rides', 'search'] }),
+        queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+      ])
+    },
+  })
+}
+
 export function useCancelRide() {
   const queryClient = useQueryClient()
 
