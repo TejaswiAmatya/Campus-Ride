@@ -10,7 +10,7 @@ import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { notify } from "../lib/notify";
-import { createSignedLicenseUrl } from "../lib/supabase";
+import { createSignedLicenseUrl, supabaseAdmin } from "../lib/supabase";
 import { validateReportTarget } from "../reports/validation";
 import {
   getAdminConfigMap,
@@ -620,6 +620,51 @@ export async function updateConfig(
     const body = UpdateConfigSchema.parse(req.body);
     const config = await upsertConfigValue(body.key, body.value);
     res.json({ data: config });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/admin/change-password
+ *
+ * Allows authenticated admins to change their own password and clear
+ * the must-change-password flag after a successful update.
+ */
+export async function changePassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const { newPassword } = req.body as { newPassword?: string };
+    if (!newPassword || newPassword.length < 8) {
+      throw new AppError("WEAK_PASSWORD", "Minimum 8 characters", 400);
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(adminId, {
+      password: newPassword,
+    });
+
+    if (error) {
+      throw new AppError(
+        "AUTH_PROVIDER_ERROR",
+        error.message || "Unable to update password",
+        502,
+      );
+    }
+
+    await prisma.user.update({
+      where: { id: adminId },
+      data: { mustChangePassword: false },
+    });
+
+    res.json({ message: "Password updated successfully" });
   } catch (err) {
     next(err);
   }
