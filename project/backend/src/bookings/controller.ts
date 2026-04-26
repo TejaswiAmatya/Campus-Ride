@@ -426,7 +426,6 @@ export async function createBooking(
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
 
-        // TODO: add notifications later
         try {
           const ride = booking.ride;
           await notify.bookingNew(ride.driverId, {
@@ -671,7 +670,6 @@ export async function confirmBooking(
       throw new AppError("INTERNAL_ERROR", "Booking confirmation failed", 500);
     }
     updated = { ...updated, review: await findBookingReview(prisma, updated) };
-    // TODO: add notifications later
     try {
       await notify.bookingStatus(updated.passengerId, {
         bookingId: updated.id,
@@ -781,7 +779,6 @@ export async function declineBooking(
     });
     const review = await findBookingReview(prisma, updated as any);
 
-    // TODO: add notifications later
     try {
       await notify.bookingStatus(updated.passengerId, {
         bookingId: updated.id,
@@ -1347,4 +1344,3 @@ export async function completeBooking(
     next(err);
   }
 }
-

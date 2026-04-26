@@ -27,6 +27,7 @@ import { ProfilePage } from "./features/user/ProfilePage";
 import { DriverDashboardPage } from "./features/user/DriverDashboardPage";
 import { SettingsPage } from "./features/admin/SettingsPage";
 import { EarningsPage } from "./features/user/EarningsPage";
+import { useBookingRealtime } from "./features/bookings/hooks";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,9 +68,15 @@ function RequireAdmin() {
   return <ProtectedRoute requiredRole="ADMIN" />;
 }
 
+function RealtimeBootstrap() {
+  useBookingRealtime(); // opens socket + emits join:user + subscribes to events
+  return null; // renders nothing, just runs the hook
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <RealtimeBootstrap />
       <BrowserRouter>
         <div className="min-h-screen bg-background">
           <Navbar />
