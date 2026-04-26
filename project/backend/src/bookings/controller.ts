@@ -3,7 +3,6 @@ import { Prisma } from "@prisma/client";
 import {
   CancelBookingSchema,
   CreateBookingSchema,
-  CreateReviewSchema,
   ListBookingsSchema,
   UpdateBookingCheckpointSchema,
 } from "./schemas";
@@ -1326,101 +1325,3 @@ export async function completeBooking(
   }
 }
 
-/**
- * POST /api/bookings/:id/review
- */
-export async function createReview(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const body = CreateReviewSchema.parse(req.body);
-    const { id } = req.params;
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
-    }
-    if (body.bookingId !== id) {
-      throw new AppError(
-        "VALIDATION_ERROR",
-        "Booking id in payload must match the route parameter",
-        422,
-      );
-    }
-
-    const review = await prisma.$transaction(async (tx) => {
-      const booking = await tx.booking.findUnique({
-        where: { id },
-        include: {
-          ride: { select: { id: true, driverId: true } },
-        },
-      });
-
-      if (!booking) {
-        throw new AppError("NOT_FOUND", "Booking not found", 404);
-      }
-      if (booking.status !== "COMPLETED") {
-        throw new AppError(
-          "INVALID_STATE",
-          "A review can only be left after the ride is completed",
-          409,
-        );
-      }
-      const revieweeId =
-        booking.ride.driverId === userId
-          ? booking.passengerId
-          : booking.ride.driverId;
-
-      const existingReview = await tx.review.findFirst({
-        where: {
-          rideId: booking.rideId,
-          reviewerId: userId,
-          revieweeId,
-        },
-      });
-
-      if (existingReview) {
-        throw new AppError(
-          "INVALID_STATE",
-          "A review has already been submitted for this booking",
-          409,
-        );
-      }
-
-      const isDriver = booking.ride.driverId === userId;
-      const isPassenger = booking.passengerId === userId;
-      if (!isDriver && !isPassenger) {
-        throw new AppError(
-          "FORBIDDEN",
-          "Only the driver or passenger from this booking can leave a review",
-          403,
-        );
-      }
-
-      return tx.review.create({
-        data: {
-          rideId: booking.rideId,
-          reviewerId: userId,
-          revieweeId,
-          rating: body.rating,
-          comment: body.comment,
-        },
-      });
-    });
-
-    res.status(201).json({
-      data: {
-        id: review.id,
-        bookingId: id,
-        rating: review.rating,
-        comment: review.comment,
-        reviewerId: review.reviewerId,
-        revieweeId: review.revieweeId,
-        createdAt: review.createdAt.toISOString(),
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-}
