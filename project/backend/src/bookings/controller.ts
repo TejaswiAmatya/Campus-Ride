@@ -36,14 +36,14 @@ function sumDecimal(
   );
 }
 
-// function getStartOfWeek(date: Date): Date {
-//   const start = new Date(date);
-//   const day = start.getDay();
-//   const diff = (day + 6) % 7;
-//   start.setDate(start.getDate() - diff);
-//   start.setHours(0, 0, 0, 0);
-//   return start;
-// }
+function getStartOfWeek(date: Date): Date {
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = (day + 6) % 7;
+  start.setDate(start.getDate() - diff);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
 
 function serializeBookingList(b: any) {
   return {
@@ -169,13 +169,6 @@ function serializeBookingDetail(b: any) {
   };
 }
 
-function buildPaymentSnapshot(booking: {
-  totalFare: Prisma.Decimal | string | number;
-  refundedAmount?: Prisma.Decimal | string | number | null;
-  paymentStatus: string;
-  paidAt?: Date | null;
-  refundedAt?: Date | null;
-}) {
 async function findBookingReview(
   client: typeof prisma,
   booking: {
@@ -202,15 +195,13 @@ async function findBookingReview(
   });
 }
 
-function buildPaymentSnapshot(
-  booking: {
-    totalFare: Prisma.Decimal | string | number;
-    refundedAmount?: Prisma.Decimal | string | number | null;
-    paymentStatus: string;
-    paidAt?: Date | null;
-    refundedAt?: Date | null;
-  },
-) {
+function buildPaymentSnapshot(booking: {
+  totalFare: Prisma.Decimal | string | number;
+  refundedAmount?: Prisma.Decimal | string | number | null;
+  paymentStatus: string;
+  paidAt?: Date | null;
+  refundedAt?: Date | null;
+}) {
   const totalFare = new Prisma.Decimal(booking.totalFare?.toString() ?? "0");
   const refundedAmount = new Prisma.Decimal(
     booking.refundedAmount?.toString() ?? "0",
@@ -680,7 +671,7 @@ export async function confirmBooking(
     if (!updated) {
       throw new AppError("INTERNAL_ERROR", "Booking confirmation failed", 500);
     }
-updated = { ...updated, review: await findBookingReview(prisma, updated) };
+    updated = { ...updated, review: await findBookingReview(prisma, updated) };
     // TODO: add notifications later
     try {
       await notify.bookingStatus(updated.passengerId, {
@@ -691,8 +682,6 @@ updated = { ...updated, review: await findBookingReview(prisma, updated) };
     } catch (err) {
       console.warn("[socket] notifyBookingStatus failed", err);
     }
-
-    
 
     try {
       await emailQueue.bookingConfirmed(updated.id);
@@ -923,7 +912,10 @@ export async function cancelBooking(
       });
     }
 
-    const cancelReview = await findBookingReview(prisma, updated.booking as any);
+    const cancelReview = await findBookingReview(
+      prisma,
+      updated.booking as any,
+    );
 
     await notify.bookingStatus(updated.booking.passenger.id, {
       bookingId: updated.booking.id,
@@ -1349,7 +1341,9 @@ export async function completeBooking(
       updatedAt: new Date().toISOString(),
     });
 
-    res.json({ data: serializeBookingList({ ...updated, review: completedReview }) });
+    res.json({
+      data: serializeBookingList({ ...updated, review: completedReview }),
+    });
   } catch (err) {
     next(err);
   }

@@ -13,30 +13,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import type { BookingListItem } from "./types";
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/api/client'
-import { CalendarCheck, CheckCircle2, Clock3, MapPin, UserRound, Wallet } from 'lucide-react'
-
-
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/api/client";
+import {
+  CalendarCheck,
+  CheckCircle2,
+  Clock3,
+  MapPin,
+  UserRound,
+  Wallet,
+} from "lucide-react";
 
 export function BookingsPage() {
+  useBookingRealtime();
   const [view, setView] = useState<"passenger" | "driver">("passenger");
   const asDriver = view === "driver";
-  useDriverBookingNewListener(asDriver);
-  usePassengerBookingStatusListener(!asDriver);
   const { data: bookings, isLoading } = useBookings({ asDriver });
   const confirmBooking = useConfirmBooking();
   const declineBooking = useDeclineBooking();
   const cancelBooking = useCancelBooking();
-
-export function BookingsPage() {
-  useBookingRealtime()
-  const [view, setView] = useState<'passenger' | 'driver'>('passenger')
-  const asDriver = view === 'driver'
-  const { data: bookings, isLoading } = useBookings({ asDriver })
-  const confirmBooking = useConfirmBooking()
-  const declineBooking = useDeclineBooking()
-  const cancelBooking = useCancelBooking()
 
   return (
     <div className="space-y-6">
@@ -91,8 +86,8 @@ export function BookingsPage() {
             Cancellation refund policy
           </p>
           <p className="mt-2 text-muted-foreground">
-            Cancel more than 2 hours before departure for a full refund, cancel within 2 hours for a 50% refund, and
-            no-shows receive no refund.
+            Cancel more than 2 hours before departure for a full refund, cancel
+            within 2 hours for a 50% refund, and no-shows receive no refund.
           </p>
         </div>
       )}
@@ -223,24 +218,31 @@ function BookingCard({
                 : `Passenger: ${booking.passenger?.name ?? "Unknown"}`}
             </MetaItem>
           </div>
-          {view === 'passenger' && (
+          {view === "passenger" && (
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span>Payment: {booking.payment.status}</span>
-              {booking.status === 'CANCELLED' && (
+              {booking.status === "CANCELLED" && (
                 <>
                   <span>Refunded: {booking.refund.amount} NOK</span>
                   <span>
-                    Policy: {booking.cancellation.policyApplied ? booking.cancellation.policyApplied.replace('_', ' ') : 'N/A'}
+                    Policy:{" "}
+                    {booking.cancellation.policyApplied
+                      ? booking.cancellation.policyApplied.replace("_", " ")
+                      : "N/A"}
                   </span>
                 </>
               )}
             </div>
           )}
-          {view === 'passenger' && (
-            <p className="text-xs text-muted-foreground">Driver: {booking.ride.driver?.name}</p>
+          {view === "passenger" && (
+            <p className="text-xs text-muted-foreground">
+              Driver: {booking.ride.driver?.name}
+            </p>
           )}
-          {view === 'driver' && booking.passenger && (
-            <p className="text-xs text-muted-foreground">Passenger: {booking.passenger.name}</p>
+          {view === "driver" && booking.passenger && (
+            <p className="text-xs text-muted-foreground">
+              Passenger: {booking.passenger.name}
+            </p>
           )}
         </div>
 
