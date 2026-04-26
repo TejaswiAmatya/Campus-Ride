@@ -1,8 +1,5 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { CalendarCheck, MapPin, Clock, AlertCircle, Wallet } from 'lucide-react'
-import { api } from '@/api/client'
 import { CalendarCheck, CheckCircle2, Clock3, MapPin, UserRound, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
