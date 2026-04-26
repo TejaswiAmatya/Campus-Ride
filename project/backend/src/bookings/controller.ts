@@ -10,6 +10,7 @@ import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { notify } from "../lib/notify";
+import type { BookingStatusPayload } from "../lib/socket.types";
 
 const PLATFORM_FEE_PERCENT = 0.1;
 import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
@@ -42,6 +43,23 @@ function getStartOfWeek(date: Date): Date {
   start.setDate(start.getDate() - diff);
   start.setHours(0, 0, 0, 0);
   return start;
+}
+
+type BookingStatus = BookingStatusPayload["status"];
+
+async function emitBookingStatus(
+  passengerId: string,
+  bookingId: string,
+  rideId: string,
+  status: BookingStatus,
+  updatedAt: Date,
+): Promise<void> {
+  await notify.bookingStatus(passengerId, {
+    bookingId,
+    rideId,
+    status,
+    updatedAt: updatedAt.toISOString(),
+  });
 }
 
 function serializeBookingList(b: any) {
@@ -432,6 +450,24 @@ export async function createBooking(
             bookingId: booking.id,
             passengerId: booking.passengerId,
             rideId: booking.rideId,
+            passengerName: booking.passenger.name,
+            ...(booking.pickupLat !== null && booking.pickupLng !== null
+              ? {
+                  pickupLocation: {
+                    lat: booking.pickupLat,
+                    lng: booking.pickupLng,
+                  },
+                }
+              : {}),
+            ...(booking.dropoffLat !== null && booking.dropoffLng !== null
+              ? {
+                  dropoffLocation: {
+                    lat: booking.dropoffLat,
+                    lng: booking.dropoffLng,
+                  },
+                }
+              : {}),
+            requestedAt: booking.createdAt.toISOString(),
           });
         } catch (err) {
           console.warn("[socket] notifyBookingNew failed", err);
@@ -671,11 +707,13 @@ export async function confirmBooking(
     }
     updated = { ...updated, review: await findBookingReview(prisma, updated) };
     try {
-      await notify.bookingStatus(updated.passengerId, {
-        bookingId: updated.id,
-        status: "confirmed",
-        rideId: updated.rideId,
-      });
+      await emitBookingStatus(
+        updated.passengerId,
+        updated.id,
+        updated.rideId,
+        "CONFIRMED",
+        updated.updatedAt,
+      );
     } catch (err) {
       console.warn("[socket] notifyBookingStatus failed", err);
     }
@@ -780,11 +818,13 @@ export async function declineBooking(
     const review = await findBookingReview(prisma, updated as any);
 
     try {
-      await notify.bookingStatus(updated.passengerId, {
-        bookingId: updated.id,
-        status: "declined",
-        rideId: updated.rideId,
-      });
+      await emitBookingStatus(
+        updated.passengerId,
+        updated.id,
+        updated.rideId,
+        "CANCELLED",
+        updated.updatedAt,
+      );
     } catch (err) {
       console.warn("[socket] notifyBookingStatus failed", err);
     }
@@ -913,11 +953,13 @@ export async function cancelBooking(
       updated.booking as any,
     );
 
-    await notify.bookingStatus(updated.booking.passenger.id, {
-      bookingId: updated.booking.id,
-      status: "cancelled",
-      updatedAt: new Date().toISOString(),
-    });
+    await emitBookingStatus(
+      updated.booking.passenger.id,
+      updated.booking.id,
+      updated.booking.rideId,
+      "CANCELLED",
+      updated.booking.updatedAt,
+    );
 
     res.json({
       data: {
@@ -1331,11 +1373,13 @@ export async function completeBooking(
 
     const completedReview = await findBookingReview(prisma, updated as any);
 
-    await notify.bookingStatus(updated.passenger.id, {
-      bookingId: updated.id,
-      status: "completed",
-      updatedAt: new Date().toISOString(),
-    });
+    await emitBookingStatus(
+      updated.passenger.id,
+      updated.id,
+      updated.rideId,
+      "COMPLETED",
+      updated.updatedAt,
+    );
 
     res.json({
       data: serializeBookingList({ ...updated, review: completedReview }),

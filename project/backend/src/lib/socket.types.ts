@@ -12,9 +12,9 @@ export interface BookingNewPayload {
 // Data sent when a booking's status changes
 export interface BookingStatusPayload {
   bookingId: string;
-  status: "pending" | "confirmed" | "cancelled" | "declined" | "completed";
-  rideId?: string;
-  updatedAt?: string;
+  rideId: string;
+  status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  updatedAt: string;
 }
 
 // Data sent when a ride's real-time status changes
