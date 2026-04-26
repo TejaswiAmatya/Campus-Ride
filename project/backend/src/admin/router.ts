@@ -10,6 +10,10 @@ adminRouter.use(requireAuth, requireRole("ADMIN"));
 
 adminRouter.get("/stats", controller.getStats);
 adminRouter.get("/drivers/pending", controller.listPendingDrivers);
+adminRouter.get(
+  "/verifications/academic/pending",
+  controller.listPendingAcademicVerifications,
+);
 adminRouter.patch("/drivers/:id/decision", controller.driverDecision);
 adminRouter.get("/reports", controller.listReports);
 adminRouter.get("/reports/:id", controller.getReportDetail);

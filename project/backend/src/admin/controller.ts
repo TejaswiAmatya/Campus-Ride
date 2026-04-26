@@ -9,7 +9,7 @@ import {
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
-import { createSignedLicenseUrl } from "../lib/supabase";
+import { createSignedPrivateDocumentUrl } from "../lib/supabase";
 import { validateReportTarget } from "../reports/validation";
 import {
   getAdminConfigMap,
@@ -26,6 +26,18 @@ type VehicleInfo = {
 };
 
 const prismaUntyped = prisma as any;
+
+type PendingDriverRecord = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  licencePath: string;
+  insurancePath: string | null;
+  vehicleInfo: unknown;
+  createdAt: Date;
+};
 
 /**
  * GET /api/admin/stats
@@ -115,7 +127,7 @@ export async function listPendingDrivers(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const drivers = await prisma.driverProfile.findMany({
+    const drivers = await prismaUntyped.driverProfile.findMany({
       where: { status: "PENDING" },
       include: {
         user: {
@@ -126,11 +138,14 @@ export async function listPendingDrivers(
     });
 
     const serializedDrivers = await Promise.all(
-      drivers.map(async (driver) => ({
+      drivers.map(async (driver: PendingDriverRecord) => ({
         id: driver.user.id,
         name: driver.user.name,
         email: driver.user.email,
-        licenceUrl: await createSignedLicenseUrl(driver.licencePath),
+        licenceUrl: await createSignedPrivateDocumentUrl(driver.licencePath),
+        insuranceUrl: driver.insurancePath
+          ? await createSignedPrivateDocumentUrl(driver.insurancePath)
+          : null,
         vehicle: driver.vehicleInfo as VehicleInfo,
         createdAt: driver.createdAt,
       })),
@@ -138,6 +153,58 @@ export async function listPendingDrivers(
 
     res.json({
       data: serializedDrivers,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/verifications/academic/pending
+ *
+ * Lists all users with pending academic verification and signed document URLs.
+ */
+export async function listPendingAcademicVerifications(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const users = await prismaUntyped.user.findMany({
+      where: { academicVerificationStatus: "PENDING" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        academicRole: true,
+        academicIdPath: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const serializedUsers = await Promise.all(
+      users.map(async (user: {
+        id: string;
+        name: string;
+        email: string;
+        academicRole: "STUDENT" | "STAFF" | null;
+        academicIdPath: string | null;
+        createdAt: Date;
+      }) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        academicRole: user.academicRole,
+        academicIdUrl: user.academicIdPath
+          ? await createSignedPrivateDocumentUrl(user.academicIdPath)
+          : null,
+        createdAt: user.createdAt,
+      })),
+    );
+
+    res.json({
+      data: serializedUsers,
     });
   } catch (err) {
     next(err);
