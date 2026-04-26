@@ -48,3 +48,10 @@ export interface DriverLocationPayload {
   lng: number;
   updatedAt: string;
 }
+
+export interface RideUpdatePayload {
+  rideId: string;
+  updatedAt: string;
+  changedFields: string[]; // list of fields that were updated, e.g. ["pickupLocation", "departureTime"]
+  updateMessage?: string;
+}

@@ -14,6 +14,7 @@ import {
   getMyRides,
   searchRides,
   startRide,
+  updateRide,
   updateRideStatus,
 } from "./controller";
 import { searchRidesByLocation } from "./location";
@@ -183,23 +184,32 @@ vi.mock("../lib/supabase", () => ({
   },
 }));
 
-const { notifyRideStatusMock, notifyBookingStatusMock, queueRideStartedMock } = vi.hoisted(() => ({
+const {
+  notifyRideStatusMock,
+  notifyBookingStatusMock,
+  notifyRideUpdateMock,
+  queueRideStartedMock,
+  queueRideUpdatedMock,
+} = vi.hoisted(() => ({
   notifyRideStatusMock: vi.fn(),
   notifyBookingStatusMock: vi.fn(),
+  notifyRideUpdateMock: vi.fn(),
   queueRideStartedMock: vi.fn(),
+  queueRideUpdatedMock: vi.fn(),
 }));
 
 vi.mock("../lib/notify", () => ({
   notify: {
     rideStatus: notifyRideStatusMock,
     bookingStatus: notifyBookingStatusMock,
+    rideUpdate: notifyRideUpdateMock,
   },
 }));
 
 vi.mock("../lib/emailQueue", () => ({
   emailQueue: {
     rideStarted: queueRideStartedMock,
-    rideUpdated: vi.fn(),
+    rideUpdated: queueRideUpdatedMock,
   },
 }));
 
@@ -366,10 +376,19 @@ vi.mock("../lib/prisma", () => ({
           const now = new Date();
           const nestedStops = (
             data as {
-              stops?: { create?: Array<{ address: string; lat: number; lng: number; orderIndex: number }> };
+              stops?: {
+                create?: Array<{
+                  address: string;
+                  lat: number;
+                  lng: number;
+                  orderIndex: number;
+                }>;
+              };
             }
           ).stops?.create;
-          const createdStops = Array.isArray((data as { stops?: unknown }).stops)
+          const createdStops = Array.isArray(
+            (data as { stops?: unknown }).stops,
+          )
             ? ((data as { stops: RideRecord["stops"] }).stops ?? [])
             : (nestedStops ?? []).map((stop) => ({
                 ...stop,
@@ -475,12 +494,12 @@ vi.mock("../lib/prisma", () => ({
                 return {
                   ...booking,
                   passenger: passenger
-                  ? {
-                      id: passenger.id,
-                      name: passenger.name,
-                      avatarPath: passenger.avatarUrl ?? null,
-                    }
-                  : null,
+                    ? {
+                        id: passenger.id,
+                        name: passenger.name,
+                        avatarPath: passenger.avatarUrl ?? null,
+                      }
+                    : null,
                 };
               });
             const reviewsReceived = testState.reviews
@@ -541,7 +560,9 @@ vi.mock("../lib/prisma", () => ({
           return null;
         }
 
-        const driver = testState.users.find((entry) => entry.id === ride.driverId);
+        const driver = testState.users.find(
+          (entry) => entry.id === ride.driverId,
+        );
 
         return {
           ...ride,
@@ -586,7 +607,9 @@ vi.mock("../lib/prisma", () => ({
           if (typeof data.availableSeats === "number") {
             ride.availableSeats = data.availableSeats;
           }
-          const driver = testState.users.find((entry) => entry.id === ride.driverId);
+          const driver = testState.users.find(
+            (entry) => entry.id === ride.driverId,
+          );
 
           return {
             ...ride,
@@ -633,7 +656,9 @@ beforeEach(() => {
   testState.reviews = [];
   notifyRideStatusMock.mockReset();
   notifyBookingStatusMock.mockReset();
+  notifyRideUpdateMock.mockReset();
   queueRideStartedMock.mockReset();
+  queueRideUpdatedMock.mockReset();
 });
 
 describe("searchRidesByLocation", () => {
@@ -714,8 +739,12 @@ describe("searchRidesByLocation", () => {
       dropoffLng: 5.7302,
       seats: 2,
       preferences: ["quiet_ride", "no_smoking"],
-      earliestDepartureTime: new Date(departureTime.getTime() - 15 * 60 * 1000).toISOString(),
-      latestDepartureTime: new Date(departureTime.getTime() + 30 * 60 * 1000).toISOString(),
+      earliestDepartureTime: new Date(
+        departureTime.getTime() - 15 * 60 * 1000,
+      ).toISOString(),
+      latestDepartureTime: new Date(
+        departureTime.getTime() + 30 * 60 * 1000,
+      ).toISOString(),
       sortBy: "bestMatch",
     });
 
@@ -1150,6 +1179,56 @@ describe("rides API integration", () => {
     expect((response.body.error as { code: string }).code).toBe("FORBIDDEN");
   });
 
+  it("notifies confirmed passengers with ride update payload when a ride is edited", async () => {
+    const departureTime = new Date(futureDate);
+    testState.rides.push(
+      makeRideRecord({
+        id: "ride-edit-1",
+        driverId: "driver-1",
+        departureTime,
+        createdAt: departureTime,
+        updatedAt: departureTime,
+      }),
+    );
+    testState.bookings.push({
+      id: "booking-edit-1",
+      rideId: "ride-edit-1",
+      passengerId: "passenger-1",
+      seatsBooked: 1,
+      status: "CONFIRMED",
+      createdAt: departureTime,
+    });
+
+    const nextDeparture = new Date(departureTime.getTime() + 15 * 60 * 1000);
+    const response = await runHandlers(
+      [requireAuth, requireRole("DRIVER"), updateRide],
+      {
+        method: "PATCH",
+        headers: { authorization: "Bearer driver-token" },
+        params: { id: "ride-edit-1" },
+        body: {
+          departureTime: nextDeparture.toISOString(),
+          updateMessage: "Leaving 15 minutes later than planned",
+        },
+      },
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(notifyRideUpdateMock).toHaveBeenCalledWith(
+      "ride-edit-1",
+      expect.objectContaining({
+        rideId: "ride-edit-1",
+        changedFields: expect.arrayContaining(["departureTime"]),
+        updateMessage: "Leaving 15 minutes later than planned",
+      }),
+    );
+    expect(queueRideUpdatedMock).toHaveBeenCalledWith(
+      "ride-edit-1",
+      "Leaving 15 minutes later than planned",
+    );
+    expect(notifyBookingStatusMock).not.toHaveBeenCalled();
+  });
+
   it("allows the ride driver to start and complete a ride", async () => {
     const createResponse = await runHandlers(
       [requireAuth, requireRole("DRIVER"), createRide],
@@ -1396,14 +1475,11 @@ describe("rides API integration", () => {
         ?.cancellationStrikes,
     ).toBe(1);
     expect(notifyBookingStatusMock).toHaveBeenCalledTimes(2);
-    expect(notifyRideStatusMock).toHaveBeenCalledWith(
-      "ride-cancel-confirmed",
-      {
-        rideId: "ride-cancel-confirmed",
-        bookingId: "",
-        status: "cancelled",
-      },
-    );
+    expect(notifyRideStatusMock).toHaveBeenCalledWith("ride-cancel-confirmed", {
+      rideId: "ride-cancel-confirmed",
+      bookingId: "",
+      status: "cancelled",
+    });
   });
 
   it("rejects ride cancellation from another driver", async () => {

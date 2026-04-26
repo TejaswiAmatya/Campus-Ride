@@ -37,13 +37,16 @@ import {
 } from "@/hooks/useProfile";
 
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
-import { useCancelRide, useDriverLocation, useDriverLocationEmitter, useFinishRide, useRide, useStartRide } from "./hooks";
 import {
+  useCancelRide,
   useDriverLocation,
   useDriverLocationEmitter,
+  useFinishRide,
   useRide,
+  useStartRide,
   useRideStatusListener,
 } from "./hooks";
+
 import type { Ride } from "./types";
 import {
   fetchRoutePreview,
@@ -463,7 +466,8 @@ export function RideDetailPage() {
                   : "Start when pickup is underway, or cancel if the trip cannot happen"}
               </h2>
               <p className="max-w-2xl text-sm text-slate-200">
-                These actions update rider history and booking status in real time.
+                These actions update rider history and booking status in real
+                time.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
