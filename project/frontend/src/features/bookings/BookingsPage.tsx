@@ -6,11 +6,12 @@ import { api } from '@/api/client'
 import { CalendarCheck, CheckCircle2, Clock3, MapPin, UserRound, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { useBookings, useConfirmBooking, useDeclineBooking, useCancelBooking } from './hooks'
+import { useBookings, useBookingRealtime, useConfirmBooking, useDeclineBooking, useCancelBooking } from './hooks'
 import { StatusBadge } from './StatusBadge'
 import type { BookingListItem } from './types'
 
 export function BookingsPage() {
+  useBookingRealtime()
   const [view, setView] = useState<'passenger' | 'driver'>('passenger')
   const asDriver = view === 'driver'
   const { data: bookings, isLoading } = useBookings({ asDriver })

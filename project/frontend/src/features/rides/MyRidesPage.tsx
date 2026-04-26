@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useMarkBookingNoShow, useMarkBookingPickedUp } from '@/features/bookings/hooks'
 import { useAuth } from '@/hooks/useAuth'
 import { useCreateReview, useConfirmBooking, useDeclineBooking } from '@/features/bookings/hooks'
-import { useCancelRide, useDriverLocationEmitter, useMyRides, useUpdateRideStatus } from './hooks'
+import { EditRideForm } from './components/EditRideForm'
+import { useCancelRide, useDriverLocationEmitter, useMyRides, useUpdateRide, useUpdateRideStatus } from './hooks'
 import type { Ride, RideBooking, RideStatusUpdate } from './types'
 
 const statusLabels: Record<Ride['status'], string> = {
@@ -64,6 +65,131 @@ interface MyRideCardProps {
   onMarkNoShow: (bookingId: string) => void
   pickupPendingBookingId: string | null
   noShowPendingBookingId: string | null
+  
+export function MyRidesPage() {
+  const { user } = useAuth()
+  const { data: rides, isLoading } = useMyRides()
+  const updateRideStatus = useUpdateRideStatus()
+  const updateRide = useUpdateRide()
+  const cancelRide = useCancelRide()
+  const confirmBooking = useConfirmBooking()
+  const declineBooking = useDeclineBooking()
+  const createReview = useCreateReview()
+  const [expandedRideId, setExpandedRideId] = useState<string | null>(null)
+  const [rideToCancel, setRideToCancel] = useState<Ride | null>(null)
+  const [rideToEdit, setRideToEdit] = useState<Ride | null>(null)
+
+  if (!user || user.role !== 'DRIVER') {
+    return (
+      <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+        This page is only available to drivers.
+      </div>
+    )
+  }
+
+  const totals = (rides ?? []).reduce(
+    (acc, ride) => {
+      acc.rides += 1
+      acc.earned += Number(ride.stats?.completedEarnings ?? 0)
+      acc.passengers += ride.stats?.completedPassengers ?? 0
+      acc.pending += ride.stats?.pendingRequests ?? 0
+      return acc
+    },
+    { rides: 0, earned: 0, passengers: 0, pending: 0 },
+  )
+
+  return (
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-3xl border bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-800 text-white">
+        <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200/80">Driver hub</p>
+            <h1 className="text-3xl font-semibold tracking-tight">Manage rides, riders, and earnings</h1>
+            <p className="max-w-2xl text-sm text-slate-200">
+              Accept the right passengers, keep trips moving, and review what each completed ride earned.
+            </p>
+          </div>
+          <Button asChild className="bg-white text-slate-900 hover:bg-slate-100">
+            <Link to="/driver/rides/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Post a ride
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <DriverMetric title="Completed earnings" value={`${totals.earned.toFixed(2)} NOK`} helper="Across completed rides" />
+        <DriverMetric title="Passengers travelled" value={`${totals.passengers}`} helper="Completed seats moved" />
+        <DriverMetric title="Open requests" value={`${totals.pending}`} helper="Need driver action" />
+        <DriverMetric title="Total rides" value={`${totals.rides}`} helper="Scheduled and past rides" />
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((item) => (
+            <div key={item} className="h-40 animate-pulse rounded-2xl border bg-muted" />
+          ))}
+        </div>
+      ) : (rides ?? []).length === 0 ? (
+        <div className="rounded-2xl border border-dashed p-12 text-center">
+          <CarFront className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+          <p className="text-muted-foreground">You have not posted any rides yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {(rides ?? []).map((ride) => (
+            <RideCard
+              key={ride.id}
+              ride={ride}
+              isExpanded={expandedRideId === ride.id}
+              isUpdatingStatus={updateRideStatus.isPending}
+              isCancellingRide={cancelRide.isPending && rideToCancel?.id === ride.id}
+              isConfirming={confirmBooking.isPending}
+              isDeclining={declineBooking.isPending}
+              isReviewing={createReview.isPending}
+              onToggleExpanded={() => setExpandedRideId((current) => (current === ride.id ? null : ride.id))}
+              onUpdateStatus={(status) => updateRideStatus.mutate({ rideId: ride.id, status })}
+              onRequestCancel={() => setRideToCancel(ride)}
+              onRequestEdit={() => setRideToEdit(ride)}
+              onConfirmBooking={(bookingId) => confirmBooking.mutate(bookingId)}
+              onDeclineBooking={(bookingId) => declineBooking.mutate(bookingId)}
+              onCreateReview={(bookingId, rating) => createReview.mutate({ bookingId, rating })}
+            />
+          ))}
+        </div>
+      )}
+
+      <CancelRideDialog
+        ride={rideToCancel}
+        isOpen={!!rideToCancel}
+        isCancelling={cancelRide.isPending}
+        onClose={() => setRideToCancel(null)}
+        onConfirm={() => {
+          if (!rideToCancel) return
+
+          cancelRide.mutate(rideToCancel.id, {
+            onSuccess: () => setRideToCancel(null),
+          })
+        }}
+      />
+
+      <EditRideForm
+        ride={rideToEdit}
+        isOpen={!!rideToEdit}
+        isSaving={updateRide.isPending}
+        onClose={() => setRideToEdit(null)}
+        onSubmit={({ rideId, payload }) =>
+          updateRide.mutate(
+            { rideId, payload },
+            {
+              onSuccess: () => setRideToEdit(null),
+            },
+          )
+        }
+      />
+    </div>
+  )
 }
 
 function RideCard({
@@ -81,6 +207,26 @@ function RideCard({
   pickupPendingBookingId,
   noShowPendingBookingId,
 }: MyRideCardProps) {
+  onRequestEdit,
+  onConfirmBooking,
+  onDeclineBooking,
+  onCreateReview,
+}: {
+  ride: Ride
+  isExpanded: boolean
+  isUpdatingStatus: boolean
+  isCancellingRide: boolean
+  isConfirming: boolean
+  isDeclining: boolean
+  isReviewing: boolean
+  onToggleExpanded: () => void
+  onUpdateStatus: (status: RideStatusUpdate) => void
+  onRequestCancel: () => void
+  onRequestEdit: () => void
+  onConfirmBooking: (bookingId: string) => void
+  onDeclineBooking: (bookingId: string) => void
+  onCreateReview: (bookingId: string, rating: number) => void
+}) {
   const actions = availableActions(ride.status)
   const bookings = ride.bookings ?? []
   const confirmedBookings = bookings.filter((booking) => booking.status === 'CONFIRMED')
@@ -131,6 +277,14 @@ function RideCard({
             <Button variant="outline" onClick={onToggleExpanded}>
               {isExpanded ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
               {isExpanded ? 'Hide Requests' : 'View Requests'}
+        <div className="flex flex-wrap gap-2 xl:justify-end">
+          <Button variant="outline" onClick={onToggleExpanded}>
+            {isExpanded ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
+            {isExpanded ? 'Hide riders' : 'View riders'}
+          </Button>
+          {canCancelRide && (
+            <Button variant="outline" onClick={onRequestEdit}>
+              Edit ride
             </Button>
           )}
           {actions.map((status) => (

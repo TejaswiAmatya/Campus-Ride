@@ -819,10 +819,10 @@ describe("CreateRideSchema", () => {
     ).toBe(false);
   });
 
-  it("rejects a zero price", () => {
+  it("accepts a zero price", () => {
     expect(
       CreateRideSchema.safeParse({ ...validRide, pricePerSeat: 0 }).success,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("rejects an invalid datetime", () => {

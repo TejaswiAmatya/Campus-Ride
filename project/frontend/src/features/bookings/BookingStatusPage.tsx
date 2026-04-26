@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MapView } from '@/components/MapView'
 import { useAuth } from '@/hooks/useAuth'
-import { useBooking, useCancelBooking, useCreateReview } from './hooks'
+import { useBooking, useBookingRealtime, useCancelBooking, useCreateReview } from './hooks'
 import { StatusBadge } from './StatusBadge'
 
 function formatMoney(value: string | undefined) {
@@ -13,6 +13,7 @@ function formatMoney(value: string | undefined) {
 }
 
 export function BookingStatusPage() {
+  useBookingRealtime()
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const { data: booking, isLoading, isError } = useBooking(id)

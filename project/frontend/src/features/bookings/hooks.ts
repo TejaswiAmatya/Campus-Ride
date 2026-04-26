@@ -1,7 +1,44 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
+import { useAuth } from '@/hooks/useAuth'
+import { useSocket } from '@/lib/socket'
 import type { BookingDetail, BookingListItem, BookingLocation } from './types'
+
+export function useBookingRealtime() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const { socket, isConnected } = useSocket()
+
+  useEffect(() => {
+    if (!user || !isConnected) {
+      return
+    }
+
+    socket.emit('join:user', { userId: user.id })
+
+    function handleBookingStatus(payload: { bookingId: string }) {
+      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', payload.bookingId] })
+      void queryClient.invalidateQueries({ queryKey: ['rides'] })
+      void queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] })
+    }
+
+    function handleBookingNew() {
+      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      void queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] })
+    }
+
+    socket.on('booking:status', handleBookingStatus)
+    socket.on('booking:new', handleBookingNew)
+
+    return () => {
+      socket.off('booking:status', handleBookingStatus)
+      socket.off('booking:new', handleBookingNew)
+    }
+  }, [isConnected, queryClient, socket, user])
+}
 
 export function useBookings(params?: {
   asDriver?: boolean
