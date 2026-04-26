@@ -2,7 +2,6 @@ import {
   notifyBookingNew,
   notifyBookingStatus,
   notifyRideStatus,
-  getIO,
 } from "./socket";
 
 import type {
@@ -26,15 +25,13 @@ async function bookingStatus(
 ) {
   console.log("[notify] bookingStatus", { passengerId, booking });
 
-  const io = getIO();
-  io.to(`user:${passengerId}`).emit("booking:status", { booking });
+  notifyBookingStatus(passengerId, booking);
 }
 
 async function rideStatus(rideId: string, status: RideStatusPayload) {
   console.log("[notify] rideStatus", { rideId, status });
 
-  const io = getIO();
-  io.to(`user:${rideId}`).emit("ride:status", { status });
+  notifyRideStatus(rideId, status);
 }
 
 export const notify = {
