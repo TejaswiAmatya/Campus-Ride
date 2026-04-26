@@ -40,6 +40,18 @@ function mapRequestedRideStatus(status: "ACTIVE" | "COMPLETED" | "CANCELLED") {
   return status;
 }
 
+function mapRealtimeRideStatus(status: "ACTIVE" | "COMPLETED" | "CANCELLED") {
+  if (status === "ACTIVE") {
+    return "in_progress" as const;
+  }
+
+  if (status === "COMPLETED") {
+    return "finished" as const;
+  }
+
+  return "cancelled" as const;
+}
+
 type VehicleInfo = {
   make: string;
   model: string;
@@ -824,7 +836,8 @@ export async function updateRideStatus(
     try {
       await notify.rideStatus(id, {
         rideId: id,
-        status: updatedRide.status,
+        bookingId: "",
+        status: mapRealtimeRideStatus(body.status),
       });
     } catch (err) {
       console.warn("[socket] notifyRideStatus failed", err);
@@ -839,14 +852,6 @@ export async function updateRideStatus(
           error: queueErr,
         });
       }
-    }
-
-    if (body.status === "COMPLETED") {
-      await notify.rideStatus(id, {
-        rideId: id,
-        bookingId: "",
-        status: "finished",
-      });
     }
 
     res.json({ data: serializeRideList(updatedRide) });
@@ -979,7 +984,8 @@ export async function cancelRide(
       try {
         await notify.rideStatus(id, {
           rideId: id,
-          status: ride.status,
+          bookingId: "",
+          status: "cancelled",
         });
       } catch (err) {
         console.warn("[socket] notifyRideStatus failed", err);

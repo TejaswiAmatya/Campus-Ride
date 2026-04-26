@@ -22,7 +22,9 @@ export function useBookingRealtime() {
       return;
     }
 
-    socket.emit("join:user", { userId: user.id });
+    socket.on("connect", () => {
+      socket.emit("join:user", { userId: user.id });
+    });
 
     function handleBookingStatus(payload: { bookingId: string }) {
       void queryClient.invalidateQueries({ queryKey: ["bookings"] });

@@ -4,9 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   useBooking,
   useCancelBooking,
-  useCreateReview,
-  usePassengerBookingStatusListener,
-  useBookingRealtime,
 } from "./hooks";
 import {
   CalendarCheck,
@@ -25,11 +22,16 @@ import { StatusBadge } from "./StatusBadge";
 import { useRideStatusListener } from "@/features/rides/hooks";
 
 export function BookingStatusPage() {
-  useBookingRealtime();
   const { id } = useParams<{ id: string }>();
   useAuth();
   const { data: booking, isLoading, isError } = useBooking(id);
   const cancelMutation = useCancelBooking();
+
+  useRideStatusListener({
+    rideId: booking?.ride.id,
+    bookingId: booking?.id,
+    enabled: !!booking?.ride.id,
+  });
 
   if (isLoading) {
     return (
