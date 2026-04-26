@@ -2,6 +2,7 @@ import { AdminDashboard } from "./AdminDashboard";
 import { DriverApprovalPage } from "./DriverApprovalPage";
 import { ReportsPage } from "./ReportsPage";
 import { SettingsPage } from "./SettingsPage";
+import { ChangePasswordPage } from "./ChangePasswordPage";
 import type { AppRoute } from "@/routes/types";
 
 export const adminRoutes: AppRoute[] = [
@@ -26,6 +27,12 @@ export const adminRoutes: AppRoute[] = [
   {
     path: "/admin/settings",
     element: <SettingsPage />,
+    requiresAuth: true,
+    requiredRole: "ADMIN",
+  },
+  {
+    path: "/admin/change-password",
+    element: <ChangePasswordPage />,
     requiresAuth: true,
     requiredRole: "ADMIN",
   },
