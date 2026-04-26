@@ -269,6 +269,25 @@ export async function academicDecision(
         academicRejectionReason: user.academicRejectionReason,
       },
     });
+
+    try {
+      if (body.approved) {
+        await emailQueue.academicApproved(user.id, user.email, user.name);
+      } else {
+        await emailQueue.academicRejected(
+          user.id,
+          user.email,
+          user.name,
+          body.reason,
+        );
+      }
+    } catch (queueErr) {
+      console.error("[admin/academicDecision] academic decision queue failed", {
+        userId: user.id,
+        approved: body.approved,
+        error: queueErr,
+      });
+    }
   } catch (err) {
     next(err);
   }
