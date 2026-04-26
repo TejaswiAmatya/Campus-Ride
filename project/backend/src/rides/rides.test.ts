@@ -13,6 +13,7 @@ import {
   createRide,
   getMyRides,
   searchRides,
+  startRide,
   updateRideStatus,
 } from "./controller";
 import { searchRidesByLocation } from "./location";
@@ -44,6 +45,7 @@ type UserRecord = {
   accountStatus?: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
   suspendedUntil?: Date | null;
   driverProfileStatus?: "PENDING" | "APPROVED" | "REJECTED";
+  cancellationStrikes?: number;
   avatarUrl?: string | null;
 };
 
@@ -69,6 +71,13 @@ type RideRecord = {
   recurrencePattern: "NONE" | "DAILY" | "WEEKLY" | "SPECIFIC_DAYS";
   recurrenceDays: number[];
   recurrenceInstanceAt: Date | null;
+  stops: Array<{
+    id?: string;
+    address: string;
+    lat: number;
+    lng: number;
+    orderIndex: number;
+  }>;
   status: "OPEN" | "FULL" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   createdAt: Date;
   updatedAt: Date;
@@ -108,6 +117,7 @@ function makeRideRecord(
     recurrencePattern: overrides.recurrencePattern ?? "NONE",
     recurrenceDays: overrides.recurrenceDays ?? [],
     recurrenceInstanceAt: overrides.recurrenceInstanceAt ?? null,
+    stops: overrides.stops ?? [],
     status: overrides.status ?? "OPEN",
     createdAt: overrides.createdAt ?? departureTime,
     updatedAt: overrides.updatedAt ?? departureTime,
@@ -135,7 +145,7 @@ type RideSearchWhere = {
   status?: string;
   availableSeats?: { gte: number };
   pricePerSeat?: { gte?: number; lte?: number };
-  departureTime?: { gte: Date; lt: Date };
+  departureTime?: { gte?: Date; lt?: Date; lte?: Date };
   id?: { in: string[] };
   driverId?: string;
 };
@@ -173,13 +183,23 @@ vi.mock("../lib/supabase", () => ({
   },
 }));
 
-const { notifyRideStatusMock } = vi.hoisted(() => ({
+const { notifyRideStatusMock, notifyBookingStatusMock, queueRideStartedMock } = vi.hoisted(() => ({
   notifyRideStatusMock: vi.fn(),
+  notifyBookingStatusMock: vi.fn(),
+  queueRideStartedMock: vi.fn(),
 }));
 
 vi.mock("../lib/notify", () => ({
   notify: {
     rideStatus: notifyRideStatusMock,
+    bookingStatus: notifyBookingStatusMock,
+  },
+}));
+
+vi.mock("../lib/emailQueue", () => ({
+  emailQueue: {
+    rideStarted: queueRideStartedMock,
+    rideUpdated: vi.fn(),
   },
 }));
 
@@ -278,6 +298,25 @@ vi.mock("../lib/prisma", () => ({
             return { count };
           },
         },
+        driverProfile: {
+          updateMany: async ({
+            where,
+          }: {
+            where: { userId: string };
+            data: { cancellationStrikes: { increment: number } };
+          }) => {
+            const driver = testState.users.find(
+              (entry) => entry.id === where.userId,
+            );
+
+            if (driver) {
+              driver.cancellationStrikes =
+                (driver.cancellationStrikes ?? 0) + 1;
+            }
+
+            return { count: driver ? 1 : 0 };
+          },
+        },
       }),
     ),
     user: {
@@ -325,6 +364,17 @@ vi.mock("../lib/prisma", () => ({
           > & { pricePerSeat: number | Prisma.Decimal };
         }) => {
           const now = new Date();
+          const nestedStops = (
+            data as {
+              stops?: { create?: Array<{ address: string; lat: number; lng: number; orderIndex: number }> };
+            }
+          ).stops?.create;
+          const createdStops = Array.isArray((data as { stops?: unknown }).stops)
+            ? ((data as { stops: RideRecord["stops"] }).stops ?? [])
+            : (nestedStops ?? []).map((stop) => ({
+                ...stop,
+                id: `stop-${testState.rides.length + 1}-${stop.orderIndex}`,
+              }));
           const ride: RideRecord = {
             id: `ride-${testState.rides.length + 1}`,
             status: "OPEN",
@@ -333,6 +383,7 @@ vi.mock("../lib/prisma", () => ({
               data.pricePerSeat instanceof Prisma.Decimal
                 ? data.pricePerSeat
                 : new Prisma.Decimal(data.pricePerSeat),
+            stops: createdStops,
             createdAt: now,
             updatedAt: now,
           };
@@ -388,8 +439,12 @@ vi.mock("../lib/prisma", () => ({
             if (where.departureTime) {
               const departureTime = ride.departureTime.getTime();
               if (
-                departureTime < where.departureTime.gte.getTime() ||
-                departureTime >= where.departureTime.lt.getTime()
+                (where.departureTime.gte &&
+                  departureTime < where.departureTime.gte.getTime()) ||
+                (where.departureTime.lt &&
+                  departureTime >= where.departureTime.lt.getTime()) ||
+                (where.departureTime.lte &&
+                  departureTime > where.departureTime.lte.getTime())
               ) {
                 return false;
               }
@@ -443,6 +498,7 @@ vi.mock("../lib/prisma", () => ({
                     reviewsReceived,
                   }
                 : null,
+              stops: ride.stops ?? [],
               bookings,
               _count: { bookings: bookings.length },
             };
@@ -500,6 +556,7 @@ vi.mock("../lib/prisma", () => ({
                   .map((review) => ({ rating: review.rating })),
               }
             : null,
+          stops: ride.stops ?? [],
           bookings: testState.bookings
             .filter((booking) => booking.rideId === ride.id)
             .map((booking) => ({ ...booking })),
@@ -544,6 +601,7 @@ vi.mock("../lib/prisma", () => ({
                     .map((review) => ({ rating: review.rating })),
                 }
               : null,
+            stops: ride.stops ?? [],
           };
         },
       ),
@@ -562,6 +620,7 @@ beforeEach(() => {
       name: "Dana Driver",
       role: "DRIVER",
       driverProfileStatus: "APPROVED",
+      cancellationStrikes: 0,
     },
     {
       id: "passenger-1",
@@ -573,115 +632,99 @@ beforeEach(() => {
   testState.bookings = [];
   testState.reviews = [];
   notifyRideStatusMock.mockReset();
+  notifyBookingStatusMock.mockReset();
+  queueRideStartedMock.mockReset();
 });
 
 describe("searchRidesByLocation", () => {
-  const osloLat = 59.9139;
-  const osloLng = 10.7522;
-
-  it("uses $queryRaw when coordinates are provided", async () => {
-    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
-      { id: "ride-1", sortDistanceMeters: 500 },
-    ]);
-    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([] as never);
-
-    await searchRidesByLocation({
-      originLat: osloLat,
-      originLng: osloLng,
-      seats: 1,
+  it("ranks rides by route fit, stops, timing, and preferences", async () => {
+    const departureTime = new Date(futureDate);
+    testState.users.push({
+      id: "driver-2",
+      name: "Devon Driver",
+      role: "DRIVER",
+      driverProfileStatus: "APPROVED",
+      cancellationStrikes: 0,
     });
 
-    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
-  });
-
-  it("skips $queryRaw when no coordinates are provided", async () => {
-    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([] as never);
-
-    await searchRidesByLocation({ seats: 1 });
-
-    expect(prisma.$queryRaw).not.toHaveBeenCalled();
-    expect(prisma.ride.findMany).toHaveBeenCalledTimes(1);
-  });
-
-  it("excludes rides outside the radius", async () => {
-    const nearbyRide: RideRecord = makeRideRecord({
-      id: "nearby-ride",
-      driverId: "driver-1",
-      originAddress: "Oslo S",
-      originLat: osloLat,
-      originLng: osloLng,
-      destinationAddress: "Majorstuen",
-      destinationLat: 59.93,
-      destinationLng: 10.71,
-    });
-
-    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
-      { id: "nearby-ride", sortDistanceMeters: 800 },
-    ]);
-    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce(
-      [
-        {
-          ...nearbyRide,
-          driver: {
-            id: "driver-1",
-            name: "Dana Driver",
-            avatarPath: null,
-            driverProfile: { vehicleInfo: null },
-            reviewsReceived: [],
+    testState.rides.push(
+      makeRideRecord({
+        id: "ride-best-match",
+        driverId: "driver-1",
+        originAddress: "Campus Library",
+        originLat: 58.9002,
+        originLng: 5.7001,
+        destinationAddress: "Central Station",
+        destinationLat: 58.9701,
+        destinationLng: 5.7301,
+        departureTime,
+        availableSeats: 3,
+        totalSeats: 4,
+        pricePerSeat: new Prisma.Decimal(85),
+        detourFlexibilityKm: 5,
+        preferences: ["quiet_ride", "no_smoking"],
+        stops: [
+          {
+            id: "stop-best",
+            address: "Student Union",
+            lat: 58.905,
+            lng: 5.705,
+            orderIndex: 0,
           },
-        },
-      ] as never,
+        ],
+      }),
+      makeRideRecord({
+        id: "ride-cheap-but-off-route",
+        driverId: "driver-2",
+        originAddress: "Airport",
+        originLat: 58.82,
+        originLng: 5.59,
+        destinationAddress: "Harbour",
+        destinationLat: 58.84,
+        destinationLng: 5.6,
+        departureTime,
+        availableSeats: 4,
+        totalSeats: 4,
+        pricePerSeat: new Prisma.Decimal(40),
+        detourFlexibilityKm: 0.5,
+        preferences: [],
+      }),
+      makeRideRecord({
+        id: "ride-close-but-late",
+        driverId: "driver-1",
+        originAddress: "North Campus",
+        originLat: 58.9005,
+        originLng: 5.7004,
+        destinationAddress: "Station Plaza",
+        destinationLat: 58.9703,
+        destinationLng: 5.7302,
+        departureTime: new Date(departureTime.getTime() + 4 * 60 * 60 * 1000),
+        availableSeats: 2,
+        totalSeats: 3,
+        pricePerSeat: new Prisma.Decimal(70),
+        detourFlexibilityKm: 1,
+        preferences: ["quiet_ride"],
+      }),
     );
 
     const results = await searchRidesByLocation({
-      originLat: osloLat,
-      originLng: osloLng,
-      seats: 1,
-      radiusKm: 1,
-    });
-
-    expect(results).toHaveLength(1);
-    expect(results[0]?.id).toBe("nearby-ride");
-    expect(prisma.ride.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ id: { in: ["nearby-ride"] } }),
-      }),
-    );
-  });
-
-  it("findMany re-applies safety constraints", async () => {
-    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
-      { id: "ride-1", sortDistanceMeters: 500 },
-    ]);
-    vi.mocked(prisma.ride.findMany).mockResolvedValueOnce([] as never);
-
-    await searchRidesByLocation({
-      originLat: osloLat,
-      originLng: osloLng,
+      pickupLat: 58.9001,
+      pickupLng: 5.7002,
+      dropoffLat: 58.9702,
+      dropoffLng: 5.7302,
       seats: 2,
+      preferences: ["quiet_ride", "no_smoking"],
+      earliestDepartureTime: new Date(departureTime.getTime() - 15 * 60 * 1000).toISOString(),
+      latestDepartureTime: new Date(departureTime.getTime() + 30 * 60 * 1000).toISOString(),
+      sortBy: "bestMatch",
     });
 
-    expect(prisma.ride.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          status: "OPEN",
-          availableSeats: { gte: 2 },
-        }),
-      }),
-    );
-  });
-
-  it("returns empty array immediately when $queryRaw returns nothing", async () => {
-    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([]);
-
-    const results = await searchRidesByLocation({
-      originLat: osloLat,
-      originLng: osloLng,
-      seats: 1,
-    });
-
-    expect(results).toEqual([]);
-    expect(prisma.ride.findMany).not.toHaveBeenCalled();
+    expect(results.map((ride) => ride.id)).toEqual([
+      "ride-best-match",
+      "ride-close-but-late",
+      "ride-cheap-but-off-route",
+    ]);
+    expect(results[0]?.matchScore).toBeGreaterThan(results[1]?.matchScore ?? 0);
   });
 
   it("filters by minRating and sorts by rating", async () => {
@@ -903,7 +946,7 @@ describe("SearchRidesSchema", () => {
         minPrice: "50",
         maxPrice: "150",
         minRating: "4",
-        sortBy: "price",
+        sortBy: "bestMatch",
       }).success,
     ).toBe(true);
   });
@@ -1128,17 +1171,18 @@ describe("rides API integration", () => {
     });
 
     const startResponse = await runHandlers(
-      [requireAuth, requireRole("DRIVER"), updateRideStatus],
+      [requireAuth, requireRole("DRIVER"), startRide],
       {
         method: "PATCH",
         headers: { authorization: "Bearer driver-token" },
         params: { id: createdRide.id },
-        body: { status: "ACTIVE" },
+        body: { startedAt: new Date().toISOString() },
       },
     );
 
     expect(startResponse.statusCode).toBe(200);
     expect((startResponse.body.data as RideRecord).status).toBe("IN_PROGRESS");
+    expect(queueRideStartedMock).toHaveBeenCalledWith(createdRide.id);
     expect(notifyRideStatusMock).toHaveBeenCalledWith(createdRide.id, {
       rideId: createdRide.id,
       bookingId: "",
@@ -1265,7 +1309,24 @@ describe("rides API integration", () => {
       testState.rides.find((ride) => ride.id === "ride-cancel-open")
         ?.availableSeats,
     ).toBe(3);
-    expect(notifyRideStatusMock).not.toHaveBeenCalled();
+    expect(response.body.meta).toMatchObject({
+      cancellationStrikeApplied: false,
+      affectedPassengers: 1,
+    });
+    expect(
+      testState.users.find((user) => user.id === "driver-1")
+        ?.cancellationStrikes,
+    ).toBe(0);
+    expect(notifyBookingStatusMock).toHaveBeenCalledWith("passenger-1", {
+      bookingId: "booking-pending-1",
+      status: "cancelled",
+      updatedAt: expect.any(String),
+    });
+    expect(notifyRideStatusMock).toHaveBeenCalledWith("ride-cancel-open", {
+      rideId: "ride-cancel-open",
+      bookingId: "",
+      status: "cancelled",
+    });
   });
 
   it("cancels confirmed bookings, restores seats, and notifies the ride room", async () => {
@@ -1326,6 +1387,15 @@ describe("rides API integration", () => {
       testState.rides.find((ride) => ride.id === "ride-cancel-confirmed")
         ?.availableSeats,
     ).toBe(4);
+    expect(response.body.meta).toMatchObject({
+      cancellationStrikeApplied: true,
+      affectedPassengers: 2,
+    });
+    expect(
+      testState.users.find((user) => user.id === "driver-1")
+        ?.cancellationStrikes,
+    ).toBe(1);
+    expect(notifyBookingStatusMock).toHaveBeenCalledTimes(2);
     expect(notifyRideStatusMock).toHaveBeenCalledWith(
       "ride-cancel-confirmed",
       {

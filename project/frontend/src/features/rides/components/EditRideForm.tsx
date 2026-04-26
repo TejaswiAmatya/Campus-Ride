@@ -6,7 +6,7 @@ import { RidePreferencesInput } from './RidePreferencesInput'
 import { RouteInputForm, type RouteInputValue } from './RouteInputForm'
 import { StopsEditor, type StopFormValue } from './StopsEditor'
 import { reverseGeocode, type GeocodingSuggestion } from '../geocoding'
-import { fetchRoutePreview, formatRouteDistance, formatRouteDuration, type RoutePreview } from '../routing'
+import { fetchRoutePreview, formatRouteDistance, formatRouteDuration, serializeRouteGeometry, type RoutePreview } from '../routing'
 import type { Ride, UpdateRideDto } from '../types'
 
 function TripMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
@@ -301,7 +301,7 @@ export function EditRideForm({
                 pricePerSeat: parseFloat(pricePerSeat),
                 detourFlexibilityKm: parseFloat(detourFlexibilityKm || '0'),
                 preferences,
-                routePolyline: routePreview ? JSON.stringify(routePreview.geometry) : null,
+                routePolyline: routePreview ? serializeRouteGeometry(routePreview.geometry) : null,
                 routeDistanceKm: routePreview ? Number((routePreview.distanceMeters / 1000).toFixed(2)) : null,
                 routeDurationMinutes: routePreview ? Math.round(routePreview.durationSeconds / 60) : null,
                 updateMessage: updateMessage.trim() || undefined,
