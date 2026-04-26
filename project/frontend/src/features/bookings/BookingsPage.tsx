@@ -3,12 +3,9 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   useBookings,
-  useDriverBookingNewListener,
-  usePassengerBookingStatusListener,
   useConfirmBooking,
   useDeclineBooking,
   useCancelBooking,
-  useBookingRealtime,
 } from "./hooks";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
@@ -25,7 +22,6 @@ import {
 } from "lucide-react";
 
 export function BookingsPage() {
-  useBookingRealtime();
   const [view, setView] = useState<"passenger" | "driver">("passenger");
   const asDriver = view === "driver";
   const { data: bookings, isLoading } = useBookings({ asDriver });

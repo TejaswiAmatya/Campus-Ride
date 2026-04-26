@@ -28,6 +28,7 @@ import { DriverDashboardPage } from "./features/user/DriverDashboardPage";
 import { SettingsPage } from "./features/admin/SettingsPage";
 import { EarningsPage } from "./features/user/EarningsPage";
 import { useBookingRealtime } from "./features/bookings/hooks";
+import { Toaster } from "./components/ui/toaster";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -77,6 +78,7 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RealtimeBootstrap />
+      <Toaster />
       <BrowserRouter>
         <div className="min-h-screen bg-background">
           <Navbar />
