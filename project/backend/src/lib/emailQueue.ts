@@ -39,7 +39,7 @@ async function enqueue(jobName: string, payload: Record<string, unknown>) {
 
 async function welcomeEmail(userId: string, email: string) {
   console.log("[emailQueue] welcome queued", { userId, email });
-  await enqueue("welcome", { userId, email });
+  await enqueue("welcomeEmail", { userId, email });
 }
 
 async function bookingConfirmed(bookingId: string) {
@@ -49,7 +49,7 @@ async function bookingConfirmed(bookingId: string) {
 
 async function bookingCancelled(bookingId: string) {
   console.log("[emailQueue] bookingCancelled queued", { bookingId });
-  await enqueue("bookingCanceled", { bookingId });
+  await enqueue("bookingCancelled", { bookingId });
 }
 
 async function rideStarted(rideId: string) {
