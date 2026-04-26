@@ -9,6 +9,7 @@ import {
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
+import { notify } from "../lib/notify";
 import { createSignedLicenseUrl } from "../lib/supabase";
 import { validateReportTarget } from "../reports/validation";
 import {
@@ -466,7 +467,7 @@ export async function createModerationAction(
 
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { id: true },
+      select: { id: true, name: true, email: true },
     });
     if (!targetUser) {
       throw new AppError("NOT_FOUND", "Target user not found", 404);
@@ -518,6 +519,49 @@ export async function createModerationAction(
 
       return { action, user };
     });
+
+    if (
+      body.actionType === "WARNING" ||
+      body.actionType === "SUSPENSION" ||
+      body.actionType === "BAN"
+    ) {
+      const updatedAt = new Date();
+
+      try {
+        await notify.moderationAction(targetUserId, {
+          actionType: body.actionType,
+          reason: body.reason,
+          note: body.note,
+          suspendedUntil:
+            body.actionType === "SUSPENSION" ? body.suspendedUntil ?? null : null,
+          updatedAt: updatedAt.toISOString(),
+        });
+      } catch (socketErr) {
+        console.error("[admin/createModerationAction] moderation socket failed", {
+          targetUserId,
+          actionType: body.actionType,
+          error: socketErr,
+        });
+      }
+
+      try {
+        await emailQueue.moderationAction(
+          targetUserId,
+          targetUser.email,
+          targetUser.name,
+          body.actionType,
+          body.reason,
+          body.note,
+          body.actionType === "SUSPENSION" ? body.suspendedUntil ?? null : null,
+        );
+      } catch (queueErr) {
+        console.error("[admin/createModerationAction] moderation queue failed", {
+          targetUserId,
+          actionType: body.actionType,
+          error: queueErr,
+        });
+      }
+    }
 
     res.status(201).json({
       data: {

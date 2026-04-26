@@ -5,6 +5,7 @@ import {
   BookingStatusPayload,
   DriverLocationPayload,
   DriverLocationUpdatePayload,
+  ModerationActionPayload,
   RideStatusPayload,
   RideUpdatePayload,
 } from "./socket.types";
@@ -94,4 +95,12 @@ export function notifyRideStatus(rideId: string, payload: RideStatusPayload) {
 export function notifyRideUpdate(rideId: string, payload: RideUpdatePayload) {
   io = getIO();
   io.to(`ride:${rideId}`).emit("ride:updated", payload);
+}
+
+export function notifyModerationAction(
+  userId: string,
+  payload: ModerationActionPayload,
+) {
+  io = getIO();
+  io.to(`user:${userId}`).emit("user:moderation", payload);
 }
