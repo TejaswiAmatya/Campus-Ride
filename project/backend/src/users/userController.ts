@@ -8,7 +8,12 @@ import {
   type MeResponse,
 } from "./schemas";
 import { prisma } from "../lib/prisma";
-import { uploadAcademicId, uploadAvatar, uploadLicense } from "../lib/supabase";
+import {
+  uploadAcademicId,
+  uploadAvatar,
+  uploadInsurance,
+  uploadLicense,
+} from "../lib/supabase";
 import { AppError } from "../middleware/error";
 
 const prismaUntyped = prisma as any;
@@ -99,6 +104,22 @@ function serializeCurrentUserProfile(user: CurrentUserRecord) {
   };
 }
 
+function getUploadedFile(
+  files: Request['files'],
+  fieldName: string,
+): Express.Multer.File | null {
+  if (!files || Array.isArray(files)) {
+    return null;
+  }
+
+  const fieldFiles = files[fieldName];
+  if (!fieldFiles || fieldFiles.length === 0) {
+    return null;
+  }
+
+  return fieldFiles[0] ?? null;
+}
+
 /**
  * GET /api/users/me
  *
@@ -162,7 +183,7 @@ export async function updateCurrentUser(
 
 /**
  * POST /api/users/me/driver
- * Uploads a driver license and creates a pending driver application.
+ * Uploads driver documents and creates a pending driver application.
  */
 export async function applyAsDriver(
   req: Request,
@@ -170,9 +191,15 @@ export async function applyAsDriver(
   next: NextFunction,
 ): Promise<void> {
   try {
-    // Multer keeps the file in req.file
-    if (!req.file) {
-      throw new AppError("MISSING_FILE", "License file is required", 400);
+    const licenceFile = getUploadedFile(req.files, "licence");
+    const insuranceFile = getUploadedFile(req.files, "insurance");
+
+    if (!licenceFile) {
+      throw new AppError("MISSING_FILE", "Licence file is required", 400);
+    }
+
+    if (!insuranceFile) {
+      throw new AppError("MISSING_FILE", "Insurance file is required", 400);
     }
 
     const body: DriverApplicationInput = DriverApplicationSchema.parse(
@@ -192,25 +219,35 @@ export async function applyAsDriver(
 
     const licencePath = await uploadLicense(
       req.user!.id,
-      req.file.buffer,
-      req.file.mimetype,
-      req.file.originalname,
+      licenceFile.buffer,
+      licenceFile.mimetype,
+      licenceFile.originalname,
     );
 
-    const [driverProfile] = await prisma.$transaction([
-      prisma.user.update({
+    const insurancePath = await uploadInsurance(
+      req.user!.id,
+      insuranceFile.buffer,
+      insuranceFile.mimetype,
+      insuranceFile.originalname,
+    );
+
+    const driverProfile = await prisma.$transaction(async (tx) => {
+      await tx.user.update({
         where: { id: req.user!.id },
         data: { role: "DRIVER" },
-      }),
-      prisma.driverProfile.create({
+      });
+
+      return await (tx as any).driverProfile.create({
         data: {
           userId: req.user!.id,
           licencePath,
+          insurancePath,
           vehicleInfo: body.vehicle,
           status: "PENDING",
+          rejectionReason: null,
         },
-      }),
-    ]);
+      });
+    });
 
     res.status(201).json({ data: driverProfile });
   } catch (err) {
