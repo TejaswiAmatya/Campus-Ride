@@ -4,6 +4,7 @@ import {
   LoginSchema,
   UpdateProfileSchema,
   DriverApplicationSchema,
+  SubmitAcademicVerificationSchema,
   AccountStatusSchema,
   MeResponseSchema,
   BlockedAuthErrorSchema,
@@ -91,6 +92,11 @@ describe('MeResponseSchema', () => {
         accountStatus: 'ACTIVE',
         suspendedUntil: null,
         avatarPath: null,
+        academicRole: null,
+        academicVerificationStatus: 'NOT_SUBMITTED',
+        academicIdPath: null,
+        academicVerifiedAt: null,
+        academicRejectionReason: null,
         driverStatus: null,
         createdAt: '2026-04-26T12:00:00.000Z',
       }).success,
@@ -175,6 +181,26 @@ describe('DriverApplicationSchema', () => {
       DriverApplicationSchema.safeParse({
         vehicle: '{bad json}',
       }).success,
+    ).toBe(false)
+  })
+})
+
+describe('SubmitAcademicVerificationSchema', () => {
+  it('accepts a student verification submission', () => {
+    expect(
+      SubmitAcademicVerificationSchema.safeParse({ role: 'STUDENT' }).success,
+    ).toBe(true)
+  })
+
+  it('accepts a staff verification submission', () => {
+    expect(
+      SubmitAcademicVerificationSchema.safeParse({ role: 'STAFF' }).success,
+    ).toBe(true)
+  })
+
+  it('rejects an invalid academic role', () => {
+    expect(
+      SubmitAcademicVerificationSchema.safeParse({ role: 'FACULTY' }).success,
     ).toBe(false)
   })
 })
