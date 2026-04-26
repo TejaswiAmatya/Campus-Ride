@@ -9,6 +9,8 @@ export interface RoutePreview {
   durationSeconds: number
 }
 
+const MAX_SAVED_ROUTE_POINTS = 120
+
 interface OsrmResponse {
   code: string
   routes?: Array<{
@@ -42,6 +44,24 @@ export function formatRouteDuration(durationSeconds: number): string {
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
   return minutes === 0 ? `${hours} hr` : `${hours} hr ${minutes} min`
+}
+
+export function serializeRouteGeometry(geometry: Array<[number, number]>): string {
+  if (geometry.length === 0) {
+    return '[]'
+  }
+
+  const normalized =
+    geometry.length <= MAX_SAVED_ROUTE_POINTS
+      ? geometry
+      : Array.from({ length: MAX_SAVED_ROUTE_POINTS }, (_, index) => {
+          const sourceIndex = Math.round((index / (MAX_SAVED_ROUTE_POINTS - 1)) * (geometry.length - 1))
+          return geometry[sourceIndex]
+        })
+
+  return JSON.stringify(
+    normalized.map(([lat, lng]) => [Number(lat.toFixed(5)), Number(lng.toFixed(5))]),
+  )
 }
 
 export async function fetchRoutePreview(

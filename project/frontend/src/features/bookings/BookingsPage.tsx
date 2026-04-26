@@ -1,17 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import {
-  useBookings,
-  useConfirmBooking,
-  useDeclineBooking,
-  useCancelBooking,
-} from "./hooks";
-import { Button } from "@/components/ui/button";
-import { StatusBadge } from "./StatusBadge";
-import type { BookingListItem } from "./types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/api/client";
 import {
   CalendarCheck,
   CheckCircle2,
@@ -20,14 +8,49 @@ import {
   UserRound,
   Wallet,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
+import {
+  useBookings,
+  useCancelBooking,
+  useConfirmBooking,
+  useDeclineBooking,
+  useUpcomingPassengerBookings,
+} from "./hooks";
+import { StatusBadge } from "./StatusBadge";
+import { UpcomingRideCard } from "./UpcomingRideCard";
+import type { BookingListItem } from "./types";
 
 export function BookingsPage() {
-  const [view, setView] = useState<"passenger" | "driver">("passenger");
+  const { user } = useAuth();
+  const [view, setView] = useState<"passenger" | "driver">(
+    user?.role === "DRIVER" ? "driver" : "passenger",
+  );
   const asDriver = view === "driver";
   const { data: bookings, isLoading } = useBookings({ asDriver });
+  const { data: upcomingBookings = [] } = useUpcomingPassengerBookings();
   const confirmBooking = useConfirmBooking();
   const declineBooking = useDeclineBooking();
   const cancelBooking = useCancelBooking();
+  const safeUpcomingBookings = asDriver ? [] : upcomingBookings;
+
+  useEffect(() => {
+    if (user?.role === "DRIVER") {
+      setView("driver");
+    }
+  }, [user?.role]);
+
+  const passengerActivity = useMemo(() => {
+    if (asDriver) {
+      return [];
+    }
+
+    const upcomingIds = new Set(
+      safeUpcomingBookings.map((booking) => booking.id),
+    );
+    return (bookings ?? []).filter((booking) => !upcomingIds.has(booking.id));
+  }, [asDriver, bookings, safeUpcomingBookings]);
 
   return (
     <div className="space-y-6">
@@ -107,21 +130,91 @@ export function BookingsPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {(bookings ?? []).map((booking) => (
-            <BookingCard
-              key={booking.id}
-              booking={booking}
-              view={view}
-              onCancel={() => cancelBooking.mutate(booking.id)}
-              onConfirm={() => confirmBooking.mutate(booking.id)}
-              onDecline={() => declineBooking.mutate(booking.id)}
-              cancelPending={cancelBooking.isPending}
-              confirmPending={confirmBooking.isPending}
-              declinePending={declineBooking.isPending}
-            />
-          ))}
-        </div>
+        <>
+          {!asDriver && safeUpcomingBookings.length > 0 && (
+            <section className="space-y-4">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
+                  Coming up
+                </p>
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+                  Your next confirmed rides
+                </h2>
+                <p className="text-sm text-slate-600">
+                  Track departure time, verify the pickup point, and cancel
+                  quickly if your plans change.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {safeUpcomingBookings.map((booking) => (
+                  <UpcomingRideCard
+                    key={booking.id}
+                    booking={booking}
+                    cancelPending={
+                      cancelBooking.isPending &&
+                      cancelBooking.variables === booking.id
+                    }
+                    onCancel={() => cancelBooking.mutate(booking.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="space-y-4">
+            {!asDriver && (
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold text-slate-950">
+                  {passengerActivity.length > 0 ||
+                  safeUpcomingBookings.length === 0
+                    ? "All booking activity"
+                    : "Past and pending activity"}
+                </h2>
+                <p className="text-sm text-slate-600">
+                  Requests still waiting on a driver, completed trips, and any
+                  cancellations stay here for reference.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {(asDriver ? (bookings ?? []) : passengerActivity).map(
+                (booking) => (
+                  <BookingCard
+                    key={booking.id}
+                    booking={booking}
+                    view={view}
+                    onCancel={() => cancelBooking.mutate(booking.id)}
+                    onConfirm={() => confirmBooking.mutate(booking.id)}
+                    onDecline={() => declineBooking.mutate(booking.id)}
+                    cancelPending={
+                      cancelBooking.isPending &&
+                      cancelBooking.variables === booking.id
+                    }
+                    confirmPending={
+                      confirmBooking.isPending &&
+                      confirmBooking.variables === booking.id
+                    }
+                    declinePending={
+                      declineBooking.isPending &&
+                      declineBooking.variables === booking.id
+                    }
+                  />
+                ),
+              )}
+            </div>
+
+            {!asDriver &&
+              passengerActivity.length === 0 &&
+              safeUpcomingBookings.length > 0 && (
+                <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                  Everything else is clear right now. Your confirmed upcoming
+                  rides are shown above.
+                </div>
+              )}
+          </section>
+        </>
       )}
     </div>
   );
@@ -182,7 +275,8 @@ function BookingCard({
             <div className="flex items-start gap-2">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
               <p className="text-base font-semibold text-slate-900">
-                {booking.ride.originAddress} → {booking.ride.destinationAddress}
+                {booking.ride.originAddress} to{" "}
+                {booking.ride.destinationAddress}
               </p>
             </div>
             <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
@@ -214,6 +308,7 @@ function BookingCard({
                 : `Passenger: ${booking.passenger?.name ?? "Unknown"}`}
             </MetaItem>
           </div>
+
           {view === "passenger" && (
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span>Payment: {booking.payment.status}</span>
@@ -230,9 +325,10 @@ function BookingCard({
               )}
             </div>
           )}
+
           {view === "passenger" && (
             <p className="text-xs text-muted-foreground">
-              Driver: {booking.ride.driver?.name}
+              Driver: {booking.ride.driver.name}
             </p>
           )}
           {view === "driver" && booking.passenger && (

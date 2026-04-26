@@ -6,6 +6,7 @@ export interface PendingDriverVehicle {
 }
 
 export type AdminReportStatus = "OPEN" | "RESOLVED" | "DISMISSED";
+export type AdminModerationAction = "WARNING" | "BAN" | "SUSPENSION";
 
 export interface PendingDriver {
   id: string;
@@ -36,6 +37,12 @@ export interface AdminReport {
   };
   targetUserId: string | null;
   targetRideId: string | null;
+  targetUserSummary: {
+    name: string | null;
+    rideCount: number;
+    rating: number | null;
+    reportCount: number;
+  };
   targetUserRole: "PASSENGER" | "DRIVER" | "ADMIN" | null;
   reason: string;
   status: AdminReportStatus;

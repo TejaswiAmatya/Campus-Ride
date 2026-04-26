@@ -10,6 +10,7 @@ import {
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
+import { notify } from "../lib/notify";
 import { createSignedPrivateDocumentUrl } from "../lib/supabase";
 import { validateReportTarget } from "../reports/validation";
 import {
@@ -401,12 +402,75 @@ export async function listReports(
       orderBy: { createdAt: "desc" },
     });
 
+    const targetUserIds = Array.from(
+      new Set(reports.map((report) => report.targetUserId)),
+    );
+
+    const [targetUsers, targetUserReviews, completedRides, targetUserReports] =
+      await Promise.all([
+        prisma.user.findMany({
+          where: { id: { in: targetUserIds } },
+          select: { id: true, name: true },
+        }),
+        prisma.review.groupBy({
+          by: ["revieweeId"],
+          where: { revieweeId: { in: targetUserIds } },
+          _avg: { rating: true },
+        }),
+        prisma.ride.groupBy({
+          by: ["driverId"],
+          where: {
+            driverId: { in: targetUserIds },
+            status: "COMPLETED",
+          },
+          _count: { _all: true },
+        }),
+        prisma.report.findMany({
+          where: { targetUserId: { in: targetUserIds } },
+          select: { id: true, targetUserId: true, createdAt: true },
+          orderBy: [{ targetUserId: "asc" }, { createdAt: "asc" }],
+        }),
+      ]);
+
+    const targetUserNameById = new Map(
+      targetUsers.map((user) => [user.id, user.name]),
+    );
+    const averageRatingByUserId = new Map(
+      targetUserReviews.map((review) => [
+        review.revieweeId,
+        review._avg.rating ?? null,
+      ]),
+    );
+    const completedRideCountByUserId = new Map(
+      completedRides.map((ride) => [ride.driverId, ride._count._all]),
+    );
+
+    const previousReportCountByReportId = new Map<string, number>();
+    const processedReportCountsByUserId = new Map<string, number>();
+
+    for (const targetReport of targetUserReports) {
+      const previousCount =
+        processedReportCountsByUserId.get(targetReport.targetUserId) ?? 0;
+      previousReportCountByReportId.set(targetReport.id, previousCount);
+      processedReportCountsByUserId.set(
+        targetReport.targetUserId,
+        previousCount + 1,
+      );
+    }
+
     res.json({
       data: reports.map((report) => ({
         id: report.id,
         reporter: report.reporter,
         targetUserId: report.targetUserId,
         targetRideId: report.targetRideId,
+        targetUserSummary: {
+          name: targetUserNameById.get(report.targetUserId) ?? null,
+          rideCount: completedRideCountByUserId.get(report.targetUserId) ?? 0,
+          rating: averageRatingByUserId.get(report.targetUserId) ?? null,
+          reportCount:
+            previousReportCountByReportId.get(report.id) ?? 0,
+        },
         targetUserRole: report.targetUserRole,
         reason: report.reason,
         status: report.status,
@@ -560,7 +624,7 @@ export async function createModerationAction(
 
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { id: true },
+      select: { id: true, name: true, email: true },
     });
     if (!targetUser) {
       throw new AppError("NOT_FOUND", "Target user not found", 404);
@@ -603,8 +667,58 @@ export async function createModerationAction(
         },
       });
 
+      if (body.reportId) {
+        await (tx as any).report.update({
+          where: { id: body.reportId },
+          data: { status: "RESOLVED" },
+        });
+      }
+
       return { action, user };
     });
+
+    if (
+      body.actionType === "WARNING" ||
+      body.actionType === "SUSPENSION" ||
+      body.actionType === "BAN"
+    ) {
+      const updatedAt = new Date();
+
+      try {
+        await notify.moderationAction(targetUserId, {
+          actionType: body.actionType,
+          reason: body.reason,
+          note: body.note,
+          suspendedUntil:
+            body.actionType === "SUSPENSION" ? body.suspendedUntil ?? null : null,
+          updatedAt: updatedAt.toISOString(),
+        });
+      } catch (socketErr) {
+        console.error("[admin/createModerationAction] moderation socket failed", {
+          targetUserId,
+          actionType: body.actionType,
+          error: socketErr,
+        });
+      }
+
+      try {
+        await emailQueue.moderationAction(
+          targetUserId,
+          targetUser.email,
+          targetUser.name,
+          body.actionType,
+          body.reason,
+          body.note,
+          body.actionType === "SUSPENSION" ? body.suspendedUntil ?? null : null,
+        );
+      } catch (queueErr) {
+        console.error("[admin/createModerationAction] moderation queue failed", {
+          targetUserId,
+          actionType: body.actionType,
+          error: queueErr,
+        });
+      }
+    }
 
     res.status(201).json({
       data: {
