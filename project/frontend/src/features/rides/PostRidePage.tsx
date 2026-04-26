@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Car, LocateFixed, Map, Repeat, Route, Timer } from 'lucide-react'
+import { extractApiError } from '@/api/client'
 import { MapView } from '@/components/MapView'
 import { usePostRide } from './hooks'
 import { RouteInputForm, type RouteInputValue } from './components/RouteInputForm'
@@ -54,7 +55,7 @@ export function PostRidePage() {
     recurrenceDays: [],
     recurrenceEndDate: '',
     totalSeats: '3',
-    pricePerSeat: '0',
+    pricePerSeat: '50',
     detourFlexibilityKm: '0',
     preferences: [],
   })
@@ -64,6 +65,9 @@ export function PostRidePage() {
   const [routeError, setRouteError] = useState<string | null>(null)
   const [isLoadingRoute, setIsLoadingRoute] = useState(false)
   const postRide = usePostRide()
+  const postRideError = postRide.isError
+    ? extractApiError(postRide.error, 'Failed to post ride. Please check your details and try again.').message
+    : null
 
   const setField =
     (key: 'departureTime' | 'pricePerSeat' | 'detourFlexibilityKm') =>
@@ -352,11 +356,11 @@ export function PostRidePage() {
             <label className="mb-1 block text-sm font-medium">Price per seat (NOK)</label>
             <input
               type="number"
-              min="0"
+              min="1"
               step="any"
               value={form.pricePerSeat}
               onChange={setField('pricePerSeat')}
-              placeholder="0"
+              placeholder="50"
               required
               className="w-full rounded-md border border-input px-3 py-2 text-sm"
             />
@@ -438,7 +442,7 @@ export function PostRidePage() {
 
         {(postRide.isError || mapError) && (
           <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {mapError ?? 'Failed to post ride. Please check your details and try again.'}
+            {mapError ?? postRideError ?? 'Failed to post ride. Please check your details and try again.'}
           </p>
         )}
 
