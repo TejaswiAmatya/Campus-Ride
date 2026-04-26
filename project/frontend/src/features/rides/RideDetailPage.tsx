@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { LeaveReviewSection } from "@/components/LeaveReviewSection";
-import { ArrowRight, Clock, MapPin, ShieldCheck, Ticket, UserCheck, UserRoundX, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -13,18 +15,27 @@ import {
   ShieldCheck,
   Ticket,
   Timer,
+  UserCheck,
+  UserRoundX,
   Users,
 } from "lucide-react";
+
+import { api } from "@/api/client";
+import { LeaveReviewSection } from "@/components/LeaveReviewSection";
 import { MapView } from "@/components/MapView";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useBookings, useMarkBookingNoShow, useMarkBookingPickedUp } from "@/features/bookings/hooks";
+import { Button } from "@/components/ui/button";
+import {
+  useBookings,
+  useMarkBookingNoShow,
+  useMarkBookingPickedUp,
+} from "@/features/bookings/hooks";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useDriverRideReviewPassengers,
   useUserReviews,
 } from "@/hooks/useProfile";
-import { api } from "@/api/client";
+
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
 import { useDriverLocation, useDriverLocationEmitter, useRide } from "./hooks";
 import {
@@ -33,8 +44,6 @@ import {
   formatRouteDuration,
   type RoutePreview,
 } from "./routing";
-import { useQuery } from "@tanstack/react-query";
-import { LeaveReviewSection } from "@/components/LeaveReviewSection";
 
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -48,13 +57,18 @@ export function RideDetailPage() {
   const [routePreview, setRoutePreview] = useState<RoutePreview | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<
+    string[]
+  >([]);
+  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<
+    string[]
+  >([]);
+
   const driverLocation = useDriverLocation(
     ride?.status === "IN_PROGRESS" ? ride.id : undefined,
   );
   const { data: driverReviews = [] } = useUserReviews(ride?.driver.id);
-  const { data: driverBookings = [] } = useBookings({
-    asDriver: true,
-  });
+  const { data: driverBookings = [] } = useBookings({ asDriver: true });
   const { data: myBookings = [] } = useQuery({
     queryKey: ["bookings", "ride-detail-review-check"],
     queryFn: async () => {
@@ -75,18 +89,17 @@ export function RideDetailPage() {
       user?.id === ride?.driver.id ? user?.id : undefined,
       ride?.status,
     );
+
   const isDriverViewingOwnActiveRide =
     !!user &&
     !!ride &&
     user.id === ride.driver.id &&
     ride.status === "IN_PROGRESS";
   const { isSharingLocation } = useDriverLocationEmitter(
-    isDriverViewingOwnActiveRide ? ride?.id : undefined,
+    isDriverViewingOwnActiveRide ? ride.id : undefined,
   );
   const markBookingPickedUp = useMarkBookingPickedUp();
   const markBookingNoShow = useMarkBookingNoShow();
-  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<string[]>([]);
-  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!ride) {
@@ -98,7 +111,9 @@ export function RideDetailPage() {
 
     if (ride.routePolyline) {
       try {
-        const parsed = JSON.parse(ride.routePolyline) as Array<[number, number]>;
+        const parsed = JSON.parse(ride.routePolyline) as Array<
+          [number, number]
+        >;
         setRoutePreview({
           geometry: parsed,
           distanceMeters: (ride.routeDistanceKm ?? 0) * 1000,
@@ -181,21 +196,30 @@ export function RideDetailPage() {
       (review) => review.rideId === ride.id && review.reviewer.id === user.id,
     );
   }, [driverReviews, ride, user]);
+
   const activeRideBookings = useMemo(
     () =>
       driverBookings.filter(
-        (booking) => booking.ride.id === ride?.id && booking.status === "CONFIRMED",
+        (booking) =>
+          booking.ride.id === ride?.id && booking.status === "CONFIRMED",
       ),
     [driverBookings, ride?.id],
   );
-  const pickedUpSet = useMemo(() => new Set(locallyPickedUpBookingIds), [locallyPickedUpBookingIds]);
-  const noShowSet = useMemo(() => new Set(locallyNoShowBookingIds), [locallyNoShowBookingIds]);
+
+  const pickedUpSet = useMemo(
+    () => new Set(locallyPickedUpBookingIds),
+    [locallyPickedUpBookingIds],
+  );
+  const noShowSet = useMemo(
+    () => new Set(locallyNoShowBookingIds),
+    [locallyNoShowBookingIds],
+  );
 
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <p className="animate-pulse text-muted-foreground">
-          Loading ride details…
+          Loading ride details...
         </p>
       </div>
     );
@@ -231,10 +255,10 @@ export function RideDetailPage() {
     pendingDriverReviewPassengers.length > 0;
 
   const handleReportSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
-    if (!ride || !selectedUserId) {
+    if (!selectedUserId) {
       return;
     }
 
@@ -262,13 +286,13 @@ export function RideDetailPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">
-          {ride.originAddress} → {ride.destinationAddress}
+          {ride.originAddress} to {ride.destinationAddress}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm text-muted-foreground">
             Driver: {ride.driver.name}
             {ride.driver.vehicle
-              ? ` • ${ride.driver.vehicle.colour} ${ride.driver.vehicle.make} ${ride.driver.vehicle.model}`
+              ? ` - ${ride.driver.vehicle.colour} ${ride.driver.vehicle.make} ${ride.driver.vehicle.model}`
               : ""}
           </p>
           {isSharingLocation && (
@@ -439,30 +463,43 @@ export function RideDetailPage() {
           <div className="space-y-1">
             <p className="text-sm font-semibold">Passengers</p>
             <p className="text-xs text-muted-foreground">
-              Mark confirmed passengers as picked up or no-show while this ride is active.
+              Mark confirmed passengers as picked up or no-show while this ride
+              is active.
             </p>
           </div>
 
           <div className="mt-4 space-y-3">
             {activeRideBookings.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No confirmed passengers are available to mark for this active ride.</p>
+              <p className="text-sm text-muted-foreground">
+                No confirmed passengers are available to mark for this active
+                ride.
+              </p>
             ) : (
               activeRideBookings.map((booking) => {
                 const pickedUpLocally = pickedUpSet.has(booking.id);
                 const noShowLocally = noShowSet.has(booking.id);
-                const canHandleBooking =
-                  !pickedUpLocally &&
-                  !noShowLocally;
+                const canHandleBooking = !pickedUpLocally && !noShowLocally;
 
                 return (
-                  <div key={booking.id} className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
+                  <div
+                    key={booking.id}
+                    className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 md:flex-row md:items-center md:justify-between"
+                  >
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">{booking.passenger?.name ?? "Passenger"}</p>
+                      <p className="text-sm font-medium">
+                        {booking.passenger?.name ?? "Passenger"}
+                      </p>
                       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                         <span>{booking.seatsBooked} seat(s)</span>
                         <span>Status: {booking.status}</span>
-                        {pickedUpLocally && <span className="text-emerald-700">Picked up</span>}
-                        {noShowLocally && <span className="text-destructive">Marked no-show</span>}
+                        {pickedUpLocally && (
+                          <span className="text-emerald-700">Picked up</span>
+                        )}
+                        {noShowLocally && (
+                          <span className="text-destructive">
+                            Marked no-show
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -472,18 +509,24 @@ export function RideDetailPage() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          disabled={markBookingPickedUp.isPending || markBookingNoShow.isPending}
+                          disabled={
+                            markBookingPickedUp.isPending ||
+                            markBookingNoShow.isPending
+                          }
                           onClick={() =>
                             markBookingPickedUp.mutate(booking.id, {
                               onSuccess: () =>
                                 setLocallyPickedUpBookingIds((current) =>
-                                  current.includes(booking.id) ? current : [...current, booking.id],
+                                  current.includes(booking.id)
+                                    ? current
+                                    : [...current, booking.id],
                                 ),
                             })
                           }
                         >
                           <UserCheck className="mr-2 h-4 w-4" />
-                          {markBookingPickedUp.isPending && markBookingPickedUp.variables === booking.id
+                          {markBookingPickedUp.isPending &&
+                          markBookingPickedUp.variables === booking.id
                             ? "Saving..."
                             : "Picked up"}
                         </Button>
@@ -491,18 +534,24 @@ export function RideDetailPage() {
                           type="button"
                           variant="destructive"
                           size="sm"
-                          disabled={markBookingPickedUp.isPending || markBookingNoShow.isPending}
+                          disabled={
+                            markBookingPickedUp.isPending ||
+                            markBookingNoShow.isPending
+                          }
                           onClick={() =>
                             markBookingNoShow.mutate(booking.id, {
                               onSuccess: () =>
                                 setLocallyNoShowBookingIds((current) =>
-                                  current.includes(booking.id) ? current : [...current, booking.id],
+                                  current.includes(booking.id)
+                                    ? current
+                                    : [...current, booking.id],
                                 ),
                             })
                           }
                         >
                           <UserRoundX className="mr-2 h-4 w-4" />
-                          {markBookingNoShow.isPending && markBookingNoShow.variables === booking.id
+                          {markBookingNoShow.isPending &&
+                          markBookingNoShow.variables === booking.id
                             ? "Saving..."
                             : "No-show"}
                         </Button>
@@ -624,7 +673,7 @@ export function RideDetailPage() {
                 value={selectedUserId}
                 onChange={(event) => setSelectedUserId(event.target.value)}
               >
-                <option value="">Choose a rider…</option>
+                <option value="">Choose a rider...</option>
                 {reportableMembers.map((member) => (
                   <option key={member.id} value={member.id}>
                     {member.id === ride.driver.id
@@ -663,7 +712,7 @@ export function RideDetailPage() {
               type="submit"
               disabled={!canSubmitReport || reportableMembers.length === 0}
             >
-              {isSubmitting ? "Submitting…" : "Submit report"}
+              {isSubmitting ? "Submitting..." : "Submit report"}
             </Button>
           </form>
         )}
@@ -677,7 +726,7 @@ function RouteMeta({
   label,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 }) {
