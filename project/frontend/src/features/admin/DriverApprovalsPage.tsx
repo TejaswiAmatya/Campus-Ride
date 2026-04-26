@@ -1,15 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, LayoutDashboard, XCircle } from "lucide-react";
 import { api } from "@/api/client";
-
-interface PendingDriver {
-  id: string;
-  name: string;
-  email: string;
-  licenceUrl?: string;
-  vehicle?: { make: string; model: string; year: number; plateNumber: string };
-  createdAt: string;
-}
+import type { PendingDriver } from "./types";
 
 export function DriverApprovalsPage() {
   const queryClient = useQueryClient();
@@ -53,6 +45,7 @@ export function DriverApprovalsPage() {
                 <th className="px-4 py-3 text-left font-medium">Email</th>
                 <th className="px-4 py-3 text-left font-medium">Vehicle</th>
                 <th className="px-4 py-3 text-left font-medium">Licence</th>
+                <th className="px-4 py-3 text-left font-medium">Insurance</th>
                 <th className="px-4 py-3 text-left font-medium">Applied</th>
                 <th className="px-4 py-3 text-left font-medium">Actions</th>
               </tr>
@@ -73,9 +66,25 @@ export function DriverApprovalsPage() {
                       : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    {driver.licenceUrl ? (
+                    {driver.licenceSignedUrl ? (
                       <a
-                        href={driver.licenceUrl}
+                        href={driver.licenceSignedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        View
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Not uploaded
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {driver.insuranceSignedUrl ? (
+                      <a
+                        href={driver.insuranceSignedUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline"

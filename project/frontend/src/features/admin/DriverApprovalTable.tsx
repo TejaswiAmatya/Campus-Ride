@@ -39,6 +39,7 @@ export function DriverApprovalTable({
           <TableRow>
             <TableHead>Applicant</TableHead>
             <TableHead>Licence</TableHead>
+            <TableHead>Insurance</TableHead>
             <TableHead>Vehicle</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -51,15 +52,15 @@ export function DriverApprovalTable({
               <TableRow key={driver.id} data-testid={`driver-row-${driver.id}`}>
                 <TableCell className="font-medium">{driver.name}</TableCell>
                 <TableCell>
-                  {driver.licenceUrl ? (
+                  {driver.licenceSignedUrl ? (
                     <a
-                      href={driver.licenceUrl}
+                      href={driver.licenceSignedUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="block w-fit"
                     >
                       <img
-                        src={driver.licenceUrl}
+                        src={driver.licenceSignedUrl}
                         alt={`${driver.name} licence`}
                         className="h-24 w-40 rounded-md border object-cover"
                         data-testid={`licence-image-${driver.id}`}
@@ -67,6 +68,20 @@ export function DriverApprovalTable({
                     </a>
                   ) : (
                     <span className="text-muted-foreground">No licence uploaded</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {driver.insuranceSignedUrl ? (
+                    <a
+                      href={driver.insuranceSignedUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex text-sm text-primary hover:underline"
+                    >
+                      View insurance
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground">No insurance uploaded</span>
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
