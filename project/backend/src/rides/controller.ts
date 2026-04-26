@@ -324,38 +324,84 @@ export async function updateRide(
       lng: stop.lng,
     }));
 
-    const meaningfulChangeDetected =
+    const originChanged =
       (body.origin?.address !== undefined &&
         body.origin.address !== ride.originAddress) ||
       (body.origin?.lat !== undefined && body.origin.lat !== ride.originLat) ||
-      (body.origin?.lng !== undefined && body.origin.lng !== ride.originLng) ||
+      (body.origin?.lng !== undefined && body.origin.lng !== ride.originLng);
+
+    const destinationChanged =
       (body.destination?.address !== undefined &&
         body.destination.address !== ride.destinationAddress) ||
       (body.destination?.lat !== undefined &&
         body.destination.lat !== ride.destinationLat) ||
       (body.destination?.lng !== undefined &&
-        body.destination.lng !== ride.destinationLng) ||
-      (body.departureTime !== undefined &&
-        new Date(body.departureTime).toISOString() !==
-          ride.departureTime.toISOString()) ||
-      (body.totalSeats !== undefined && body.totalSeats !== ride.totalSeats) ||
-      (body.pricePerSeat !== undefined &&
-        body.pricePerSeat !== Number(ride.pricePerSeat)) ||
-      (body.detourFlexibilityKm !== undefined &&
-        body.detourFlexibilityKm !== ride.detourFlexibilityKm) ||
-      (body.preferences !== undefined &&
-        !arraysEqual(body.preferences, ride.preferences)) ||
-      (body.routePolyline !== undefined &&
-        body.routePolyline !== ride.routePolyline) ||
-      (body.routeDistanceKm !== undefined &&
-        body.routeDistanceKm !== ride.routeDistanceKm) ||
-      (body.routeDurationMinutes !== undefined &&
-        body.routeDurationMinutes !== ride.routeDurationMinutes) ||
-      (normalizedIncomingStops !== undefined &&
-        !stopsEqual(normalizedIncomingStops, normalizedExistingStops));
+        body.destination.lng !== ride.destinationLng);
+
+    const departureTimeChanged =
+      body.departureTime !== undefined &&
+      new Date(body.departureTime).toISOString() !==
+        ride.departureTime.toISOString();
+
+    const totalSeatsChanged =
+      body.totalSeats !== undefined && body.totalSeats !== ride.totalSeats;
+
+    const pricePerSeatChanged =
+      body.pricePerSeat !== undefined &&
+      body.pricePerSeat !== Number(ride.pricePerSeat);
+
+    const detourFlexibilityKmChanged =
+      body.detourFlexibilityKm !== undefined &&
+      body.detourFlexibilityKm !== ride.detourFlexibilityKm;
+
+    const preferencesChanged =
+      body.preferences !== undefined &&
+      !arraysEqual(body.preferences, ride.preferences);
+
+    const routePolylineChanged =
+      body.routePolyline !== undefined &&
+      body.routePolyline !== ride.routePolyline;
+
+    const routeDistanceKmChanged =
+      body.routeDistanceKm !== undefined &&
+      body.routeDistanceKm !== ride.routeDistanceKm;
+
+    const routeDurationMinutesChanged =
+      body.routeDurationMinutes !== undefined &&
+      body.routeDurationMinutes !== ride.routeDurationMinutes;
+
+    const stopsChanged =
+      normalizedIncomingStops !== undefined &&
+      !stopsEqual(normalizedIncomingStops, normalizedExistingStops);
+
+    const meaningfulChangeDetected =
+      originChanged ||
+      destinationChanged ||
+      departureTimeChanged ||
+      totalSeatsChanged ||
+      pricePerSeatChanged ||
+      detourFlexibilityKmChanged ||
+      preferencesChanged ||
+      routePolylineChanged ||
+      routeDistanceKmChanged ||
+      routeDurationMinutesChanged ||
+      stopsChanged;
 
     const notificationRequired =
       meaningfulChangeDetected && ride.bookings.length > 0;
+
+    const changedFields: string[] = [];
+    if (originChanged) changedFields.push("origin");
+    if (destinationChanged) changedFields.push("destination");
+    if (departureTimeChanged) changedFields.push("departureTime");
+    if (totalSeatsChanged) changedFields.push("totalSeats");
+    if (pricePerSeatChanged) changedFields.push("pricePerSeat");
+    if (detourFlexibilityKmChanged) changedFields.push("detourFlexibilityKm");
+    if (preferencesChanged) changedFields.push("preferences");
+    if (routePolylineChanged) changedFields.push("routePolyline");
+    if (routeDistanceKmChanged) changedFields.push("routeDistanceKm");
+    if (routeDurationMinutesChanged) changedFields.push("routeDurationMinutes");
+    if (stopsChanged) changedFields.push("stops");
 
     const updated = await prisma.$transaction(async (tx) => {
       const txAny = tx as any;
@@ -437,17 +483,14 @@ export async function updateRide(
     });
 
     if (notificationRequired) {
-      const updatedAt = new Date().toISOString();
-      await Promise.all(
-        ride.bookings.map((booking) =>
-          notify.bookingStatus(booking.passengerId, {
-            bookingId: booking.id,
-            status: "confirmed",
-            updatedAt,
-          }),
-        ),
-      );
-      await emailQueue.rideUpdated(id, body.updateMessage?.trim() || undefined);
+      const updateMessage = body.updateMessage?.trim();
+      await notify.rideUpdate(id, {
+        rideId: id,
+        updatedAt: new Date().toISOString(),
+        changedFields,
+        ...(updateMessage && { updateMessage }),
+      });
+      await emailQueue.rideUpdated(id, updateMessage);
     }
 
     res.json({
@@ -457,6 +500,7 @@ export async function updateRide(
         notificationsTriggered: notificationRequired,
         confirmedPassengers: ride.bookings.length,
         updateMessage: body.updateMessage ?? null,
+        changedFields,
       },
     });
   } catch (err) {
@@ -894,8 +938,8 @@ export async function cancelRide(
       throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
     }
 
-    const { ride, cancelledBookings, cancellationStrikeApplied } = await prisma.$transaction(
-      async (tx) => {
+    const { ride, cancelledBookings, cancellationStrikeApplied } =
+      await prisma.$transaction(async (tx) => {
         const ride = await tx.ride.findUnique({
           where: { id },
           include: {
@@ -1005,17 +1049,17 @@ export async function cancelRide(
           ),
           cancellationStrikeApplied: confirmedBookings.length > 0,
         };
-      },
-    );
+      });
 
     if (cancelledBookings.length > 0) {
-      const updatedAt = new Date().toISOString();
+      const updatedAt = new Date();
       await Promise.all(
         cancelledBookings.map((booking) =>
           notify.bookingStatus(booking.passengerId, {
             bookingId: booking.id,
-            status: "cancelled",
-            updatedAt,
+            rideId: id,
+            status: "CANCELLED",
+            updatedAt: updatedAt.toISOString(),
           }),
         ),
       );

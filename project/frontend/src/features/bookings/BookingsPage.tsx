@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import {
   CalendarCheck,
   CheckCircle2,
@@ -7,50 +7,50 @@ import {
   MapPin,
   UserRound,
   Wallet,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useAuth } from '@/hooks/useAuth'
-import { cn } from '@/lib/utils'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 import {
-  useBookingRealtime,
   useBookings,
   useCancelBooking,
   useConfirmBooking,
   useDeclineBooking,
   useUpcomingPassengerBookings,
-} from './hooks'
-import { StatusBadge } from './StatusBadge'
-import { UpcomingRideCard } from './UpcomingRideCard'
-import type { BookingListItem } from './types'
+} from "./hooks";
+import { StatusBadge } from "./StatusBadge";
+import { UpcomingRideCard } from "./UpcomingRideCard";
+import type { BookingListItem } from "./types";
 
 export function BookingsPage() {
-  useBookingRealtime()
-  const { user } = useAuth()
-  const [view, setView] = useState<'passenger' | 'driver'>(
-    user?.role === 'DRIVER' ? 'driver' : 'passenger',
-  )
-  const asDriver = view === 'driver'
-  const { data: bookings, isLoading } = useBookings({ asDriver })
-  const { data: upcomingBookings = [] } = useUpcomingPassengerBookings()
-  const confirmBooking = useConfirmBooking()
-  const declineBooking = useDeclineBooking()
-  const cancelBooking = useCancelBooking()
-  const safeUpcomingBookings = asDriver ? [] : upcomingBookings
+  const { user } = useAuth();
+  const [view, setView] = useState<"passenger" | "driver">(
+    user?.role === "DRIVER" ? "driver" : "passenger",
+  );
+  const asDriver = view === "driver";
+  const { data: bookings, isLoading } = useBookings({ asDriver });
+  const { data: upcomingBookings = [] } = useUpcomingPassengerBookings();
+  const confirmBooking = useConfirmBooking();
+  const declineBooking = useDeclineBooking();
+  const cancelBooking = useCancelBooking();
+  const safeUpcomingBookings = asDriver ? [] : upcomingBookings;
 
   useEffect(() => {
-    if (user?.role === 'DRIVER') {
-      setView('driver')
+    if (user?.role === "DRIVER") {
+      setView("driver");
     }
-  }, [user?.role])
+  }, [user?.role]);
 
   const passengerActivity = useMemo(() => {
     if (asDriver) {
-      return []
+      return [];
     }
 
-    const upcomingIds = new Set(safeUpcomingBookings.map((booking) => booking.id))
-    return (bookings ?? []).filter((booking) => !upcomingIds.has(booking.id))
-  }, [asDriver, bookings, safeUpcomingBookings])
+    const upcomingIds = new Set(
+      safeUpcomingBookings.map((booking) => booking.id),
+    );
+    return (bookings ?? []).filter((booking) => !upcomingIds.has(booking.id));
+  }, [asDriver, bookings, safeUpcomingBookings]);
 
   return (
     <div className="space-y-6">
@@ -74,10 +74,10 @@ export function BookingsPage() {
               type="button"
               onClick={() => setView("passenger")}
               className={cn(
-                'rounded-lg px-4 py-2 text-sm font-medium transition',
-                view === 'passenger'
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:bg-slate-100',
+                "rounded-lg px-4 py-2 text-sm font-medium transition",
+                view === "passenger"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100",
               )}
             >
               My bookings
@@ -86,10 +86,10 @@ export function BookingsPage() {
               type="button"
               onClick={() => setView("driver")}
               className={cn(
-                'rounded-lg px-4 py-2 text-sm font-medium transition',
-                view === 'driver'
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:bg-slate-100',
+                "rounded-lg px-4 py-2 text-sm font-medium transition",
+                view === "driver"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-100",
               )}
             >
               Driver requests
@@ -124,9 +124,9 @@ export function BookingsPage() {
         <div className="rounded-2xl border border-dashed p-12 text-center">
           <CalendarCheck className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
           <p className="text-muted-foreground">
-            {view === 'passenger'
-              ? 'No bookings yet.'
-              : 'No ride requests waiting right now.'}
+            {view === "passenger"
+              ? "No bookings yet."
+              : "No ride requests waiting right now."}
           </p>
         </div>
       ) : (
@@ -152,7 +152,8 @@ export function BookingsPage() {
                     key={booking.id}
                     booking={booking}
                     cancelPending={
-                      cancelBooking.isPending && cancelBooking.variables === booking.id
+                      cancelBooking.isPending &&
+                      cancelBooking.variables === booking.id
                     }
                     onCancel={() => cancelBooking.mutate(booking.id)}
                   />
@@ -165,9 +166,10 @@ export function BookingsPage() {
             {!asDriver && (
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold text-slate-950">
-                  {passengerActivity.length > 0 || safeUpcomingBookings.length === 0
-                    ? 'All booking activity'
-                    : 'Past and pending activity'}
+                  {passengerActivity.length > 0 ||
+                  safeUpcomingBookings.length === 0
+                    ? "All booking activity"
+                    : "Past and pending activity"}
                 </h2>
                 <p className="text-sm text-slate-600">
                   Requests still waiting on a driver, completed trips, and any
@@ -177,32 +179,40 @@ export function BookingsPage() {
             )}
 
             <div className="space-y-4">
-              {(asDriver ? bookings ?? [] : passengerActivity).map((booking) => (
-                <BookingCard
-                  key={booking.id}
-                  booking={booking}
-                  view={view}
-                  onCancel={() => cancelBooking.mutate(booking.id)}
-                  onConfirm={() => confirmBooking.mutate(booking.id)}
-                  onDecline={() => declineBooking.mutate(booking.id)}
-                  cancelPending={
-                    cancelBooking.isPending && cancelBooking.variables === booking.id
-                  }
-                  confirmPending={
-                    confirmBooking.isPending && confirmBooking.variables === booking.id
-                  }
-                  declinePending={
-                    declineBooking.isPending && declineBooking.variables === booking.id
-                  }
-                />
-              ))}
+              {(asDriver ? (bookings ?? []) : passengerActivity).map(
+                (booking) => (
+                  <BookingCard
+                    key={booking.id}
+                    booking={booking}
+                    view={view}
+                    onCancel={() => cancelBooking.mutate(booking.id)}
+                    onConfirm={() => confirmBooking.mutate(booking.id)}
+                    onDecline={() => declineBooking.mutate(booking.id)}
+                    cancelPending={
+                      cancelBooking.isPending &&
+                      cancelBooking.variables === booking.id
+                    }
+                    confirmPending={
+                      confirmBooking.isPending &&
+                      confirmBooking.variables === booking.id
+                    }
+                    declinePending={
+                      declineBooking.isPending &&
+                      declineBooking.variables === booking.id
+                    }
+                  />
+                ),
+              )}
             </div>
 
-            {!asDriver && passengerActivity.length === 0 && safeUpcomingBookings.length > 0 && (
-              <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                Everything else is clear right now. Your confirmed upcoming rides are shown above.
-              </div>
-            )}
+            {!asDriver &&
+              passengerActivity.length === 0 &&
+              safeUpcomingBookings.length > 0 && (
+                <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                  Everything else is clear right now. Your confirmed upcoming
+                  rides are shown above.
+                </div>
+              )}
           </section>
         </>
       )}
@@ -265,7 +275,8 @@ function BookingCard({
             <div className="flex items-start gap-2">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
               <p className="text-base font-semibold text-slate-900">
-                {booking.ride.originAddress} to {booking.ride.destinationAddress}
+                {booking.ride.originAddress} to{" "}
+                {booking.ride.destinationAddress}
               </p>
             </div>
             <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
@@ -294,33 +305,33 @@ function BookingCard({
             <MetaItem icon={<CheckCircle2 className="h-4 w-4" />}>
               {isPassenger
                 ? `Driver: ${booking.ride.driver.name}`
-                : `Passenger: ${booking.passenger?.name ?? 'Unknown'}`}
+                : `Passenger: ${booking.passenger?.name ?? "Unknown"}`}
             </MetaItem>
           </div>
 
-          {view === 'passenger' && (
+          {view === "passenger" && (
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span>Payment: {booking.payment.status}</span>
               {booking.status === "CANCELLED" && (
                 <>
                   <span>Refunded: {booking.refund.amount} NOK</span>
                   <span>
-                    Policy:{' '}
+                    Policy:{" "}
                     {booking.cancellation.policyApplied
-                      ? booking.cancellation.policyApplied.replace('_', ' ')
-                      : 'N/A'}
+                      ? booking.cancellation.policyApplied.replace("_", " ")
+                      : "N/A"}
                   </span>
                 </>
               )}
             </div>
           )}
 
-          {view === 'passenger' && (
+          {view === "passenger" && (
             <p className="text-xs text-muted-foreground">
               Driver: {booking.ride.driver.name}
             </p>
           )}
-          {view === 'driver' && booking.passenger && (
+          {view === "driver" && booking.passenger && (
             <p className="text-xs text-muted-foreground">
               Passenger: {booking.passenger.name}
             </p>
@@ -333,13 +344,14 @@ function BookingCard({
           </Button>
 
           {isPassenger &&
-            (booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
+            (booking.status === "PENDING" ||
+              booking.status === "CONFIRMED") && (
               <Button
                 variant="destructive"
                 disabled={cancelPending}
                 onClick={onCancel}
               >
-                {cancelPending ? 'Cancelling...' : 'Cancel booking'}
+                {cancelPending ? "Cancelling..." : "Cancel booking"}
               </Button>
             )}
 
@@ -353,7 +365,7 @@ function BookingCard({
                 disabled={declinePending}
                 onClick={onDecline}
               >
-                {declinePending ? 'Declining...' : 'Decline'}
+                {declinePending ? "Declining..." : "Decline"}
               </Button>
             </div>
           )}

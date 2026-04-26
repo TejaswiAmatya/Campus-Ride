@@ -13,7 +13,11 @@ export interface RideStopInput {
 }
 
 export type RideOfferType = "ONE_TIME" | "RECURRING";
-export type RideRecurrencePattern = "NONE" | "DAILY" | "WEEKLY" | "SPECIFIC_DAYS";
+export type RideRecurrencePattern =
+  | "NONE"
+  | "DAILY"
+  | "WEEKLY"
+  | "SPECIFIC_DAYS";
 
 export interface CreateRideDto {
   offerType: RideOfferType;
@@ -173,3 +177,10 @@ export interface SearchRidesParams {
 }
 
 export type RideStatusUpdate = "ACTIVE" | "COMPLETED" | "CANCELLED";
+
+export interface RideStatusUpdatePayload {
+  rideId: string;
+  updatedAt: string;
+  changedFields: string[]; // list of fields that were updated, e.g. ["pickupLocation", "departureTime"]
+  updateMessage?: string;
+}

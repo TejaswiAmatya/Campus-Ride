@@ -13,52 +13,28 @@ import {
   UserCheck,
   UserRoundX,
   Users,
-} from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { useAuth } from '@/hooks/useAuth'
-import { useCreateReview, useConfirmBooking, useDeclineBooking } from '@/features/bookings/hooks'
-import { EditRideForm } from './components/EditRideForm'
-import { useCancelRide, useDriverLocationEmitter, useFinishRide, useMyRides, useStartRide, useUpdateRide } from './hooks'
-import type { Ride, RideBooking, RideStatusUpdate } from './types'
-
-const statusLabels: Record<Ride['status'], string> = {
-  OPEN: 'Scheduled',
-  FULL: 'Full',
-  IN_PROGRESS: 'On the road',
-  COMPLETED: 'Completed',
-  CANCELLED: 'Cancelled',
-}
-
-const statusVariants: Record<Ride['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  OPEN: 'secondary',
-  FULL: 'secondary',
-  IN_PROGRESS: 'default',
-  COMPLETED: 'outline',
-  CANCELLED: 'destructive',
-}
-
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import {
-  useConfirmBooking,
   useCreateReview,
+  useConfirmBooking,
   useDeclineBooking,
   useMarkBookingNoShow,
   useMarkBookingPickedUp,
 } from "@/features/bookings/hooks";
-import { useAuth } from "@/hooks/useAuth";
-
 import { EditRideForm } from "./components/EditRideForm";
 import {
   useCancelRide,
   useDriverLocationEmitter,
+  useFinishRide,
   useMyRides,
+  useStartRide,
   useUpdateRide,
   useUpdateRideStatus,
 } from "./hooks";
 import type { Ride, RideBooking, RideStatusUpdate } from "./types";
-
 const rideStatusLabels: Record<Ride["status"], string> = {
   OPEN: "Scheduled",
   FULL: "Full",
@@ -122,20 +98,20 @@ function actionVariant(
 }
 
 export function MyRidesPage() {
-  const { user } = useAuth()
-  const { data: rides, isLoading } = useMyRides()
-  const startRide = useStartRide()
-  const finishRide = useFinishRide()
-  const updateRide = useUpdateRide()
-  const cancelRide = useCancelRide()
-  const confirmBooking = useConfirmBooking()
-  const declineBooking = useDeclineBooking()
-  const createReview = useCreateReview()
-  const [expandedRideId, setExpandedRideId] = useState<string | null>(null)
-  const [rideToCancel, setRideToCancel] = useState<Ride | null>(null)
-  const [rideToEdit, setRideToEdit] = useState<Ride | null>(null)
+  const { user } = useAuth();
+  const { data: rides, isLoading } = useMyRides();
+  const startRide = useStartRide();
+  const finishRide = useFinishRide();
+  const updateRide = useUpdateRide();
+  const cancelRide = useCancelRide();
+  const confirmBooking = useConfirmBooking();
+  const declineBooking = useDeclineBooking();
+  const createReview = useCreateReview();
+  const [expandedRideId, setExpandedRideId] = useState<string | null>(null);
+  const [rideToCancel, setRideToCancel] = useState<Ride | null>(null);
+  const [rideToEdit, setRideToEdit] = useState<Ride | null>(null);
 
-  if (!user || user.role !== 'DRIVER') {
+  if (!user || user.role !== "DRIVER") {
     return (
       <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
         This page is only available to drivers.
@@ -229,19 +205,25 @@ export function MyRidesPage() {
               ride={ride}
               isExpanded={expandedRideId === ride.id}
               isUpdatingStatus={startRide.isPending || finishRide.isPending}
-              isCancellingRide={cancelRide.isPending && rideToCancel?.id === ride.id}
+              isCancellingRide={
+                cancelRide.isPending && rideToCancel?.id === ride.id
+              }
               isConfirming={confirmBooking.isPending}
               isDeclining={declineBooking.isPending}
               isReviewing={createReview.isPending}
-              onToggleExpanded={() => setExpandedRideId((current) => (current === ride.id ? null : ride.id))}
+              onToggleExpanded={() =>
+                setExpandedRideId((current) =>
+                  current === ride.id ? null : ride.id,
+                )
+              }
               onUpdateStatus={(status) => {
-                if (status === 'ACTIVE') {
-                  startRide.mutate(ride.id)
-                  return
+                if (status === "ACTIVE") {
+                  startRide.mutate(ride.id);
+                  return;
                 }
 
-                if (status === 'COMPLETED') {
-                  finishRide.mutate(ride.id)
+                if (status === "COMPLETED") {
+                  finishRide.mutate(ride.id);
                 }
               }}
               onRequestCancel={() => setRideToCancel(ride)}
@@ -252,7 +234,7 @@ export function MyRidesPage() {
                 createReview.mutate({ bookingId, rating })
               }
               onMarkPickedUp={(bookingId) =>
-                markBookingPickedUp.mutate(bookingId, {
+                useMarkBookingPickedUp().mutate(bookingId, {
                   onSuccess: () =>
                     setLocallyPickedUpBookingIds((current) =>
                       current.includes(bookingId)
@@ -262,7 +244,7 @@ export function MyRidesPage() {
                 })
               }
               onMarkNoShow={(bookingId) =>
-                markBookingNoShow.mutate(bookingId, {
+                useMarkBookingNoShow().mutate(bookingId, {
                   onSuccess: () =>
                     setLocallyNoShowBookingIds((current) =>
                       current.includes(bookingId)
