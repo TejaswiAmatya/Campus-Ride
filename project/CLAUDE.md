@@ -129,7 +129,6 @@ Key models: `User`, `DriverProfile` (licence, vehicle JSON, status, approvedAt),
 - **View bookings**: `GET /api/bookings` and `GET /api/bookings/:id`.
 - **Driver decisions**: `PATCH /api/bookings/:id/confirm` or `PATCH /api/bookings/:id/decline`.
 - **Cancel**: `PATCH /api/bookings/:id/cancel`.
-- **Reviews**: `POST /api/bookings/:id/review`.
 
 ### Profile & Driver Applications
 
