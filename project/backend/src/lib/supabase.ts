@@ -124,6 +124,36 @@ export async function createSignedLicenseUrl(path: string): Promise<string> {
   return data.signedUrl
 }
 
+export async function uploadAcademicId(
+  userId: string,
+  buffer: Buffer,
+  filetype: string
+): Promise<string> {
+  const ext = filetype.split('/')[1] ?? 'pdf'
+  const path = `${userId}/academic-id.${ext}`
+
+  const { error } = await getSupabaseAdminClient()
+    .storage
+    .from('AcademicInfo')
+    .upload(path, buffer, {
+      contentType: filetype,
+      upsert: true,
+    })
+
+  if (error) {
+    console.error('Supabase academic ID upload failed:', {
+      message: error.message,
+      name: error.name,
+      userId,
+      path,
+      filetype,
+    })
+    throw new AppError('UPLOAD_FAILED', 'Failed to upload academic ID', 500)
+  }
+
+  return path
+}
+
 export async function uploadAvatar(
   userId: string,
   buffer: Buffer,
