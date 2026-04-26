@@ -10,8 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   Clock,
-  Map,
   MapPin,
+  Map,
   ShieldCheck,
   Ticket,
   Timer,
@@ -37,7 +37,13 @@ import {
 } from "@/hooks/useProfile";
 
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
-import { useDriverLocation, useDriverLocationEmitter, useRide } from "./hooks";
+import {
+  useDriverLocation,
+  useDriverLocationEmitter,
+  useRide,
+  useRideStatusListener,
+} from "./hooks";
+import type { Ride } from "./types";
 import {
   fetchRoutePreview,
   formatRouteDistance,
@@ -48,6 +54,7 @@ import {
 export function RideDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: ride, isLoading, isError } = useRide(id);
+  useRideStatusListener({ rideId: ride?.id, enabled: true });
   const { user } = useAuth();
   const [showReportForm, setShowReportForm] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -205,7 +212,6 @@ export function RideDetailPage() {
       ),
     [driverBookings, ride?.id],
   );
-
   const pickedUpSet = useMemo(
     () => new Set(locallyPickedUpBookingIds),
     [locallyPickedUpBookingIds],
@@ -254,9 +260,7 @@ export function RideDetailPage() {
     user.id === ride.driver.id &&
     pendingDriverReviewPassengers.length > 0;
 
-  const handleReportSubmit = async (
-    event: FormEvent<HTMLFormElement>,
-  ) => {
+  const handleReportSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedUserId) {
       return;
