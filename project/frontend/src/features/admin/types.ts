@@ -11,8 +11,8 @@ export interface PendingDriver {
   id: string;
   name: string;
   email: string;
-  licenceSignedUrl?: string | null;
-  insuranceSignedUrl?: string | null;
+  licenceUrl?: string | null;
+  insuranceUrl?: string | null;
   vehicle?: PendingDriverVehicle | null;
   createdAt: string;
 }
