@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { api } from '../api/client'
-import { useAuthStore } from '@/store/authStore'
+import { api, extractApiError } from '../api/client'
+import { useAuthStore, type AuthErrorState } from '@/store/authStore'
 import { fetchMe, meQueryKey, type ProfileUser } from './useProfile'
 
 export type AuthUser = ProfileUser
@@ -12,6 +12,8 @@ interface LoginResponse {
     refresh_token: string
   }
 }
+
+type SessionTokens = LoginResponse['data']
 
 interface RegisterInput {
   email: string
@@ -28,7 +30,6 @@ interface RegisterResponse {
   }
 }
 
-
 /**
  * Returns the currently authenticated user by calling GET /api/users/me.
  * Only fires the request when an access_token is present in localStorage.
@@ -39,27 +40,27 @@ export function useAuth() {
   const currentUser = useAuthStore((state) => state.user)
   const setUser = useAuthStore((state) => state.setUser)
   const clearSession = useAuthStore((state) => state.clearSession)
+  const setAuthError = useAuthStore((state) => state.setAuthError)
+  const authError = useAuthStore((state) => state.authError)
 
   // Fetch the current user profile if we have an access token but no user in the store.
-  const { data, isLoading } = useQuery({
+  const { data, error, isLoading } = useQuery<AuthUser>({
     queryKey: meQueryKey,
-    queryFn: async () => {
-      try {
-        return await fetchMe()
-      } catch {
-        return null
-      }
-    },
+    queryFn: fetchMe,
     enabled: !!token,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
   useEffect(() => {
-    if (token && data === null && !isLoading && currentUser) {
-      clearSession()
+    if (!token || isLoading || !error) {
+      return
     }
-  }, [clearSession, currentUser, data, isLoading, token])
+
+    const authError = extractApiError(error)
+    clearSession()
+    setAuthError(authError)
+  }, [clearSession, error, isLoading, setAuthError, token])
 
   useEffect(() => {
     if (data && data !== currentUser) {
@@ -67,12 +68,19 @@ export function useAuth() {
     }
   }, [currentUser, data, setUser])
 
+  useEffect(() => {
+    if (token && !error) {
+      setAuthError(null)
+    }
+  }, [error, setAuthError, token])
+
   const user = data ?? currentUser
 
   return {
     user: user ?? null,
     isAuthenticated: !!user,
     isLoading: !!token && isLoading,
+    authError,
   }
 }
 
@@ -81,11 +89,19 @@ export function useLogin(){
   const setSession = useAuthStore((s) => s.setSession)
   const setUser = useAuthStore((s) => s.setUser)
   const clearSession = useAuthStore((s) => s.clearSession)
+  const setAuthError = useAuthStore((s) => s.setAuthError)
 
-  return useMutation({
+  return useMutation<SessionTokens, AuthErrorState, { email: string; password: string }>({
+    onMutate: () => {
+      setAuthError(null)
+    },
     mutationFn: async (credentials: { email: string; password: string }) => {
-      const res = await api.post<LoginResponse>('/api/auth/login', credentials)
-      return res.data.data
+      try {
+        const res = await api.post<LoginResponse>('/api/auth/login', credentials)
+        return res.data.data
+      } catch (error) {
+        throw extractApiError(error)
+      }
     },
     onSuccess: async (tokens) => {
       setSession(tokens)
@@ -97,8 +113,11 @@ export function useLogin(){
           queryFn: fetchMe,
           staleTime: 0,
         })
-      } catch {
-        user = null
+      } catch (error) {
+        const parsedError = extractApiError(error)
+        clearSession()
+        setAuthError(parsedError)
+        throw parsedError
       }
 
       if (user) {
@@ -107,6 +126,9 @@ export function useLogin(){
       } else {
         clearSession()
       }
+    },
+    onError: (error) => {
+      setAuthError(error)
     },
   })
 }

@@ -4,19 +4,11 @@ import {
   UpdateProfileSchema,
   DriverApplicationSchema,
   type DriverApplicationInput,
+  type MeResponse,
 } from "./schemas";
 import { prisma } from "../lib/prisma";
 import { uploadAvatar, uploadLicense } from "../lib/supabase";
 import { AppError } from "../middleware/error";
-interface MeResponse {
-  id: string;
-  email: string;
-  name: string;
-  role: "PASSENGER" | "DRIVER" | "ADMIN";
-  avatarUrl: string | null;
-  driverStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
-  createdAt: string;
-}
 
 /**
  * GET /api/users/me
@@ -58,7 +50,9 @@ export async function getCurrentUser(
       email: user.email,
       name: user.name,
       role: user.role,
-      avatarUrl: user.avatarPath ?? null,
+      accountStatus: user.accountStatus,
+      suspendedUntil: user.suspendedUntil?.toISOString() ?? null,
+      avatarPath: user.avatarPath ?? null,
       driverStatus: user.driverProfile?.status ?? null,
       createdAt: user.createdAt.toISOString(),
     };

@@ -1,10 +1,21 @@
 import axios from 'axios'
+import type { AuthErrorState } from '@/store/authStore'
 
 export const api = axios.create({
   baseURL: '/',
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 })
+
+type ApiErrorPayload = {
+  error?: {
+    code?: string
+    message?: string
+    details?: {
+      suspendedUntil?: string
+    }
+  }
+}
 
 // Request interceptor — attach JWT
 api.interceptors.request.use((config) => {
@@ -23,7 +34,7 @@ type MeFlatResponse = {
   email: string
   name: string
   role: Role
-  avatarUrl: string | null
+  avatarPath: string | null
   driverStatus: DriverStatus
   createdAt: string
 }
@@ -59,11 +70,35 @@ export async function fetchMe(): Promise<MeUser> {
       email: payload.email,
       name: payload.name,
       role: payload.role,
-      avatarPath: payload.avatarUrl ?? undefined,
+      avatarPath: payload.avatarPath ?? undefined,
       isDriverApproved: payload.driverStatus === 'APPROVED',
       driverStatus: payload.driverStatus,
     }
   }
 
   return payload
+}
+
+export function extractApiError(
+  error: unknown,
+  fallbackMessage = 'Unable to complete authentication right now. Please try again.',
+): AuthErrorState {
+  if (axios.isAxiosError<ApiErrorPayload>(error)) {
+    const code = error.response?.data?.error?.code
+    const message = error.response?.data?.error?.message
+    const suspendedUntil = error.response?.data?.error?.details?.suspendedUntil
+
+    if (code && message) {
+      return {
+        code,
+        message,
+        suspendedUntil: suspendedUntil ?? null,
+      }
+    }
+  }
+
+  return {
+    code: 'AUTH_ERROR',
+    message: fallbackMessage,
+  }
 }
