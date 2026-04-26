@@ -212,7 +212,7 @@ export async function updateCurrentUser(
 
 /**
  * POST /api/users/me/driver
- * Uploads driver documents and creates a pending driver application.
+ * Uploads driver documents and creates or resubmits a pending driver application.
  */
 export async function applyAsDriver(
   req: Request,
@@ -238,10 +238,18 @@ export async function applyAsDriver(
     const existingApplication = await prisma.driverProfile.findUnique({
       where: { userId: req.user!.id },
     });
-    if (existingApplication) {
+    if (existingApplication?.status === "PENDING") {
       throw new AppError(
-        "DRIVER_APPLICATION_EXISTS",
-        "You already have a driver application",
+        "DRIVER_APPLICATION_PENDING",
+        "Your driver application is already under review",
+        409,
+      );
+    }
+
+    if (existingApplication?.status === "APPROVED") {
+      throw new AppError(
+        "DRIVER_APPLICATION_APPROVED",
+        "Your driver application has already been approved",
         409,
       );
     }
@@ -266,6 +274,19 @@ export async function applyAsDriver(
         data: { role: "DRIVER" },
       });
 
+      if (existingApplication?.status === "REJECTED") {
+        return await (tx as any).driverProfile.update({
+          where: { userId: req.user!.id },
+          data: {
+            licencePath,
+            insurancePath,
+            vehicleInfo: body.vehicle,
+            status: "PENDING",
+            rejectionReason: null,
+          },
+        });
+      }
+
       return await (tx as any).driverProfile.create({
         data: {
           userId: req.user!.id,
@@ -278,7 +299,9 @@ export async function applyAsDriver(
       });
     });
 
-    res.status(201).json({ data: driverProfile });
+    res.status(existingApplication?.status === "REJECTED" ? 200 : 201).json({
+      data: driverProfile,
+    });
   } catch (err) {
     next(err);
   }

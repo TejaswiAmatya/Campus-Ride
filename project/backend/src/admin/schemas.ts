@@ -4,6 +4,14 @@ import { ALLOWED_CONFIG_KEYS, PLATFORM_FEE_CONFIG_KEY } from "../config/service"
 export const DriverDecisionSchema = z.object({
   approved: z.boolean(),
   reason: z.string().max(500).optional(), // required when approved = false
+}).superRefine((data, ctx) => {
+  if (!data.approved && (!data.reason || data.reason.trim().length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["reason"],
+      message: "Reason is required when rejecting a driver application",
+    });
+  }
 });
 
 export const UpdateConfigSchema = z.object({
