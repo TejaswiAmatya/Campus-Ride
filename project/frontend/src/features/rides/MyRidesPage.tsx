@@ -1,7 +1,6 @@
-import { useState, type ReactNode, useMemo } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
-  ArrowRight,
   Banknote,
   CarFront,
   CheckCircle2,
@@ -11,37 +10,33 @@ import {
   MapPin,
   Plus,
   Star,
+  UserCheck,
+  UserRoundX,
   Users,
-  UserCheck, UserRoundX
 } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useDriverBookingNewListener, useMarkBookingPickedUp, useMarkBookingNoShow } from "@/features/bookings/hooks";
-import { useAuth } from "@/hooks/useAuth";
-import {
-  useCreateReview,
   useConfirmBooking,
+  useCreateReview,
   useDeclineBooking,
+  useMarkBookingNoShow,
+  useMarkBookingPickedUp,
 } from "@/features/bookings/hooks";
+import { useAuth } from "@/hooks/useAuth";
+
+import { EditRideForm } from "./components/EditRideForm";
 import {
   useCancelRide,
   useDriverLocationEmitter,
   useMyRides,
+  useUpdateRide,
   useUpdateRideStatus,
-  useUpdateRide
 } from "./hooks";
-import { EditRideForm } from './components/EditRideForm'
-import type { Ride, RideBooking, RideStatusUpdate } from './types'
+import type { Ride, RideBooking, RideStatusUpdate } from "./types";
 
-const statusLabels: Record<Ride["status"], string> = {
+const rideStatusLabels: Record<Ride["status"], string> = {
   OPEN: "Scheduled",
   FULL: "Full",
   IN_PROGRESS: "On the road",
@@ -49,7 +44,7 @@ const statusLabels: Record<Ride["status"], string> = {
   CANCELLED: "Cancelled",
 };
 
-const statusVariants: Record<
+const rideStatusVariants: Record<
   Ride["status"],
   "default" | "secondary" | "destructive" | "outline"
 > = {
@@ -58,6 +53,23 @@ const statusVariants: Record<
   IN_PROGRESS: "default",
   COMPLETED: "outline",
   CANCELLED: "destructive",
+};
+
+const bookingStatusLabels: Record<RideBooking["status"], string> = {
+  PENDING: "Pending",
+  CONFIRMED: "Confirmed",
+  CANCELLED: "Cancelled",
+  COMPLETED: "Completed",
+};
+
+const bookingStatusVariants: Record<
+  RideBooking["status"],
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  PENDING: "secondary",
+  CONFIRMED: "default",
+  CANCELLED: "destructive",
+  COMPLETED: "outline",
 };
 
 function availableActions(status: Ride["status"]) {
@@ -86,33 +98,36 @@ function actionVariant(
   return "default";
 }
 
-interface MyRideCardProps {
-  ride: Ride
-  isExpanded: boolean
-  isUpdatingStatus: boolean
-  isCancellingRide: boolean
-  locallyPickedUpBookingIds: Set<string>
-  locallyNoShowBookingIds: Set<string>
-  onToggleExpanded: () => void
-  onUpdateStatus: (status: RideStatusUpdate) => void
-  onRequestCancel: () => void
-  onMarkPickedUp: (bookingId: string) => void
-  onMarkNoShow: (bookingId: string) => void
-  pickupPendingBookingId: string | null
-  noShowPendingBookingId: string | null
-  
 export function MyRidesPage() {
-  const { user } = useAuth()
-  const { data: rides, isLoading } = useMyRides()
-  const updateRideStatus = useUpdateRideStatus()
-  const updateRide = useUpdateRide()
-  const cancelRide = useCancelRide()
-  const confirmBooking = useConfirmBooking()
-  const declineBooking = useDeclineBooking()
-  const createReview = useCreateReview()
-  const [expandedRideId, setExpandedRideId] = useState<string | null>(null)
-  const [rideToCancel, setRideToCancel] = useState<Ride | null>(null)
-  const [rideToEdit, setRideToEdit] = useState<Ride | null>(null)
+  const { user } = useAuth();
+  const { data: rides, isLoading } = useMyRides();
+  const updateRideStatus = useUpdateRideStatus();
+  const updateRide = useUpdateRide();
+  const cancelRide = useCancelRide();
+  const confirmBooking = useConfirmBooking();
+  const declineBooking = useDeclineBooking();
+  const createReview = useCreateReview();
+  const markBookingPickedUp = useMarkBookingPickedUp();
+  const markBookingNoShow = useMarkBookingNoShow();
+
+  const [expandedRideId, setExpandedRideId] = useState<string | null>(null);
+  const [rideToCancel, setRideToCancel] = useState<Ride | null>(null);
+  const [rideToEdit, setRideToEdit] = useState<Ride | null>(null);
+  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<
+    string[]
+  >([]);
+  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<
+    string[]
+  >([]);
+
+  const pickedUpSet = useMemo(
+    () => new Set(locallyPickedUpBookingIds),
+    [locallyPickedUpBookingIds],
+  );
+  const noShowSet = useMemo(
+    () => new Set(locallyNoShowBookingIds),
+    [locallyNoShowBookingIds],
+  );
 
   if (!user || user.role !== "DRIVER") {
     return (
@@ -214,6 +229,18 @@ export function MyRidesPage() {
               isConfirming={confirmBooking.isPending}
               isDeclining={declineBooking.isPending}
               isReviewing={createReview.isPending}
+              locallyPickedUpBookingIds={pickedUpSet}
+              locallyNoShowBookingIds={noShowSet}
+              pickupPendingBookingId={
+                markBookingPickedUp.isPending
+                  ? (markBookingPickedUp.variables ?? null)
+                  : null
+              }
+              noShowPendingBookingId={
+                markBookingNoShow.isPending
+                  ? (markBookingNoShow.variables ?? null)
+                  : null
+              }
               onToggleExpanded={() =>
                 setExpandedRideId((current) =>
                   current === ride.id ? null : ride.id,
@@ -228,6 +255,26 @@ export function MyRidesPage() {
               onDeclineBooking={(bookingId) => declineBooking.mutate(bookingId)}
               onCreateReview={(bookingId, rating) =>
                 createReview.mutate({ bookingId, rating })
+              }
+              onMarkPickedUp={(bookingId) =>
+                markBookingPickedUp.mutate(bookingId, {
+                  onSuccess: () =>
+                    setLocallyPickedUpBookingIds((current) =>
+                      current.includes(bookingId)
+                        ? current
+                        : [...current, bookingId],
+                    ),
+                })
+              }
+              onMarkNoShow={(bookingId) =>
+                markBookingNoShow.mutate(bookingId, {
+                  onSuccess: () =>
+                    setLocallyNoShowBookingIds((current) =>
+                      current.includes(bookingId)
+                        ? current
+                        : [...current, bookingId],
+                    ),
+                })
               }
             />
           ))}
@@ -266,57 +313,74 @@ export function MyRidesPage() {
   );
 }
 
+interface RideCardProps {
+  ride: Ride;
+  isExpanded: boolean;
+  isUpdatingStatus: boolean;
+  isCancellingRide: boolean;
+  isConfirming: boolean;
+  isDeclining: boolean;
+  isReviewing: boolean;
+  locallyPickedUpBookingIds: Set<string>;
+  locallyNoShowBookingIds: Set<string>;
+  pickupPendingBookingId: string | null;
+  noShowPendingBookingId: string | null;
+  onToggleExpanded: () => void;
+  onUpdateStatus: (status: RideStatusUpdate) => void;
+  onRequestCancel: () => void;
+  onRequestEdit: () => void;
+  onConfirmBooking: (bookingId: string) => void;
+  onDeclineBooking: (bookingId: string) => void;
+  onCreateReview: (bookingId: string, rating: number) => void;
+  onMarkPickedUp: (bookingId: string) => void;
+  onMarkNoShow: (bookingId: string) => void;
+}
+
 function RideCard({
   ride,
   isExpanded,
   isUpdatingStatus,
   isCancellingRide,
+  isConfirming,
+  isDeclining,
+  isReviewing,
   locallyPickedUpBookingIds,
   locallyNoShowBookingIds,
+  pickupPendingBookingId,
+  noShowPendingBookingId,
   onToggleExpanded,
   onUpdateStatus,
   onRequestCancel,
-  onMarkPickedUp,
-  onMarkNoShow,
-  pickupPendingBookingId,
-  noShowPendingBookingId,
-}: MyRideCardProps) {
   onRequestEdit,
   onConfirmBooking,
   onDeclineBooking,
   onCreateReview,
-}: {
-  ride: Ride
-  isExpanded: boolean
-  isUpdatingStatus: boolean
-  isCancellingRide: boolean
-  isConfirming: boolean
-  isDeclining: boolean
-  isReviewing: boolean
-  onToggleExpanded: () => void
-  onUpdateStatus: (status: RideStatusUpdate) => void
-  onRequestCancel: () => void
-  onRequestEdit: () => void
-  onConfirmBooking: (bookingId: string) => void
-  onDeclineBooking: (bookingId: string) => void
-  onCreateReview: (bookingId: string, rating: number) => void
-}) {
-  const actions = availableActions(ride.status)
-  const bookings = ride.bookings ?? []
-  const confirmedBookings = bookings.filter((booking) => booking.status === 'CONFIRMED')
-  const { isSharingLocation } = useDriverLocationEmitter(ride.status === 'IN_PROGRESS' ? ride.id : undefined)
-  const canCancelRide = ride.status === 'OPEN' || ride.status === 'FULL'
-  const canManagePassengers = ride.status === 'IN_PROGRESS' && confirmedBookings.length > 0
-  const showRequestsToggle = ride.status !== 'IN_PROGRESS'
-  const showExpandedSection = ride.status === 'IN_PROGRESS' ? true : isExpanded
+  onMarkPickedUp,
+  onMarkNoShow,
+}: RideCardProps) {
+  const actions = availableActions(ride.status);
+  const bookings = ride.bookings ?? [];
+  const confirmedBookings = bookings.filter(
+    (booking) => booking.status === "CONFIRMED",
+  );
+  const displayedBookings =
+    ride.status === "IN_PROGRESS" ? confirmedBookings : bookings;
+  const canCancelRide = ride.status === "OPEN" || ride.status === "FULL";
+  const canManagePassengers =
+    ride.status === "IN_PROGRESS" && confirmedBookings.length > 0;
+  const showRequestsToggle = ride.status !== "IN_PROGRESS";
+  const showExpandedSection = ride.status === "IN_PROGRESS" ? true : isExpanded;
+  const { isSharingLocation } = useDriverLocationEmitter(
+    ride.status === "IN_PROGRESS" ? ride.id : undefined,
+  );
 
   return (
     <div className="rounded-3xl border bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0 flex-1 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={statusVariants[ride.status]}>
-              {statusLabels[ride.status]}
+            <Badge variant={rideStatusVariants[ride.status]}>
+              {rideStatusLabels[ride.status]}
             </Badge>
             {isSharingLocation && (
               <Badge variant="secondary" className="gap-1.5">
@@ -354,35 +418,32 @@ function RideCard({
             <TripMetric
               icon={<Users className="h-4 w-4" />}
               label="Passengers"
-              value={`${stats?.completedPassengers ?? 0}/${stats?.totalPassengers ?? 0} completed`}
+              value={`${ride.stats?.completedPassengers ?? 0}/${ride.stats?.totalPassengers ?? 0} completed`}
             />
             <TripMetric
               icon={<Banknote className="h-4 w-4" />}
               label="This ride earned"
-              value={`${ride.status === "COMPLETED" ? stats?.completedEarnings : (stats?.totalEarnings ?? "0.00")} NOK`}
+              value={`${ride.status === "COMPLETED" ? (ride.stats?.completedEarnings ?? "0.00") : (ride.stats?.totalEarnings ?? "0.00")} NOK`}
             />
             <TripMetric
               icon={<CheckCircle2 className="h-4 w-4" />}
               label="Requests"
-              value={`${stats?.pendingRequests ?? 0} pending`}
+              value={`${ride.stats?.pendingRequests ?? 0} pending`}
             />
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 lg:justify-end">
+        <div className="flex flex-wrap gap-2 xl:justify-end">
           {showRequestsToggle && (
             <Button variant="outline" onClick={onToggleExpanded}>
-              {isExpanded ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
-              {isExpanded ? 'Hide Requests' : 'View Requests'}
-        <div className="flex flex-wrap gap-2 xl:justify-end">
-          <Button variant="outline" onClick={onToggleExpanded}>
-            {isExpanded ? (
-              <ChevronUp className="mr-2 h-4 w-4" />
-            ) : (
-              <ChevronDown className="mr-2 h-4 w-4" />
-            )}
-            {isExpanded ? "Hide riders" : "View riders"}
-          </Button>
+              {isExpanded ? (
+                <ChevronUp className="mr-2 h-4 w-4" />
+              ) : (
+                <ChevronDown className="mr-2 h-4 w-4" />
+              )}
+              {isExpanded ? "Hide requests" : "View requests"}
+            </Button>
+          )}
           {canCancelRide && (
             <Button variant="outline" onClick={onRequestEdit}>
               Edit ride
@@ -399,8 +460,12 @@ function RideCard({
             </Button>
           ))}
           {canCancelRide && (
-            <Button variant="destructive" disabled={isCancellingRide} onClick={onRequestCancel}>
-              {isCancellingRide ? 'Cancelling...' : 'Cancel Ride'}
+            <Button
+              variant="destructive"
+              disabled={isCancellingRide}
+              onClick={onRequestCancel}
+            >
+              {isCancellingRide ? "Cancelling..." : "Cancel ride"}
             </Button>
           )}
         </div>
@@ -409,89 +474,51 @@ function RideCard({
       {showExpandedSection && (
         <div className="mt-4 rounded-lg border bg-muted/20">
           <div className="border-b px-4 py-3">
-            <h2 className="text-sm font-semibold">{canManagePassengers ? 'Passengers' : 'Booking Requests'}</h2>
+            <h2 className="text-sm font-semibold">
+              {canManagePassengers ? "Passengers" : "Booking Requests"}
+            </h2>
             {canManagePassengers && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Mark confirmed passengers as picked up or no-show while the ride is active.
+                Mark confirmed passengers as picked up or no-show while the ride
+                is active.
               </p>
             )}
           </div>
 
           {bookings.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-muted-foreground">No booking requests yet.</p>
-          ) : ride.status === 'IN_PROGRESS' && confirmedBookings.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">
-              No confirmed passengers are available to mark for this active ride.
+              No booking requests yet.
+            </p>
+          ) : ride.status === "IN_PROGRESS" &&
+            confirmedBookings.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-muted-foreground">
+              No confirmed passengers are available to mark for this active
+              ride.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Passenger</TableHead>
-                  <TableHead>Seats</TableHead>
-                  <TableHead>Status</TableHead>
-                  {canManagePassengers && <TableHead>Ride actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(canManagePassengers ? confirmedBookings : bookings).map((booking) => {
-                  const pickedUpLocally = locallyPickedUpBookingIds.has(booking.id)
-                  const noShowLocally = locallyNoShowBookingIds.has(booking.id)
-                  const canHandleThisBooking =
-                    canManagePassengers &&
-                    !pickedUpLocally &&
-                    !noShowLocally
-
-                  return (
-                    <TableRow key={booking.id}>
-                      <TableCell className="font-medium">{booking.passenger.name}</TableCell>
-                      <TableCell>{booking.seatsBooked}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={bookingStatusVariants[booking.status]}>{bookingStatusLabels[booking.status]}</Badge>
-                          {pickedUpLocally && <span className="text-xs text-emerald-700">Picked up</span>}
-                          {noShowLocally && <span className="text-xs text-destructive">Marked no-show</span>}
-                        </div>
-                      </TableCell>
-                      {canManagePassengers && (
-                        <TableCell>
-                          {canHandleThisBooking ? (
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={pickupPendingBookingId === booking.id || noShowPendingBookingId === booking.id}
-                                onClick={() => onMarkPickedUp(booking.id)}
-                              >
-                                <UserCheck className="mr-2 h-4 w-4" />
-                                {pickupPendingBookingId === booking.id ? 'Saving...' : 'Picked up'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                disabled={pickupPendingBookingId === booking.id || noShowPendingBookingId === booking.id}
-                                onClick={() => onMarkNoShow(booking.id)}
-                              >
-                                <UserRoundX className="mr-2 h-4 w-4" />
-                                {noShowPendingBookingId === booking.id ? 'Saving...' : 'No-show'}
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              {pickedUpLocally
-                                ? 'Passenger marked as picked up.'
-                                : noShowLocally
-                                  ? 'Passenger marked as no-show.'
-                                  : 'Already handled.'}
-                            </span>
-                          )}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+            <div className="space-y-3 p-4">
+              {displayedBookings.map((booking) => (
+                <PassengerRow
+                  key={booking.id}
+                  booking={booking}
+                  canManagePassengers={canManagePassengers}
+                  pickedUpLocally={locallyPickedUpBookingIds.has(booking.id)}
+                  noShowLocally={locallyNoShowBookingIds.has(booking.id)}
+                  pickupPending={pickupPendingBookingId === booking.id}
+                  noShowPending={noShowPendingBookingId === booking.id}
+                  isConfirming={isConfirming}
+                  isDeclining={isDeclining}
+                  isReviewing={isReviewing}
+                  onConfirm={() => onConfirmBooking(booking.id)}
+                  onDecline={() => onDeclineBooking(booking.id)}
+                  onCreateReview={(rating) =>
+                    onCreateReview(booking.id, rating)
+                  }
+                  onMarkPickedUp={() => onMarkPickedUp(booking.id)}
+                  onMarkNoShow={() => onMarkNoShow(booking.id)}
+                />
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -501,22 +528,37 @@ function RideCard({
 
 function PassengerRow({
   booking,
+  canManagePassengers,
+  pickedUpLocally,
+  noShowLocally,
+  pickupPending,
+  noShowPending,
   isConfirming,
   isDeclining,
   isReviewing,
   onConfirm,
   onDecline,
   onCreateReview,
+  onMarkPickedUp,
+  onMarkNoShow,
 }: {
   booking: RideBooking;
+  canManagePassengers: boolean;
+  pickedUpLocally: boolean;
+  noShowLocally: boolean;
+  pickupPending: boolean;
+  noShowPending: boolean;
   isConfirming: boolean;
   isDeclining: boolean;
   isReviewing: boolean;
   onConfirm: () => void;
   onDecline: () => void;
   onCreateReview: (rating: number) => void;
+  onMarkPickedUp: () => void;
+  onMarkNoShow: () => void;
 }) {
   const [rating, setRating] = useState(5);
+
   const helper =
     booking.status === "PENDING"
       ? "Waiting for your decision."
@@ -526,6 +568,9 @@ function PassengerRow({
           ? "Ride completed and passenger reached the destination."
           : "This request is no longer active.";
 
+  const canHandleThisBooking =
+    canManagePassengers && !pickedUpLocally && !noShowLocally;
+
   return (
     <div className="rounded-2xl border bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -534,19 +579,15 @@ function PassengerRow({
             <p className="font-medium text-slate-900">
               {booking.passenger.name}
             </p>
-            <Badge
-              variant={
-                booking.status === "COMPLETED"
-                  ? "outline"
-                  : booking.status === "CONFIRMED"
-                    ? "default"
-                    : booking.status === "PENDING"
-                      ? "secondary"
-                      : "destructive"
-              }
-            >
-              {booking.status.toLowerCase()}
+            <Badge variant={bookingStatusVariants[booking.status]}>
+              {bookingStatusLabels[booking.status]}
             </Badge>
+            {pickedUpLocally && (
+              <span className="text-xs text-emerald-700">Picked up</span>
+            )}
+            {noShowLocally && (
+              <span className="text-xs text-destructive">Marked no-show</span>
+            )}
           </div>
           <p className="text-sm text-slate-500">{helper}</p>
           <div className="flex flex-wrap gap-2 text-sm text-slate-600">
@@ -577,7 +618,7 @@ function PassengerRow({
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          {booking.status === "PENDING" && (
+          {booking.status === "PENDING" && !canManagePassengers && (
             <>
               <Button disabled={isConfirming} onClick={onConfirm}>
                 {isConfirming ? "Accepting..." : "Accept passenger"}
@@ -589,6 +630,41 @@ function PassengerRow({
               >
                 {isDeclining ? "Declining..." : "Decline"}
               </Button>
+            </>
+          )}
+
+          {canManagePassengers && (
+            <>
+              {canHandleThisBooking ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pickupPending || noShowPending}
+                    onClick={onMarkPickedUp}
+                  >
+                    <UserCheck className="mr-2 h-4 w-4" />
+                    {pickupPending ? "Saving..." : "Picked up"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={pickupPending || noShowPending}
+                    onClick={onMarkNoShow}
+                  >
+                    <UserRoundX className="mr-2 h-4 w-4" />
+                    {noShowPending ? "Saving..." : "No-show"}
+                  </Button>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  {pickedUpLocally
+                    ? "Passenger marked as picked up."
+                    : noShowLocally
+                      ? "Passenger marked as no-show."
+                      : "Already handled."}
+                </span>
+              )}
             </>
           )}
 
@@ -706,118 +782,15 @@ function CancelRideDialog({
           <Button variant="outline" disabled={isCancelling} onClick={onClose}>
             Keep ride
           </Button>
-          <Button variant="destructive" disabled={isCancelling} onClick={onConfirm}>
-            {isCancelling ? 'Cancelling...' : 'Confirm Cancel'}
+          <Button
+            variant="destructive"
+            disabled={isCancelling}
+            onClick={onConfirm}
+          >
+            {isCancelling ? "Cancelling..." : "Confirm cancel"}
           </Button>
         </div>
       </div>
     </div>
   );
-}
-
-export function MyRidesPage() {
-  const { user } = useAuth()
-  const { data: rides, isLoading } = useMyRides()
-  const updateRideStatus = useUpdateRideStatus()
-  const cancelRide = useCancelRide()
-  const markBookingPickedUp = useMarkBookingPickedUp()
-  const markBookingNoShow = useMarkBookingNoShow()
-  const [expandedRideId, setExpandedRideId] = useState<string | null>(null)
-  const [rideToCancel, setRideToCancel] = useState<Ride | null>(null)
-  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<string[]>([])
-  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<string[]>([])
-
-  const pickedUpSet = useMemo(() => new Set(locallyPickedUpBookingIds), [locallyPickedUpBookingIds])
-  const noShowSet = useMemo(() => new Set(locallyNoShowBookingIds), [locallyNoShowBookingIds])
-
-  if (!user || user.role !== 'DRIVER') {
-    return (
-      <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
-        This page is only available to drivers.
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">My Rides</h1>
-          <p className="text-sm text-muted-foreground">Manage your scheduled, active, and completed rides.</p>
-        </div>
-        <Button asChild>
-          <Link to="/rides/post">
-            <Plus className="mr-2 h-4 w-4" />
-            Post a Ride
-          </Link>
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((item) => (
-            <div key={item} className="h-32 animate-pulse rounded-lg border bg-muted" />
-          ))}
-        </div>
-      ) : (rides ?? []).length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center">
-          <CarFront className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
-          <p className="text-muted-foreground">You have not posted any rides yet.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {(rides ?? []).map((ride) => {
-            return (
-              <MyRideCard
-                key={ride.id}
-                ride={ride}
-                isExpanded={expandedRideId === ride.id}
-                isUpdatingStatus={updateRideStatus.isPending}
-                isCancellingRide={cancelRide.isPending && rideToCancel?.id === ride.id}
-                locallyPickedUpBookingIds={pickedUpSet}
-                locallyNoShowBookingIds={noShowSet}
-                onToggleExpanded={() => setExpandedRideId((current) => (current === ride.id ? null : ride.id))}
-                onUpdateStatus={(status) => updateRideStatus.mutate({ rideId: ride.id, status })}
-                onRequestCancel={() => setRideToCancel(ride)}
-                onMarkPickedUp={(bookingId) =>
-                  markBookingPickedUp.mutate(bookingId, {
-                    onSuccess: () =>
-                      setLocallyPickedUpBookingIds((current) =>
-                        current.includes(bookingId) ? current : [...current, bookingId],
-                      ),
-                  })
-                }
-                onMarkNoShow={(bookingId) =>
-                  markBookingNoShow.mutate(bookingId, {
-                    onSuccess: () =>
-                      setLocallyNoShowBookingIds((current) =>
-                        current.includes(bookingId) ? current : [...current, bookingId],
-                      ),
-                  })
-                }
-                pickupPendingBookingId={markBookingPickedUp.isPending ? markBookingPickedUp.variables ?? null : null}
-                noShowPendingBookingId={markBookingNoShow.isPending ? markBookingNoShow.variables ?? null : null}
-              />
-            )
-          })}
-        </div>
-      )}
-
-      <CancelRideDialog
-        ride={rideToCancel}
-        isOpen={!!rideToCancel}
-        isCancelling={cancelRide.isPending}
-        onClose={() => setRideToCancel(null)}
-        onConfirm={() => {
-          if (!rideToCancel) {
-            return
-          }
-
-          cancelRide.mutate(rideToCancel.id, {
-            onSuccess: () => setRideToCancel(null),
-          })
-        }}
-      />
-    </div>
-  )
 }
