@@ -1,16 +1,56 @@
 import type { Request, Response, NextFunction } from 'express'
 import { ZodError } from 'zod'
 
+export const ACCOUNT_STATUSES = ['ACTIVE', 'WARNED', 'SUSPENDED', 'BANNED'] as const
+
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number]
+
 /** Throw this from any controller to produce a structured HTTP error response. */
 export class AppError extends Error {
   constructor(
     public readonly code: string,
     public readonly message: string,
     public readonly statusCode: number = 400,
+    public readonly details?: unknown,
   ) {
     super(message)
     this.name = 'AppError'
   }
+}
+
+type BlockedAccountErrorInput = {
+  accountStatus: AccountStatus
+  suspendedUntil?: Date | string | null
+}
+
+/**
+ * Returns the standard auth-blocking error for moderated accounts.
+ * ACTIVE and WARNED are allowed to continue, so they return null.
+ */
+export function getBlockedAccountError({
+  accountStatus,
+  suspendedUntil,
+}: BlockedAccountErrorInput): AppError | null {
+  if (accountStatus === 'SUSPENDED') {
+    return new AppError(
+      'ACCOUNT_SUSPENDED',
+      'Your account is suspended. Please try again later or contact support.',
+      403,
+      suspendedUntil
+        ? { suspendedUntil: toIsoString(suspendedUntil) }
+        : undefined,
+    )
+  }
+
+  if (accountStatus === 'BANNED') {
+    return new AppError(
+      'ACCOUNT_BANNED',
+      'Your account has been banned. Please contact support if you think this is a mistake.',
+      403,
+    )
+  }
+
+  return null
 }
 
 export function errorHandler(
@@ -34,7 +74,11 @@ export function errorHandler(
   // Known application errors
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
-      error: { code: err.code, message: err.message },
+      error: {
+        code: err.code,
+        message: err.message,
+        ...(err.details === undefined ? {} : { details: err.details }),
+      },
     })
     return
   }
@@ -77,4 +121,8 @@ function isPrismaError(err: unknown, code: string): boolean {
     'code' in err &&
     (err as Record<string, unknown>).code === code
   )
+}
+
+function toIsoString(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : value
 }
