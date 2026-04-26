@@ -63,7 +63,7 @@ export function StopsEditor({
         <div className="space-y-3">
           {stops.map((stop, index) => (
             <StopRow
-              key={`${index}-${stop.address}`}
+              key={index}
               index={index}
               value={stop}
               onAddressChange={(address) => setStopAddress(index, address)}

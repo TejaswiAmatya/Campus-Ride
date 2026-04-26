@@ -21,7 +21,7 @@ import {
 } from "@/hooks/useProfile";
 import { api } from "@/api/client";
 import { DriverLocationLayer } from "./components/DriverLocationLayer";
-import { useDriverLocation, useDriverLocationEmitter, useRide } from "./hooks";
+import { useCancelRide, useDriverLocation, useDriverLocationEmitter, useFinishRide, useRide, useStartRide } from "./hooks";
 import {
   fetchRoutePreview,
   formatRouteDistance,
@@ -44,6 +44,9 @@ export function RideDetailPage() {
   const driverLocation = useDriverLocation(
     ride?.status === "IN_PROGRESS" ? ride.id : undefined,
   );
+  const startRide = useStartRide();
+  const finishRide = useFinishRide();
+  const cancelRide = useCancelRide();
   const { data: driverReviews = [] } = useUserReviews(ride?.driver.id);
   const { data: myBookings = [] } = useQuery({
     queryKey: ["bookings", "ride-detail-review-check"],
@@ -70,6 +73,11 @@ export function RideDetailPage() {
     !!ride &&
     user.id === ride.driver.id &&
     ride.status === "IN_PROGRESS";
+  const isDriverViewingOwnScheduledRide =
+    !!user &&
+    !!ride &&
+    user.id === ride.driver.id &&
+    (ride.status === "OPEN" || ride.status === "FULL");
   const { isSharingLocation } = useDriverLocationEmitter(
     isDriverViewingOwnActiveRide ? ride?.id : undefined,
   );
@@ -367,6 +375,55 @@ export function RideDetailPage() {
             </Button>
           </div>
         </div>
+      )}
+
+      {(isDriverViewingOwnScheduledRide || isDriverViewingOwnActiveRide) && (
+        <section className="rounded-3xl border bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 text-white shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">
+                Driver controls
+              </p>
+              <h2 className="text-xl font-semibold">
+                {ride.status === "IN_PROGRESS"
+                  ? "Finish this ride when everyone reaches the destination"
+                  : "Start when pickup is underway, or cancel if the trip cannot happen"}
+              </h2>
+              <p className="max-w-2xl text-sm text-slate-200">
+                These actions update rider history and booking status in real time.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {isDriverViewingOwnScheduledRide && (
+                <>
+                  <Button
+                    onClick={() => startRide.mutate(ride.id)}
+                    disabled={startRide.isPending || cancelRide.isPending}
+                    className="bg-white text-slate-900 hover:bg-slate-100"
+                  >
+                    {startRide.isPending ? "Starting..." : "Start ride"}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => cancelRide.mutate(ride.id)}
+                    disabled={cancelRide.isPending || startRide.isPending}
+                  >
+                    {cancelRide.isPending ? "Cancelling..." : "Cancel ride"}
+                  </Button>
+                </>
+              )}
+              {isDriverViewingOwnActiveRide && (
+                <Button
+                  onClick={() => finishRide.mutate(ride.id)}
+                  disabled={finishRide.isPending}
+                  className="bg-white text-slate-900 hover:bg-slate-100"
+                >
+                  {finishRide.isPending ? "Finishing..." : "Finish ride"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
       )}
 
       <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-2">

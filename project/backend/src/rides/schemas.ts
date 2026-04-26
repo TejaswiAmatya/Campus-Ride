@@ -99,7 +99,7 @@ export const SearchRidesSchema = z
           .filter(Boolean);
         return normalized.length > 0 ? normalized : undefined;
       }),
-    sortBy: z.enum(["departureTime", "price", "rating"]).optional(),
+    sortBy: z.enum(["bestMatch", "departureTime", "price", "rating"]).optional(),
   })
   .superRefine((value, ctx) => {
     const hasOriginLat = value.originLat !== undefined;
