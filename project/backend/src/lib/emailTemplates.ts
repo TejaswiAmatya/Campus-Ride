@@ -5,7 +5,8 @@ export type EmailJobType =
   | "ride-started"
   | "booking-cancelled"
   | "driver-approved"
-  | "driver-rejected";
+  | "driver-rejected"
+  | "moderation-action";
 
 type BaseEmailPayload = {
   to: string;
@@ -59,6 +60,15 @@ export type DriverRejectedEmailPayload = BaseEmailPayload & {
   reason?: string;
 };
 
+export type ModerationActionEmailPayload = BaseEmailPayload & {
+  type: "moderation-action";
+  userName: string;
+  actionType: "WARNING" | "SUSPENSION" | "BAN";
+  reason: string;
+  note?: string;
+  suspendedUntil?: string | null;
+};
+
 export type EmailJobPayload =
   | WelcomeEmailPayload
   | BookingConfirmedEmailPayload
@@ -66,7 +76,8 @@ export type EmailJobPayload =
   | RideStartedEmailPayload
   | BookingCancelledEmailPayload
   | DriverApprovedEmailPayload
-  | DriverRejectedEmailPayload;
+  | DriverRejectedEmailPayload
+  | ModerationActionEmailPayload;
 
 type BuiltEmail = {
   subject: string;
@@ -196,6 +207,31 @@ export function buildEmail(payload: EmailJobPayload): BuiltEmail {
                 : ""
             }
             <p>You can review your information and apply again later if needed.</p>
+          `,
+        ),
+      };
+
+    case "moderation-action":
+      return {
+        subject: `Account ${payload.actionType.toLowerCase()} notice`,
+        html: wrapHtml(
+          "Account Moderation Update",
+          `
+            <p>Hi ${payload.userName},</p>
+            <p>An admin has applied a moderation action to your account.</p>
+            <p><strong>Action:</strong> ${payload.actionType}</p>
+            <p><strong>Reason:</strong> ${payload.reason}</p>
+            ${
+              payload.note
+                ? `<p><strong>Admin note:</strong> ${payload.note}</p>`
+                : ""
+            }
+            ${
+              payload.actionType === "SUSPENSION" && payload.suspendedUntil
+                ? `<p><strong>Suspended until:</strong> ${payload.suspendedUntil}</p>`
+                : ""
+            }
+            <p>If you believe this was a mistake, please contact support.</p>
           `,
         ),
       };

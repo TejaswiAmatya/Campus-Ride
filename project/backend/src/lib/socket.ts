@@ -5,7 +5,9 @@ import {
   BookingStatusPayload,
   DriverLocationPayload,
   DriverLocationUpdatePayload,
+  ModerationActionPayload,
   RideStatusPayload,
+  RideUpdatePayload,
 } from "./socket.types";
 
 let io: Server | null = null;
@@ -37,11 +39,7 @@ export function initSocket(server: HttpServer): Server {
     socket.on(
       "driver:locationUpdate",
       ({ rideId, lat, lng }: DriverLocationUpdatePayload) => {
-        if (
-          !rideId ||
-          !Number.isFinite(lat) ||
-          !Number.isFinite(lng)
-        ) {
+        if (!rideId || !Number.isFinite(lat) || !Number.isFinite(lng)) {
           return;
         }
 
@@ -92,4 +90,17 @@ export function notifyBookingStatus(
 export function notifyRideStatus(rideId: string, payload: RideStatusPayload) {
   io = getIO();
   io.to(`ride:${rideId}`).emit("ride:status", payload);
+}
+
+export function notifyRideUpdate(rideId: string, payload: RideUpdatePayload) {
+  io = getIO();
+  io.to(`ride:${rideId}`).emit("ride:updated", payload);
+}
+
+export function notifyModerationAction(
+  userId: string,
+  payload: ModerationActionPayload,
+) {
+  io = getIO();
+  io.to(`user:${userId}`).emit("user:moderation", payload);
 }
