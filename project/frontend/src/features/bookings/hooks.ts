@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+
 import { api } from '@/api/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useSocket } from '@/lib/socket'
+
 import type { BookingDetail, BookingListItem, BookingLocation } from './types'
 
 export function useBookingRealtime() {
@@ -48,14 +50,16 @@ export function useBookings(params?: {
   const status = params?.status
 
   return useQuery({
-    queryKey: ['bookings', { asDriver: !!asDriver, status: status ?? 'ALL' }],
+    queryKey: ['bookings', { asDriver, status: status ?? 'ALL' }],
     queryFn: async (): Promise<BookingListItem[]> => {
       const query = new URLSearchParams()
       if (asDriver) query.set('asDriver', 'true')
       if (!asDriver && status) query.set('status', status)
+
       const res = await api.get<{ data: BookingListItem[] }>(
         `/api/bookings${query.toString() ? `?${query.toString()}` : ''}`,
       )
+
       return res.data.data ?? []
     },
   })
@@ -110,22 +114,50 @@ export function useCancelBooking() {
       return res.data.data
     },
     onSuccess: (data) => {
-      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
-      void queryClient.invalidateQueries({ queryKey: ['rides'] })
-      void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', data.id] })
-      // Query invalidation will trigger a refetch and update the UI automatically
+      invalidateBookingAndRideQueries(queryClient, data.id)
     },
   })
 }
 
-function invalidateBookingAndRideQueries(queryClient: ReturnType<typeof useQueryClient>, bookingId: string) {
+function invalidateBookingAndRideQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+  bookingId: string,
+) {
   void queryClient.invalidateQueries({ queryKey: ['bookings'] })
   void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', bookingId] })
   void queryClient.invalidateQueries({ queryKey: ['rides'] })
+  void queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] })
+}
+
+export function useConfirmBooking() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await api.patch<{ data: BookingListItem }>(`/api/bookings/${bookingId}/confirm`)
+      return res.data.data
+    },
+    onSuccess: (data) => {
+      invalidateBookingAndRideQueries(queryClient, data.id)
+    },
+  })
+}
+
+export function useDeclineBooking() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await api.patch<{ data: BookingListItem }>(`/api/bookings/${bookingId}/decline`)
+      return res.data.data
+    },
+    onSuccess: (data) => {
+      invalidateBookingAndRideQueries(queryClient, data.id)
+    },
+  })
 }
 
 export function useMarkBookingPickedUp() {
-export function useConfirmBooking() {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -149,6 +181,30 @@ export function useMarkBookingNoShow() {
     },
     onSuccess: (data) => {
       invalidateBookingAndRideQueries(queryClient, data.id)
+    },
+  })
+}
+
+export function useCreateReview() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: {
+      bookingId: string
+      rating: number
+      comment?: string
+    }) => {
+      const res = await api.post(`/api/bookings/${input.bookingId}/review`, {
+        rating: input.rating,
+        comment: input.comment,
+      })
+      return res.data
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ['bookings', 'detail', variables.bookingId] })
+      void queryClient.invalidateQueries({ queryKey: ['bookings'] })
+      void queryClient.invalidateQueries({ queryKey: ['rides'] })
+      void queryClient.invalidateQueries({ queryKey: ['rides', 'mine'] })
     },
   })
 }
