@@ -154,6 +154,19 @@ export function useDeclineBooking() {
   })
 }
 
+export function useMarkBookingPickedUp() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await api.patch<{ data: BookingListItem }>(`/api/bookings/${bookingId}/picked-up`, {})
+      return res.data.data
+    },
+    onSuccess: (data) => {
+      invalidateBookingAndRideQueries(queryClient, data.id)
+    },
+  })
+}
 
 export function useMarkBookingNoShow() {
   const queryClient = useQueryClient()
