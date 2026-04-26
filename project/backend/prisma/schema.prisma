@@ -88,6 +88,13 @@ model User {
   accountStatus              AccountStatus              @default(ACTIVE)
   suspendedUntil             DateTime?
   avatarPath                 String? // Supabase Storage URL for profile picture
+  bio                        String?
+  homeAddress                String?
+  homeLat                    Float?
+  homeLng                    Float?
+  campusAddress              String?
+  campusLat                  Float?
+  campusLng                  Float?
   academicRole               AcademicRole?
   academicVerificationStatus AcademicVerificationStatus @default(NOT_SUBMITTED)
   academicIdPath             String?
