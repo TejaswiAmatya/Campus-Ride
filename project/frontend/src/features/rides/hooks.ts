@@ -8,6 +8,7 @@ import type {
   RideStatusUpdate,
   SearchRidesParams,
   UpdateRideDto,
+  RideStatusPayload,
 } from "./types";
 
 export interface DriverLocation {
