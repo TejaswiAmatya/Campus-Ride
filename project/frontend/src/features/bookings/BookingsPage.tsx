@@ -1,18 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import {
-  useBookings,
-  useConfirmBooking,
-  useDeclineBooking,
-  useCancelBooking,
-} from "./hooks";
-import { Button } from "@/components/ui/button";
-import { StatusBadge } from "./StatusBadge";
-import type { BookingListItem } from "./types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/api/client";
+import { Link } from 'react-router-dom'
 import {
   CalendarCheck,
   CheckCircle2,
@@ -21,10 +8,8 @@ import {
   UserRound,
   Wallet,
 } from 'lucide-react'
-
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-
 import {
   useBookingRealtime,
   useBookings,
