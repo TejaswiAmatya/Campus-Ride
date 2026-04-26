@@ -17,6 +17,16 @@ export interface PendingDriver {
   createdAt: string;
 }
 
+export interface PendingAcademicVerification {
+  userId: string;
+  name: string;
+  academicRole: "STUDENT" | "STAFF" | null;
+  academicVerificationStatus: "PENDING";
+  academicRejectionReason: string | null;
+  academicIdSignedUrl: string;
+  createdAt: string;
+}
+
 export interface AdminReport {
   id: string;
   reporter: {
