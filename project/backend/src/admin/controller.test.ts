@@ -6,6 +6,8 @@ import { academicDecision } from "./controller";
 const mocks = vi.hoisted(() => ({
   userFindUnique: vi.fn(),
   userUpdate: vi.fn(),
+  academicApproved: vi.fn(),
+  academicRejected: vi.fn(),
 }));
 
 vi.mock("../lib/prisma", () => ({
@@ -14,6 +16,13 @@ vi.mock("../lib/prisma", () => ({
       findUnique: mocks.userFindUnique,
       update: mocks.userUpdate,
     },
+  },
+}));
+
+vi.mock("../lib/emailQueue", () => ({
+  emailQueue: {
+    academicApproved: mocks.academicApproved,
+    academicRejected: mocks.academicRejected,
   },
 }));
 
@@ -85,6 +94,12 @@ describe("academicDecision", () => {
         academicRejectionReason: null,
       },
     });
+    expect(mocks.academicApproved).toHaveBeenCalledWith(
+      "user-1",
+      "alice@university.edu",
+      "Alice",
+    );
+    expect(mocks.academicRejected).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -146,6 +161,13 @@ describe("academicDecision", () => {
         academicRejectionReason: "Student ID image was unreadable",
       },
     });
+    expect(mocks.academicRejected).toHaveBeenCalledWith(
+      "user-1",
+      "alice@university.edu",
+      "Alice",
+      "Student ID image was unreadable",
+    );
+    expect(mocks.academicApproved).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
   });
 });
