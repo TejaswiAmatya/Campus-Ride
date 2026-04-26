@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Car, LocateFixed, Map, Timer } from 'lucide-react'
+import { Car, LocateFixed, Map, Repeat, Route, Timer } from 'lucide-react'
 import { MapView } from '@/components/MapView'
 import { usePostRide } from './hooks'
 import { RouteInputForm, type RouteInputValue } from './components/RouteInputForm'
 import { SeatSelector } from './components/SeatSelector'
+import { RidePreferencesInput } from './components/RidePreferencesInput'
+import { StopsEditor, type StopFormValue } from './components/StopsEditor'
 import type { GeocodingSuggestion } from './geocoding'
 import { reverseGeocode } from './geocoding'
 import {
@@ -13,23 +15,48 @@ import {
   formatRouteDuration,
   type RoutePreview,
 } from './routing'
+import type { RideRecurrencePattern } from './types'
 
 interface CreateRideForm {
+  offerType: 'ONE_TIME' | 'RECURRING'
   origin: RouteInputValue
   destination: RouteInputValue
+  stops: StopFormValue[]
   departureTime: string
+  recurrencePattern: RideRecurrencePattern
+  recurrenceDays: number[]
+  recurrenceEndDate: string
   totalSeats: string
   pricePerSeat: string
+  detourFlexibilityKm: string
+  preferences: string[]
 }
+
+const weekdayOptions = [
+  { label: 'Sun', value: 0 },
+  { label: 'Mon', value: 1 },
+  { label: 'Tue', value: 2 },
+  { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 },
+  { label: 'Fri', value: 5 },
+  { label: 'Sat', value: 6 },
+]
 
 export function PostRidePage() {
   const navigate = useNavigate()
   const [form, setForm] = useState<CreateRideForm>({
+    offerType: 'ONE_TIME',
     origin: { address: '', lat: null, lng: null },
     destination: { address: '', lat: null, lng: null },
+    stops: [],
     departureTime: '',
+    recurrencePattern: 'WEEKLY',
+    recurrenceDays: [],
+    recurrenceEndDate: '',
     totalSeats: '3',
-    pricePerSeat: '',
+    pricePerSeat: '0',
+    detourFlexibilityKm: '0',
+    preferences: [],
   })
   const [mapSelectionTarget, setMapSelectionTarget] = useState<'origin' | 'destination' | null>(null)
   const [mapError, setMapError] = useState<string | null>(null)
@@ -38,8 +65,10 @@ export function PostRidePage() {
   const [isLoadingRoute, setIsLoadingRoute] = useState(false)
   const postRide = usePostRide()
 
-  const setField = (key: 'departureTime' | 'pricePerSeat') => (event: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((prev) => ({ ...prev, [key]: event.target.value }))
+  const setField =
+    (key: 'departureTime' | 'pricePerSeat' | 'detourFlexibilityKm') =>
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((prev) => ({ ...prev, [key]: event.target.value }))
 
   const setLocationField = (segment: 'origin' | 'destination', value: Partial<RouteInputValue>) => {
     setForm((prev) => ({
@@ -84,42 +113,21 @@ export function PostRidePage() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const validStops = form.stops.filter((stop) => stop.address.trim() && stop.lat !== null && stop.lng !== null)
 
-    if (
-      form.origin.lat === null ||
-      form.origin.lng === null ||
-      form.destination.lat === null ||
-      form.destination.lng === null
-    ) {
-      setMapError('Select both origin and destination from autocomplete or by clicking the map.')
-      return
+  const routePoints = useMemo(() => {
+    const points: Array<{ lat: number; lng: number }> = []
+    if (form.origin.lat !== null && form.origin.lng !== null) {
+      points.push({ lat: form.origin.lat, lng: form.origin.lng })
     }
-
-    postRide.mutate(
-      {
-        origin: {
-          address: form.origin.address,
-          lat: form.origin.lat,
-          lng: form.origin.lng,
-        },
-        destination: {
-          address: form.destination.address,
-          lat: form.destination.lat,
-          lng: form.destination.lng,
-        },
-        totalSeats: parseInt(form.totalSeats, 10),
-        pricePerSeat: parseFloat(form.pricePerSeat),
-        departureTime: new Date(form.departureTime).toISOString(),
-      },
-      {
-        onSuccess: (ride) => {
-          navigate(`/rides/${ride.id}`)
-        },
-      },
-    )
-  }
+    validStops.forEach((stop) => {
+      points.push({ lat: stop.lat!, lng: stop.lng! })
+    })
+    if (form.destination.lat !== null && form.destination.lng !== null) {
+      points.push({ lat: form.destination.lat, lng: form.destination.lng })
+    }
+    return points
+  }, [form.destination.lat, form.destination.lng, form.origin.lat, form.origin.lng, validStops])
 
   const markers = [
     ...(form.origin.lat !== null && form.origin.lng !== null
@@ -131,6 +139,11 @@ export function PostRidePage() {
           },
         ]
       : []),
+    ...validStops.map((stop, index) => ({
+      position: [stop.lat!, stop.lng!] as [number, number],
+      label: `Stop ${index + 1}: ${stop.address}`,
+      type: 'default' as const,
+    })),
     ...(form.destination.lat !== null && form.destination.lng !== null
       ? [
           {
@@ -143,27 +156,17 @@ export function PostRidePage() {
   ]
 
   const mapCenter = useMemo<[number, number]>(() => {
-    if (markers.length === 2) {
-      return [
-        (markers[0].position[0] + markers[1].position[0]) / 2,
-        (markers[0].position[1] + markers[1].position[1]) / 2,
-      ]
-    }
-
-    if (markers.length === 1) {
-      return markers[0].position
+    if (markers.length > 0) {
+      const lat = markers.reduce((sum, marker) => sum + marker.position[0], 0) / markers.length
+      const lng = markers.reduce((sum, marker) => sum + marker.position[1], 0) / markers.length
+      return [lat, lng]
     }
 
     return [58.9, 5.71]
   }, [markers])
 
   useEffect(() => {
-    if (
-      form.origin.lat === null ||
-      form.origin.lng === null ||
-      form.destination.lat === null ||
-      form.destination.lng === null
-    ) {
+    if (routePoints.length < 2) {
       setRoutePreview(null)
       setRouteError(null)
       setIsLoadingRoute(false)
@@ -174,13 +177,7 @@ export function PostRidePage() {
     setIsLoadingRoute(true)
     setRouteError(null)
 
-    void fetchRoutePreview(
-      [
-        { lat: form.origin.lat, lng: form.origin.lng },
-        { lat: form.destination.lat, lng: form.destination.lng },
-      ],
-      controller.signal,
-    )
+    void fetchRoutePreview(routePoints, controller.signal)
       .then((route) => {
         setRoutePreview(route)
       })
@@ -199,10 +196,70 @@ export function PostRidePage() {
       })
 
     return () => controller.abort()
-  }, [form.destination.lat, form.destination.lng, form.origin.lat, form.origin.lng])
+  }, [routePoints])
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+
+    if (
+      form.origin.lat === null ||
+      form.origin.lng === null ||
+      form.destination.lat === null ||
+      form.destination.lng === null
+    ) {
+      setMapError('Select both origin and destination from autocomplete or by clicking the map.')
+      return
+    }
+
+    if (form.offerType === 'RECURRING' && form.recurrencePattern === 'SPECIFIC_DAYS' && form.recurrenceDays.length === 0) {
+      setMapError('Choose at least one weekday for a recurring ride.')
+      return
+    }
+
+    postRide.mutate(
+      {
+        offerType: form.offerType,
+        origin: {
+          address: form.origin.address,
+          lat: form.origin.lat,
+          lng: form.origin.lng,
+        },
+        destination: {
+          address: form.destination.address,
+          lat: form.destination.lat,
+          lng: form.destination.lng,
+        },
+        stops: validStops.map((stop, orderIndex) => ({
+          address: stop.address,
+          lat: stop.lat!,
+          lng: stop.lng!,
+          orderIndex,
+        })),
+        totalSeats: parseInt(form.totalSeats, 10),
+        pricePerSeat: parseFloat(form.pricePerSeat),
+        departureTime: new Date(form.departureTime).toISOString(),
+        detourFlexibilityKm: parseFloat(form.detourFlexibilityKm || '0'),
+        preferences: form.preferences,
+        recurrencePattern: form.offerType === 'RECURRING' ? form.recurrencePattern : 'NONE',
+        recurrenceDays: form.offerType === 'RECURRING' ? form.recurrenceDays : [],
+        recurrenceEndDate:
+          form.offerType === 'RECURRING' && form.recurrenceEndDate
+            ? new Date(form.recurrenceEndDate).toISOString()
+            : null,
+        routePolyline: routePreview ? JSON.stringify(routePreview.geometry) : null,
+        routeDistanceKm: routePreview ? Number((routePreview.distanceMeters / 1000).toFixed(2)) : null,
+        routeDurationMinutes: routePreview ? Math.round(routePreview.durationSeconds / 60) : null,
+      },
+      {
+        onSuccess: (ride) => {
+          navigate(`/rides/${ride.id}`)
+        },
+      },
+    )
+  }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center gap-2">
         <Car className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Post a Ride</h1>
@@ -213,7 +270,7 @@ export function PostRidePage() {
           center={mapCenter}
           markers={markers}
           routePath={routePreview?.geometry ?? []}
-          height="h-56"
+          height="h-72"
           onMapClick={handleMapClick}
         />
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -240,14 +297,29 @@ export function PostRidePage() {
               {routeError
                 ? routeError
                 : routePreview
-                  ? 'Preview based on the current OSRM driving route between your selected points.'
-                  : 'Choose both route points to load a trip preview.'}
+                  ? 'Preview based on the current OSRM driving route across all selected stops.'
+                  : 'Choose route points to load a trip preview.'}
             </div>
           </div>
         )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="rounded-lg border p-4">
+          <div className="flex flex-wrap gap-2">
+            {(['ONE_TIME', 'RECURRING'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, offerType: option }))}
+                className={`rounded-full border px-3 py-1.5 text-sm transition ${form.offerType === option ? 'border-slate-900 bg-slate-900 text-white' : 'hover:bg-muted'}`}
+              >
+                {option === 'ONE_TIME' ? 'One-time ride' : 'Recurring ride'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <RouteInputForm
           origin={form.origin}
           destination={form.destination}
@@ -259,6 +331,11 @@ export function PostRidePage() {
           }
         />
 
+        <StopsEditor
+          stops={form.stops}
+          onChange={(stops) => setForm((prev) => ({ ...prev, stops }))}
+        />
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label className="mb-1 block text-sm font-medium">Departure time</label>
@@ -267,7 +344,7 @@ export function PostRidePage() {
               value={form.departureTime}
               onChange={setField('departureTime')}
               required
-              className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input px-3 py-2 text-sm"
             />
           </div>
           <SeatSelector value={form.totalSeats} onChange={(value) => setForm((prev) => ({ ...prev, totalSeats: value }))} />
@@ -275,16 +352,89 @@ export function PostRidePage() {
             <label className="mb-1 block text-sm font-medium">Price per seat (NOK)</label>
             <input
               type="number"
-              min="1"
+              min="0"
               step="any"
               value={form.pricePerSeat}
               onChange={setField('pricePerSeat')}
-              placeholder="80"
+              placeholder="0"
               required
-              className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input px-3 py-2 text-sm"
             />
           </div>
         </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Driver detour flexibility (km)</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={form.detourFlexibilityKm}
+              onChange={setField('detourFlexibilityKm')}
+              className="w-full rounded-md border border-input px-3 py-2 text-sm"
+            />
+          </div>
+
+          {form.offerType === 'RECURRING' && (
+            <div className="rounded-lg border p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+                <Repeat className="h-4 w-4" />
+                Recurrence
+              </div>
+              <select
+                value={form.recurrencePattern}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    recurrencePattern: event.target.value as RideRecurrencePattern,
+                  }))
+                }
+                className="w-full rounded-md border border-input px-3 py-2 text-sm"
+              >
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="SPECIFIC_DAYS">Specific days</option>
+              </select>
+              {form.recurrencePattern === 'SPECIFIC_DAYS' && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {weekdayOptions.map((day) => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          recurrenceDays: prev.recurrenceDays.includes(day.value)
+                            ? prev.recurrenceDays.filter((value) => value !== day.value)
+                            : [...prev.recurrenceDays, day.value].sort((a, b) => a - b),
+                        }))
+                      }
+                      className={`rounded-full border px-3 py-1 text-sm ${form.recurrenceDays.includes(day.value) ? 'border-slate-900 bg-slate-900 text-white' : 'hover:bg-muted'}`}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3">
+                <label className="mb-1 block text-sm font-medium">Repeat until</label>
+                <input
+                  type="date"
+                  value={form.recurrenceEndDate}
+                  onChange={(event) => setForm((prev) => ({ ...prev, recurrenceEndDate: event.target.value }))}
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <RidePreferencesInput
+          value={form.preferences}
+          onChange={(preferences) => setForm((prev) => ({ ...prev, preferences }))}
+        />
 
         {(postRide.isError || mapError) && (
           <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -297,7 +447,7 @@ export function PostRidePage() {
           disabled={postRide.isPending}
           className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {postRide.isPending ? 'Posting…' : 'Post ride'}
+          {postRide.isPending ? 'Posting…' : form.offerType === 'RECURRING' ? 'Create recurring ride offer' : 'Post ride'}
         </button>
       </form>
     </div>
