@@ -28,12 +28,15 @@ api.interceptors.request.use((config) => {
 
 type Role = 'PASSENGER' | 'DRIVER' | 'ADMIN'
 type DriverStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | null
+type AccountStatus = 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED'
 
 type MeFlatResponse = {
   id: string
   email: string
   name: string
   role: Role
+  accountStatus: AccountStatus
+  suspendedUntil: string | null
   avatarPath: string | null
   driverStatus: DriverStatus
   createdAt: string
@@ -45,8 +48,10 @@ type MeLegacyResponse = {
     email: string
     name: string
     role: Role
-    avatarPath?: string
-    isDriverApproved?: boolean
+    accountStatus: AccountStatus
+    suspendedUntil: string | null
+    avatarPath: string | null
+    driverStatus?: DriverStatus
   }
 }
 
@@ -55,6 +60,8 @@ export type MeUser = {
   email: string
   name: string
   role: Role
+  accountStatus: AccountStatus
+  suspendedUntil: string | null
   avatarPath?: string
   isDriverApproved?: boolean
   driverStatus?: DriverStatus
@@ -63,20 +70,19 @@ export type MeUser = {
 export async function fetchMe(): Promise<MeUser> {
   const res = await api.get<MeFlatResponse | MeLegacyResponse>('/api/users/me')
   const payload = 'data' in res.data ? res.data.data : res.data
+  const driverStatus = payload.driverStatus ?? null
 
-  if ('driverStatus' in payload) {
-    return {
-      id: payload.id,
-      email: payload.email,
-      name: payload.name,
-      role: payload.role,
-      avatarPath: payload.avatarPath ?? undefined,
-      isDriverApproved: payload.driverStatus === 'APPROVED',
-      driverStatus: payload.driverStatus,
-    }
+  return {
+    id: payload.id,
+    email: payload.email,
+    name: payload.name,
+    role: payload.role,
+    accountStatus: payload.accountStatus,
+    suspendedUntil: payload.suspendedUntil,
+    avatarPath: payload.avatarPath ?? undefined,
+    isDriverApproved: driverStatus === 'APPROVED',
+    driverStatus,
   }
-
-  return payload
 }
 
 export function extractApiError(
