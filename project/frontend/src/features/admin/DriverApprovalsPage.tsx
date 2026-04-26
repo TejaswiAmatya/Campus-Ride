@@ -66,9 +66,9 @@ export function DriverApprovalsPage() {
                       : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    {driver.licenceSignedUrl ? (
+                    {driver.licenceUrl ? (
                       <a
-                        href={driver.licenceSignedUrl}
+                        href={driver.licenceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline"
@@ -82,9 +82,9 @@ export function DriverApprovalsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {driver.insuranceSignedUrl ? (
+                    {driver.insuranceUrl ? (
                       <a
-                        href={driver.insuranceSignedUrl}
+                        href={driver.insuranceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline"

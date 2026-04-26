@@ -22,7 +22,12 @@ const roleMeta: Record<AppRole, { label: string; className: string }> = {
   },
 }
 
-export function ProfileSummaryCard({ name, email, avatarUrl, role }: ProfileSummaryCardProps) {
+export function ProfileSummaryCard({
+  name,
+  email,
+  avatarUrl,
+  role,
+}: ProfileSummaryCardProps) {
   const initial = (name.trim().charAt(0) || '?').toUpperCase()
   const { label, className } = roleMeta[role]
 

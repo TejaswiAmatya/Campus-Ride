@@ -1,5 +1,5 @@
-import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
 
 import type { PendingDriver } from './types'
 
@@ -52,15 +52,15 @@ export function DriverApprovalTable({
               <TableRow key={driver.id} data-testid={`driver-row-${driver.id}`}>
                 <TableCell className="font-medium">{driver.name}</TableCell>
                 <TableCell>
-                  {driver.licenceSignedUrl ? (
+                  {driver.licenceUrl ? (
                     <a
-                      href={driver.licenceSignedUrl}
+                      href={driver.licenceUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="block w-fit"
                     >
                       <img
-                        src={driver.licenceSignedUrl}
+                        src={driver.licenceUrl}
                         alt={`${driver.name} licence`}
                         className="h-24 w-40 rounded-md border object-cover"
                         data-testid={`licence-image-${driver.id}`}
@@ -71,9 +71,9 @@ export function DriverApprovalTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  {driver.insuranceSignedUrl ? (
+                  {driver.insuranceUrl ? (
                     <a
-                      href={driver.insuranceSignedUrl}
+                      href={driver.insuranceUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex text-sm text-primary hover:underline"
