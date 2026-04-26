@@ -22,10 +22,19 @@ describe("DriverDecisionSchema", () => {
     ).toBe(true);
   });
 
-  it("accepts a rejection without a reason (reason is optional)", () => {
+  it("rejects a rejection without a reason", () => {
     expect(DriverDecisionSchema.safeParse({ approved: false }).success).toBe(
-      true,
+      false,
     );
+  });
+
+  it("rejects a rejection with a blank reason", () => {
+    expect(
+      DriverDecisionSchema.safeParse({
+        approved: false,
+        reason: "   ",
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects when approved is not a boolean", () => {

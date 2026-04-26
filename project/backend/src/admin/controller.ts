@@ -239,12 +239,14 @@ export async function driverDecision(
       throw new AppError("NOT_FOUND", "Driver application not found", 404);
     }
 
+    // tx means transaction which maintains atomicity of the operation
     const updatedDriver = await prisma.$transaction(async (tx) => {
       const profile = await tx.driverProfile.update({
         where: { userId: id },
         data: {
           status: body.approved ? "APPROVED" : "REJECTED",
           approvedAt: body.approved ? new Date() : null,
+          rejectionReason: body.approved ? null : body.reason,
         },
       });
 
@@ -288,6 +290,7 @@ export async function driverDecision(
         role: updatedDriver.user.role,
         status: updatedDriver.profile.status,
         approvedAt: updatedDriver.profile.approvedAt,
+        reason: updatedDriver.profile.rejectionReason ?? null,
       },
     });
   } catch (err) {
