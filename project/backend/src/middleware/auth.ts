@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import type { Multer } from "multer";
 import { prisma } from "../lib/prisma";
 import { supabaseAdmin } from "../lib/supabase";
+import { getBlockedAccountError } from "./error";
 
 export interface AuthUser {
   id: string;
@@ -53,7 +54,7 @@ export async function requireAuth(
 
     const user = await prisma.user.findUnique({
       where: { id: data.user.id },
-      select: { role: true },
+      select: { role: true, accountStatus: true, suspendedUntil: true },
     });
 
     if (!user) {
@@ -61,6 +62,27 @@ export async function requireAuth(
         error: {
           code: "UNAUTHORIZED",
           message: "Authenticated user not found",
+        },
+      });
+      return;
+    }
+
+    const blockedAccountError = getBlockedAccountError({
+      accountStatus:
+        user.accountStatus === "SUSPENDED" && hasSuspensionExpired(user.suspendedUntil)
+          ? "ACTIVE"
+          : user.accountStatus,
+      suspendedUntil: user.suspendedUntil,
+    });
+
+    if (blockedAccountError) {
+      res.status(blockedAccountError.statusCode).json({
+        error: {
+          code: blockedAccountError.code,
+          message: blockedAccountError.message,
+          ...(blockedAccountError.details === undefined
+            ? {}
+            : { details: blockedAccountError.details }),
         },
       });
       return;
@@ -102,4 +124,8 @@ export function requireRole(...roles: string[]) {
 
     next();
   };
+}
+
+function hasSuspensionExpired(suspendedUntil: Date | null): boolean {
+  return suspendedUntil !== null && suspendedUntil.getTime() <= Date.now();
 }

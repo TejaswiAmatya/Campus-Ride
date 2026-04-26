@@ -7,16 +7,24 @@ interface SessionTokens {
   refresh_token: string;
 }
 
+export interface AuthErrorState {
+  code: string;
+  message: string;
+  suspendedUntil?: string | null;
+}
+
 interface AuthState {
   // Data - what we want to keep track of
   user: AuthUser | null;
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
+  authError: AuthErrorState | null;
 
   // Actions - what can update the state
   setSession: (tokens: SessionTokens) => void;
   setUser: (user: AuthUser | null) => void;
+  setAuthError: (error: AuthErrorState | null) => void;
   clearSession: () => void;
 }
 
@@ -41,6 +49,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: initialAccess,
   refreshToken: initialRefresh,
   isAuthenticated: !!initialAccess,
+  authError: null,
 
   setSession: ({ access_token, refresh_token }) => {
     localStorage.setItem("access_token", access_token);
@@ -52,6 +61,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken: access_token,
       refreshToken: refresh_token,
       isAuthenticated: true,
+      authError: null,
     });
   },
 
@@ -59,7 +69,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     set((state) => ({
       user,
       isAuthenticated: !!state.accessToken && !!user,
+      authError: user ? null : state.authError,
     }));
+  },
+
+  setAuthError: (authError) => {
+    set({ authError });
   },
 
   clearSession: () => {
@@ -71,6 +86,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      authError: null,
     });
   },
 }));

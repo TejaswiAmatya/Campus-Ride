@@ -13,6 +13,9 @@ export interface ProfileUser {
   email: string;
   name: string;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
+  accountStatus?: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
+  suspendedUntil?: string | null;
+  driverStatus?: "PENDING" | "APPROVED" | "REJECTED" | null;
   avatarPath?: string;
   phone?: string;
   isDriverApproved?: boolean;
@@ -27,7 +30,9 @@ interface MeApiResponse {
   email: string;
   name: string;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
-  avatarUrl: string | null;
+  accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
+  suspendedUntil: string | null;
+  avatarPath: string | null;
   driverStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
   createdAt: string;
 }
@@ -82,11 +87,13 @@ export const fetchMe = async (): Promise<ProfileUser> => {
       email: payload.email,
       name: payload.name,
       role: payload.role,
-      avatarPath: payload.avatarUrl ?? undefined,
+      accountStatus: payload.accountStatus,
+      suspendedUntil: payload.suspendedUntil,
+      avatarPath: payload.avatarPath ?? undefined,
       isDriverApproved: payload.driverStatus === "APPROVED",
+      driverStatus: payload.driverStatus,
     };
   }
-
   return payload;
 };
 
