@@ -15,5 +15,6 @@ adminRouter.get("/reports", controller.listReports);
 adminRouter.get("/reports/:id", controller.getReportDetail);
 adminRouter.patch("/reports/:id", controller.resolveReport);
 adminRouter.post("/users/:id/moderation-actions", controller.createModerationAction);
+adminRouter.patch("/change-password", controller.changePassword);
 adminRouter.get("/config", controller.getAdminConfig);
 adminRouter.patch("/config", controller.updateConfig);

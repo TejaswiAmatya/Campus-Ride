@@ -61,6 +61,7 @@ async function main() {
         email: "amatte01@gettysburg.edu",
         name: "Tejaswi",
         role: "ADMIN",
+        mustChangePassword: true,
       },
       {
         id: IDS.alice,

@@ -20,6 +20,7 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   authError: AuthErrorState | null;
+  mustChangePassword: boolean;
 
   // Actions - what can update the state
   setSession: (tokens: SessionTokens) => void;
@@ -50,6 +51,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   refreshToken: initialRefresh,
   isAuthenticated: !!initialAccess,
   authError: null,
+  mustChangePassword: false,
 
   setSession: ({ access_token, refresh_token }) => {
     localStorage.setItem("access_token", access_token);
@@ -70,6 +72,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       user,
       isAuthenticated: !!state.accessToken && !!user,
       authError: user ? null : state.authError,
+      mustChangePassword: user?.mustChangePassword ?? false,
     }));
   },
 
@@ -87,6 +90,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       refreshToken: null,
       isAuthenticated: false,
       authError: null,
+      mustChangePassword: false,
     });
   },
 }));
