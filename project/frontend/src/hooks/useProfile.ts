@@ -13,8 +13,8 @@ export interface ProfileUser {
   email: string;
   name: string;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
-  accountStatus?: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
-  suspendedUntil?: string | null;
+  accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
+  suspendedUntil: string | null;
   driverStatus?: "PENDING" | "APPROVED" | "REJECTED" | null;
   avatarPath?: string;
   phone?: string;
@@ -22,7 +22,7 @@ export interface ProfileUser {
 }
 
 export interface MeResponse {
-  data: ProfileUser;
+  data: ProfileUser | MeApiResponse;
 }
 
 interface MeApiResponse {
@@ -36,6 +36,22 @@ interface MeApiResponse {
   driverStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
   createdAt: string;
 }
+
+const normalizeProfileUser = (payload: ProfileUser | MeApiResponse): ProfileUser => {
+  const driverStatus = payload.driverStatus ?? null;
+
+  return {
+    id: payload.id,
+    email: payload.email,
+    name: payload.name,
+    role: payload.role,
+    accountStatus: payload.accountStatus,
+    suspendedUntil: payload.suspendedUntil,
+    avatarPath: payload.avatarPath ?? undefined,
+    isDriverApproved: driverStatus === "APPROVED",
+    driverStatus,
+  };
+};
 
 interface UpdateProfileInput {
   name?: string;
@@ -80,21 +96,7 @@ export const myRidesQueryKey = ["rides", "mine"] as const;
 export const fetchMe = async (): Promise<ProfileUser> => {
   const res = await api.get<MeApiResponse | MeResponse>("/api/users/me");
   const payload = "data" in res.data ? res.data.data : res.data;
-
-  if ("driverStatus" in payload) {
-    return {
-      id: payload.id,
-      email: payload.email,
-      name: payload.name,
-      role: payload.role,
-      accountStatus: payload.accountStatus,
-      suspendedUntil: payload.suspendedUntil,
-      avatarPath: payload.avatarPath ?? undefined,
-      isDriverApproved: payload.driverStatus === "APPROVED",
-      driverStatus: payload.driverStatus,
-    };
-  }
-  return payload;
+  return normalizeProfileUser(payload);
 };
 
 export function useProfile() {
@@ -114,7 +116,7 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: async (payload: UpdateProfileInput) => {
       const res = await api.patch<MeResponse>("/api/users/me", payload);
-      return res.data.data;
+      return normalizeProfileUser(res.data.data);
     },
     onSuccess: (user) => {
       queryClient.setQueryData(meQueryKey, (current?: ProfileUser) =>

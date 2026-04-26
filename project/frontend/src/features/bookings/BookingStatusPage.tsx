@@ -24,19 +24,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { StatusBadge } from "./StatusBadge";
 import { useRideStatusListener } from "@/features/rides/hooks";
 
-function formatMoney(value: string | undefined) {
-  return `${value ?? "0"} NOK`;
-}
-
 export function BookingStatusPage() {
   useBookingRealtime();
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  useAuth();
   const { data: booking, isLoading, isError } = useBooking(id);
   const cancelMutation = useCancelBooking();
-  const reviewMutation = useCreateReview();
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
 
   if (isLoading) {
     return (
@@ -139,17 +132,13 @@ export function BookingStatusPage() {
               />
               <SummaryPill
                 icon={<Wallet className="h-4 w-4" />}
-                label={isDriverViewing ? "You earned" : "Trip total"}
-                value={`${isDriverViewing ? booking.driverEarnings : booking.totalFare} NOK`}
+                label="Trip total"
+                value={`${booking.totalFare} NOK`}
               />
               <SummaryPill
                 icon={<CheckCircle2 className="h-4 w-4" />}
-                label={isDriverViewing ? "Passenger" : "Driver"}
-                value={
-                  isDriverViewing
-                    ? booking.passenger.name
-                    : booking.ride.driver.name
-                }
+                label="Driver"
+                value={booking.ride.driver.name}
               />
             </div>
           </div>
@@ -259,57 +248,6 @@ export function BookingStatusPage() {
                   </p>
                 )}
               </div>
-
-              {canReview && (
-                <Card className="rounded-2xl">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{reviewerLabel}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-slate-600">
-                      Share quick feedback for {reviewTarget} now that the trip
-                      is complete.
-                    </p>
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map((value) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setRating(value)}
-                          className="rounded-full border p-2 transition hover:bg-amber-50"
-                        >
-                          <Star
-                            className={
-                              value <= rating
-                                ? "h-5 w-5 fill-amber-400 text-amber-400"
-                                : "h-5 w-5 text-slate-300"
-                            }
-                          />
-                        </button>
-                      ))}
-                    </div>
-                    <textarea
-                      value={comment}
-                      onChange={(event) => setComment(event.target.value)}
-                      rows={4}
-                      placeholder="Optional feedback"
-                      className="flex w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    />
-                    <Button
-                      disabled={reviewMutation.isPending}
-                      onClick={() =>
-                        reviewMutation.mutate({
-                          bookingId: booking.id,
-                          rating,
-                          comment: comment.trim() || undefined,
-                        })
-                      }
-                    >
-                      {reviewMutation.isPending ? "Saving..." : "Submit rating"}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
 
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
                 <p className="flex items-center gap-2 font-medium text-foreground">
