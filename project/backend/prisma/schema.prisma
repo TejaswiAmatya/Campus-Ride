@@ -42,6 +42,18 @@ enum AccountStatus {
   BANNED
 }
 
+enum AcademicRole {
+  STUDENT
+  STAFF
+}
+
+enum AcademicVerificationStatus {
+  NOT_SUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
 enum PaymentStatus {
   UNPAID
   PENDING
@@ -68,16 +80,21 @@ enum ModerationActionType {
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
-  id             String        @id @default(uuid())
-  email          String        @unique
-  name           String
-  phone          String?
-  role           Role          @default(PASSENGER)
-  accountStatus  AccountStatus @default(ACTIVE)
-  suspendedUntil DateTime?
-  avatarPath     String? // Supabase Storage URL for profile picture
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id                         String                     @id @default(uuid())
+  email                      String                     @unique
+  name                       String
+  phone                      String?
+  role                       Role                       @default(PASSENGER)
+  accountStatus              AccountStatus              @default(ACTIVE)
+  suspendedUntil             DateTime?
+  avatarPath                 String? // Supabase Storage URL for profile picture
+  academicRole               AcademicRole?
+  academicVerificationStatus AcademicVerificationStatus @default(NOT_SUBMITTED)
+  academicIdPath             String?
+  academicVerifiedAt         DateTime?
+  academicRejectionReason    String?
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
 
   driverProfile            DriverProfile?
   ridesAsDriver            Ride[]              @relation("DriverRides")
