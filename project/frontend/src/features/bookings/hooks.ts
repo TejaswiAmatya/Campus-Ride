@@ -254,6 +254,27 @@ export function useBookings(params?: {
   });
 }
 
+export function useUpcomingPassengerBookings() {
+  const bookingsQuery = useBookings()
+
+  return {
+    ...bookingsQuery,
+    data: (bookingsQuery.data ?? [])
+      .filter((booking) => {
+        if (booking.status !== 'CONFIRMED') {
+          return false
+        }
+
+        return new Date(booking.ride.departureTime).getTime() > Date.now()
+      })
+      .sort(
+        (left, right) =>
+          new Date(left.ride.departureTime).getTime() -
+          new Date(right.ride.departureTime).getTime(),
+      ),
+  }
+}
+
 export function useBooking(id: string | undefined) {
   return useQuery({
     queryKey: ["bookings", "detail", id],
