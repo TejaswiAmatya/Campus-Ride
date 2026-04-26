@@ -241,6 +241,10 @@ export async function startRide(
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
+        bookings: {
+          where: { status: "CONFIRMED" },
+          select: { id: true },
+        },
       },
     });
 
@@ -249,6 +253,20 @@ export async function startRide(
     }
     if (ride.driverId !== driverId) {
       throw new AppError("FORBIDDEN", "Not the driver of this ride", 403);
+    }
+    if (ride.status !== "OPEN" && ride.status !== "FULL") {
+      throw new AppError(
+        "INVALID_STATE",
+        "Only scheduled rides can be started",
+        409,
+      );
+    }
+    if (ride.bookings.length === 0) {
+      throw new AppError(
+        "NO_CONFIRMED_PASSENGERS",
+        "Cannot start a ride without at least one confirmed passenger",
+        409,
+      );
     }
 
     const updated = await prisma.ride.update({
@@ -458,6 +476,10 @@ export async function updateRideStatus(
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
+        bookings: {
+          where: { status: "CONFIRMED" },
+          select: { id: true },
+        },
       },
     });
 
@@ -470,6 +492,13 @@ export async function updateRideStatus(
       throw new AppError(
         "INVALID_STATUS_TRANSITION",
         `Cannot change ride status from ${ride.status} to ${body.status}`,
+        409,
+      );
+    }
+    if (body.status === "ACTIVE" && ride.bookings.length === 0) {
+      throw new AppError(
+        "NO_CONFIRMED_PASSENGERS",
+        "Cannot start a ride without at least one confirmed passenger",
         409,
       );
     }

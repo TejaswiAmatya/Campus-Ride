@@ -96,9 +96,10 @@ function MyRideCard({
 }: MyRideCardProps) {
   const actions = availableActions(ride.status)
   const bookings = ride.bookings ?? []
+  const confirmedBookings = bookings.filter((booking) => booking.status === 'CONFIRMED')
   const { isSharingLocation } = useDriverLocationEmitter(ride.status === 'IN_PROGRESS' ? ride.id : undefined)
   const canCancelRide = ride.status === 'OPEN' || ride.status === 'FULL'
-  const canManagePassengers = ride.status === 'IN_PROGRESS'
+  const canManagePassengers = ride.status === 'IN_PROGRESS' && confirmedBookings.length > 0
 
   return (
     <div className="rounded-xl border p-4 shadow-sm">
@@ -174,6 +175,10 @@ function MyRideCard({
           </div>
           {bookings.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">No booking requests yet.</p>
+          ) : ride.status === 'IN_PROGRESS' && confirmedBookings.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-muted-foreground">
+              No confirmed passengers are available to mark for this active ride.
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -185,12 +190,11 @@ function MyRideCard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bookings.map((booking) => {
+                {(canManagePassengers ? confirmedBookings : bookings).map((booking) => {
                   const pickedUpLocally = locallyPickedUpBookingIds.has(booking.id)
                   const noShowLocally = locallyNoShowBookingIds.has(booking.id)
                   const canHandleThisBooking =
                     canManagePassengers &&
-                    booking.status === 'CONFIRMED' &&
                     !pickedUpLocally &&
                     !noShowLocally
 
@@ -234,9 +238,7 @@ function MyRideCard({
                                 ? 'Passenger marked as picked up.'
                                 : noShowLocally
                                   ? 'Passenger marked as no-show.'
-                                  : booking.status === 'CONFIRMED'
-                                    ? 'Already handled.'
-                                    : 'Only confirmed bookings can be handled.'}
+                                  : 'Already handled.'}
                             </span>
                           )}
                         </TableCell>
