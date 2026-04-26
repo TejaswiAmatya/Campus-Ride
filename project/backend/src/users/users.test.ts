@@ -88,6 +88,7 @@ describe('MeResponseSchema', () => {
         email: 'alice@university.edu',
         name: 'Alice',
         role: 'PASSENGER',
+        mustChangePassword: true,
         accountStatus: 'ACTIVE',
         suspendedUntil: null,
         avatarPath: null,

@@ -26,6 +26,7 @@ import { DashboardRoutingPage } from "./features/user/DashboardRoutingPage";
 import { ProfilePage } from "./features/user/ProfilePage";
 import { DriverDashboardPage } from "./features/user/DriverDashboardPage";
 import { SettingsPage } from "./features/admin/SettingsPage";
+import { ChangePasswordPage } from "./features/admin/ChangePasswordPage";
 import { EarningsPage } from "./features/user/EarningsPage";
 import { useBookingRealtime } from "./features/bookings/hooks";
 import { Toaster } from "./components/ui/toaster";
@@ -122,6 +123,10 @@ export function App() {
               {/* Admin only */}
               <Route element={<ProtectedRoute requiredRole="ADMIN" />}>
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route
+                  path="/admin/change-password"
+                  element={<ChangePasswordPage />}
+                />
                 <Route
                   path="/admin/approvals"
                   element={<DriverApprovalsPage />}
