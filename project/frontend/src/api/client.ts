@@ -51,6 +51,7 @@ export type MeApiResponse = {
   name: string
   phone: string | null
   role: Role
+  mustChangePassword: boolean
   accountStatus: AccountStatus
   suspendedUntil: string | null
   avatarPath: string | null
@@ -80,6 +81,7 @@ export type MeUser = {
   name: string
   phone?: string
   role: Role
+  mustChangePassword: boolean
   accountStatus: AccountStatus
   suspendedUntil: string | null
   avatarPath?: string
@@ -109,6 +111,7 @@ export function normalizeMeUser(payload: MeApiResponse): MeUser {
     name: payload.name,
     phone: payload.phone ?? undefined,
     role: payload.role,
+    mustChangePassword: payload.mustChangePassword,
     accountStatus: payload.accountStatus,
     suspendedUntil: payload.suspendedUntil,
     avatarPath: payload.avatarPath ?? undefined,

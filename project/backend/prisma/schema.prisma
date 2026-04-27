@@ -44,6 +44,7 @@ enum AccountStatus {
 
 enum AcademicRole {
   STUDENT
+  FACULTY
   STAFF
 }
 
@@ -52,6 +53,7 @@ enum AcademicVerificationStatus {
   PENDING
   VERIFIED
   REJECTED
+  APPROVED
 }
 
 enum PaymentStatus {
