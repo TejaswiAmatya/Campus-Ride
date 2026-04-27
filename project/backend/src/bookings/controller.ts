@@ -11,6 +11,10 @@ import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { notify } from "../lib/notify";
 import type { BookingStatusPayload } from "../lib/socket.types";
+import {
+  toAvatarUrlSummary,
+  toNameSummary,
+} from "../lib/userDisplay";
 
 const PLATFORM_FEE_PERCENT = 0.1;
 import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";
@@ -95,7 +99,7 @@ function serializeBookingList(b: any) {
     cancellation: buildCancellationSnapshot(b),
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
-    passenger: b.passenger,
+    passenger: toNameSummary(b.passenger),
     review: b.review
       ? {
           id: b.review.id,
@@ -110,7 +114,7 @@ function serializeBookingList(b: any) {
       destinationAddress: b.ride.destinationAddress,
       departureTime: b.ride.departureTime.toISOString(),
       status: b.ride.status,
-      driver: { id: b.ride.driver.id, name: b.ride.driver.name },
+      driver: toNameSummary(b.ride.driver),
     },
   };
 }
@@ -149,11 +153,7 @@ function serializeBookingDetail(b: any) {
     cancellation: buildCancellationSnapshot(b),
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
-    passenger: {
-      id: b.passenger.id,
-      name: b.passenger.name,
-      avatarUrl: b.passenger.avatarPath ?? null,
-    },
+    passenger: toAvatarUrlSummary(b.passenger),
     review: b.review
       ? {
           id: b.review.id,
@@ -177,11 +177,7 @@ function serializeBookingDetail(b: any) {
       totalSeats: b.ride.totalSeats,
       pricePerSeat: b.ride.pricePerSeat.toString(),
       status: b.ride.status,
-      driver: {
-        id: b.ride.driver.id,
-        name: b.ride.driver.name,
-        avatarUrl: b.ride.driver.avatarPath ?? null,
-      },
+      driver: toAvatarUrlSummary(b.ride.driver),
     },
   };
 }
@@ -424,9 +420,15 @@ export async function createBooking(
               } as any,
               include: {
                 ride: {
-                  include: { driver: { select: { id: true, name: true } } },
+                  include: {
+                    driver: {
+                      select: { id: true, name: true, accountStatus: true },
+                    },
+                  },
                 },
-                passenger: { select: { id: true, name: true } },
+                passenger: {
+                  select: { id: true, name: true, accountStatus: true },
+                },
               },
             });
 
@@ -538,8 +540,16 @@ export async function listBookings(
           ...(statusFilter && { status: statusFilter }),
         },
         include: {
-          passenger: { select: { id: true, name: true } },
-          ride: { include: { driver: { select: { id: true, name: true } } } },
+          passenger: {
+            select: { id: true, name: true, accountStatus: true },
+          },
+          ride: {
+            include: {
+              driver: {
+                select: { id: true, name: true, accountStatus: true },
+              },
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       });
@@ -564,8 +574,16 @@ export async function listBookings(
         }),
       },
       include: {
-        passenger: { select: { id: true, name: true } },
-        ride: { include: { driver: { select: { id: true, name: true } } } },
+        passenger: {
+          select: { id: true, name: true, accountStatus: true },
+        },
+        ride: {
+          include: {
+            driver: {
+              select: { id: true, name: true, accountStatus: true },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -601,10 +619,24 @@ export async function getBooking(
       include: {
         ride: {
           include: {
-            driver: { select: { id: true, name: true, avatarPath: true } },
+            driver: {
+              select: {
+                id: true,
+                name: true,
+                avatarPath: true,
+                accountStatus: true,
+              },
+            },
           },
         },
-        passenger: { select: { id: true, name: true, avatarPath: true } },
+        passenger: {
+          select: {
+            id: true,
+            name: true,
+            avatarPath: true,
+            accountStatus: true,
+          },
+        },
       },
     });
 
@@ -680,9 +712,15 @@ export async function confirmBooking(
               where: { id },
               include: {
                 ride: {
-                  include: { driver: { select: { id: true, name: true } } },
+                  include: {
+                    driver: {
+                      select: { id: true, name: true, accountStatus: true },
+                    },
+                  },
                 },
-                passenger: { select: { id: true, name: true } },
+                passenger: {
+                  select: { id: true, name: true, accountStatus: true },
+                },
               },
             });
 
@@ -811,8 +849,16 @@ export async function declineBooking(
     const updated = await prisma.booking.findUniqueOrThrow({
       where: { id },
       include: {
-        ride: { include: { driver: { select: { id: true, name: true } } } },
-        passenger: { select: { id: true, name: true } },
+        ride: {
+          include: {
+            driver: {
+              select: { id: true, name: true, accountStatus: true },
+            },
+          },
+        },
+        passenger: {
+          select: { id: true, name: true, accountStatus: true },
+        },
       },
     });
     const review = await findBookingReview(prisma, updated as any);
@@ -929,8 +975,16 @@ export async function cancelBooking(
       const updatedBooking = await tx.booking.findUniqueOrThrow({
         where: { id },
         include: {
-          ride: { include: { driver: { select: { id: true, name: true } } } },
-          passenger: { select: { id: true, name: true } },
+          ride: {
+            include: {
+              driver: {
+                select: { id: true, name: true, accountStatus: true },
+              },
+            },
+          },
+          passenger: {
+            select: { id: true, name: true, accountStatus: true },
+          },
         },
       });
 
@@ -1028,8 +1082,16 @@ export async function markBookingPickedUp(
       return tx.booking.findUniqueOrThrow({
         where: { id },
         include: {
-          ride: { include: { driver: { select: { id: true, name: true } } } },
-          passenger: { select: { id: true, name: true } },
+          ride: {
+            include: {
+              driver: {
+                select: { id: true, name: true, accountStatus: true },
+              },
+            },
+          },
+          passenger: {
+            select: { id: true, name: true, accountStatus: true },
+          },
         },
       });
     });
@@ -1135,8 +1197,16 @@ export async function markBookingNoShow(
       return tx.booking.findUniqueOrThrow({
         where: { id },
         include: {
-          ride: { include: { driver: { select: { id: true, name: true } } } },
-          passenger: { select: { id: true, name: true } },
+          ride: {
+            include: {
+              driver: {
+                select: { id: true, name: true, accountStatus: true },
+              },
+            },
+          },
+          passenger: {
+            select: { id: true, name: true, accountStatus: true },
+          },
         },
       });
     });
@@ -1365,8 +1435,16 @@ export async function completeBooking(
       return tx.booking.findUniqueOrThrow({
         where: { id },
         include: {
-          ride: { include: { driver: { select: { id: true, name: true } } } },
-          passenger: { select: { id: true, name: true } },
+          ride: {
+            include: {
+              driver: {
+                select: { id: true, name: true, accountStatus: true },
+              },
+            },
+          },
+          passenger: {
+            select: { id: true, name: true, accountStatus: true },
+          },
         },
       });
     });
