@@ -4,6 +4,7 @@ import { AppError } from '../middleware/error'
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const appUrl = process.env.APP_URL || process.env.CORS_ORIGIN || 'http://localhost:5173'
 
 const missingSupabaseConfigMessage =
   'Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY and/or SUPABASE_SERVICE_ROLE_KEY'
@@ -72,6 +73,39 @@ export async function createAuthUser(email: string, password: string) {
     email,
     password,
     email_confirm: true,
+  })
+}
+
+type RegisterAuthUserInput = {
+  email: string
+  password: string
+  name: string
+  phone?: string
+}
+
+export async function registerAuthUser({
+  email,
+  password,
+  name,
+  phone,
+}: RegisterAuthUserInput) {
+  return getSupabaseAuthClient().auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${appUrl.replace(/\/$/, '')}/auth/confirm`,
+      data: {
+        name,
+        ...(phone ? { phone } : {}),
+      },
+    },
+  })
+}
+
+export async function confirmAuthSignup(tokenHash: string) {
+  return getSupabaseAuthClient().auth.verifyOtp({
+    token_hash: tokenHash,
+    type: 'email',
   })
 }
 

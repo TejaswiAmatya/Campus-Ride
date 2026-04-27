@@ -16,9 +16,8 @@ type ApiError = {
 
 type RegisterResponse = {
   data: {
-    id: string
     email: string
-    name: string
+    requiresEmailConfirmation: boolean
   } | null
   error: ApiError | null
 }
@@ -58,13 +57,20 @@ type MeResponse = {
 
 describeLiveIntegration('Users/Auth integration', () => {
   const createdUserIds: string[] = []
+  const createdEmails: string[] = []
 
   beforeEach(() => {
     createdUserIds.length = 0
+    createdEmails.length = 0
   })
 
   afterEach(async () => {
     await prisma.user.deleteMany({ where: { email: { contains: 'university.edu' } } })
+
+    for (const email of createdEmails) {
+      const authUserIds = await listAuthUserIdsByEmail(email)
+      createdUserIds.push(...authUserIds)
+    }
 
     for (const userId of createdUserIds) {
       await supabaseAdmin.auth.admin.deleteUser(userId)
@@ -74,6 +80,7 @@ describeLiveIntegration('Users/Auth integration', () => {
   it('register -> login -> GET /me full happy path flow', async () => {
     const email = `test-${Date.now()}@university.edu`
     const password = 'password123'
+    createdEmails.push(email)
 
     const registerRes = await request(app).post('/api/auth/register').send({
       email,
@@ -81,16 +88,32 @@ describeLiveIntegration('Users/Auth integration', () => {
       password,
     })
 
-    expect(registerRes.status).toBe(201)
+    expect(registerRes.status).toBe(202)
     const registerBody = registerRes.body as RegisterResponse
     expect(registerBody.data).toBeTruthy()
     expect(registerBody.data?.email).toBe(email)
+    expect(registerBody.data?.requiresEmailConfirmation).toBe(true)
     expect(registerBody.error ?? null).toBeNull()
 
-    if (!registerBody.data?.id) {
-      throw new Error('Expected register response to include data.id')
+    const preConfirmLoginRes = await request(app).post('/api/auth/login').send({
+      email,
+      password,
+    })
+
+    expect(preConfirmLoginRes.status).toBe(403)
+    expect(preConfirmLoginRes.body.error?.code).toBe('EMAIL_NOT_CONFIRMED')
+
+    const authUserIds = await listAuthUserIdsByEmail(email)
+    const authUserId = authUserIds[0]
+    if (!authUserId) {
+      throw new Error('Expected to find the Supabase auth user for this signup')
     }
-    createdUserIds.push(registerBody.data.id)
+    createdUserIds.push(authUserId)
+
+    const confirmRes = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+      email_confirm: true,
+    })
+    expect(confirmRes.error).toBeNull()
 
     const loginRes = await request(app).post('/api/auth/login').send({
       email,
@@ -134,6 +157,7 @@ describeLiveIntegration('Users/Auth integration', () => {
 
   it('returns 409 when registering the same email twice', async () => {
     const email = `dupe-${Date.now()}@university.edu`
+    createdEmails.push(email)
     const payload = {
       email,
       name: 'Duplicate Test',
@@ -141,19 +165,16 @@ describeLiveIntegration('Users/Auth integration', () => {
     }
 
     const firstRes = await request(app).post('/api/auth/register').send(payload)
-    expect(firstRes.status).toBe(201)
+    expect(firstRes.status).toBe(202)
     const firstBody = firstRes.body as RegisterResponse
-    if (!firstBody.data?.id) {
-      throw new Error('Expected first register response to include data.id')
-    }
-    createdUserIds.push(firstBody.data.id)
+    expect(firstBody.data?.requiresEmailConfirmation).toBe(true)
 
     const secondRes = await request(app).post('/api/auth/register').send(payload)
 
-    expect(secondRes.status).toBe(409)
-    expect(secondRes.body.data ?? null).toBeNull()
-    expect(secondRes.body.error?.code).toBe('CONFLICT')
-    expect(secondRes.body.error?.message).toBeTruthy()
+    expect(secondRes.status).toBe(202)
+    expect(secondRes.body.data?.email).toBe(email)
+    expect(secondRes.body.data?.requiresEmailConfirmation).toBe(true)
+    expect(secondRes.body.error ?? null).toBeNull()
   })
 
   it('returns 422 for non-.edu email registration', async () => {
@@ -169,3 +190,15 @@ describeLiveIntegration('Users/Auth integration', () => {
     expect(res.body.error?.code).toBe('VALIDATION_ERROR')
   })
 })
+
+async function listAuthUserIdsByEmail(email: string): Promise<string[]> {
+  const { data, error } = await supabaseAdmin.auth.admin.listUsers()
+
+  if (error) {
+    throw error
+  }
+
+  return (data.users ?? [])
+    .filter((user) => user.email?.toLowerCase() === email.toLowerCase())
+    .map((user) => user.id)
+}
