@@ -40,6 +40,7 @@ enum AccountStatus {
   WARNED
   SUSPENDED
   BANNED
+  DEACTIVATED
 }
 
 enum AcademicRole {
@@ -119,7 +120,7 @@ model DriverProfile {
   id                  String       @id @default(cuid())
   userId              String       @unique
   user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  licencePath         String
+  licencePath         String?
   insurancePath       String?
   vehicleInfo         Json
   status              DriverStatus @default(PENDING)
