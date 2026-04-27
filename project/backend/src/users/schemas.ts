@@ -15,11 +15,25 @@ export const AcademicRoleSchema = z.enum([
   'STAFF',
 ])
 
+export const AcademicResponseRoleSchema = z.enum([
+  'STUDENT',
+  'FACULTY',
+  'STAFF',
+])
+
 export const AcademicVerificationStatusSchema = z.enum([
   'NOT_SUBMITTED',
   'PENDING',
   'VERIFIED',
   'REJECTED',
+])
+
+export const AcademicResponseVerificationStatusSchema = z.enum([
+  'NOT_SUBMITTED',
+  'PENDING',
+  'VERIFIED',
+  'REJECTED',
+  'APPROVED',
 ])
 
 export const ModerationStateSchema = z.object({
@@ -28,8 +42,8 @@ export const ModerationStateSchema = z.object({
 })
 
 export const AcademicVerificationStateSchema = z.object({
-  academicRole: AcademicRoleSchema.nullable(),
-  academicVerificationStatus: AcademicVerificationStatusSchema,
+  academicRole: AcademicResponseRoleSchema.nullable(),
+  academicVerificationStatus: AcademicResponseVerificationStatusSchema,
   academicIdPath: z.string().nullable(),
   academicVerifiedAt: z.string().datetime().nullable(),
   academicRejectionReason: z.string().nullable(),
@@ -157,7 +171,9 @@ export type SubmitAcademicVerificationInput = z.infer<typeof SubmitAcademicVerif
 export type DeleteMyAccountInput = z.infer<typeof DeleteMyAccountSchema>
 export type AccountStatus = z.infer<typeof AccountStatusSchema>
 export type AcademicRole = z.infer<typeof AcademicRoleSchema>
+export type AcademicResponseRole = z.infer<typeof AcademicResponseRoleSchema>
 export type AcademicVerificationStatus = z.infer<typeof AcademicVerificationStatusSchema>
+export type AcademicResponseVerificationStatus = z.infer<typeof AcademicResponseVerificationStatusSchema>
 export type ModerationState = z.infer<typeof ModerationStateSchema>
 export type AcademicVerificationState = z.infer<typeof AcademicVerificationStateSchema>
 export type MeResponse = z.infer<typeof MeResponseSchema>
