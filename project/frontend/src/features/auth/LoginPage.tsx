@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Car } from "lucide-react";
 import { getDefaultRoute } from "@/features/auth/routing";
 import { useAuth, useLogin } from "@/hooks/useAuth";
@@ -34,22 +34,33 @@ function getModerationMessage(
     return "Invalid email or password.";
   }
 
+  if (authError.code === "EMAIL_NOT_CONFIRMED") {
+    return "Please confirm your email before signing in.";
+  }
+
   return "Something went wrong. Please try again.";
 }
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isLoading } = useAuth();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const loginMutation = useLogin();
   const authError = useAuthStore((state) => state.authError);
+  const confirmed = searchParams.get("confirmed") === "1";
 
   useEffect(() => {
     if (!isLoading && user) {
       navigate(getDefaultRoute(user), { replace: true });
     }
   }, [isLoading, navigate, user]);
+
+  useEffect(() => {
+    const nextEmail = searchParams.get("email") ?? "";
+    setEmail(nextEmail);
+  }, [searchParams]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +79,12 @@ export function LoginPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {confirmed && (
+          <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+            Your email is confirmed. You can sign in now.
+          </p>
+        )}
+
         <div>
           <label htmlFor="email" className="block text-sm font-medium mb-1">
             University email
@@ -125,7 +142,7 @@ export function LoginPage() {
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Don't have an account?{" "}
         <Link
-          to="/register"
+          to="/auth/register"
           className="font-medium text-primary hover:underline"
         >
           Create one
