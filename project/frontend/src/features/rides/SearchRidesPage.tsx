@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronUp, LocateFixed, MapPin, Plus, SlidersHorizontal, Star, Users } from 'lucide-react'
+import { ChevronDown, ChevronUp, LocateFixed, MapPin, SlidersHorizontal, Star, Users } from 'lucide-react'
 import { MapView } from '@/components/MapView'
-import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { RideCard } from './components/RideCard'
 import { useSearchRides } from './hooks'
@@ -11,7 +9,6 @@ import { RidePreferencesInput } from './components/RidePreferencesInput'
 import { RouteInputForm, type RouteInputValue } from './components/RouteInputForm'
 
 export function SearchRidesPage() {
-  const { user } = useAuth()
   const [pickup, setPickup] = useState<RouteInputValue>({ address: '', lat: null, lng: null })
   const [dropoff, setDropoff] = useState<RouteInputValue>({ address: '', lat: null, lng: null })
   const [mapSelectionTarget, setMapSelectionTarget] = useState<'origin' | 'destination' | null>(null)
@@ -99,15 +96,6 @@ export function SearchRidesPage() {
               Match by pickup, drop-off, timing, seats, route fit, and ride preferences instead of plain distance alone.
             </p>
           </div>
-          {user?.role === 'DRIVER' && user.isDriverApproved && (
-            <Link
-              to="/rides/post"
-              className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4" />
-              Post a Ride
-            </Link>
-          )}
         </div>
       </div>
 

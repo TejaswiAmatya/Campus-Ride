@@ -16,6 +16,20 @@ function getDateBounds(date: string) {
   };
 }
 
+function buildDepartureTimeFilter(date?: string) {
+  const now = new Date();
+
+  if (!date) {
+    return { gte: now };
+  }
+
+  const { start, end } = getDateBounds(date);
+  return {
+    gte: start > now ? start : now,
+    lt: end,
+  };
+}
+
 function getAverageRating(ride: SearchRideRow) {
   const ratings =
     ride.driver?.reviewsReceived?.map((review: { rating: number }) => review.rating) ?? [];
@@ -38,7 +52,6 @@ function serializeSearchRide(ride: SearchRideRow) {
 
 export async function searchRidesByLocation(query: SearchRidesInput) {
   const seats = query.seats ?? 1;
-  const dateBounds = query.date ? getDateBounds(query.date) : null;
   const originText = query.pickup ?? query.origin ?? query.location;
   const destinationText = query.dropoff ?? query.dest;
   const textFilters = {
@@ -63,12 +76,7 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
       lte: query.maxPrice,
     }),
   };
-  const departureTimeFilter = {
-    ...(dateBounds && {
-      gte: dateBounds.start,
-      lt: dateBounds.end,
-    }),
-  };
+  const departureTimeFilter = buildDepartureTimeFilter(query.date);
 
   const rides = await prisma.ride.findMany({
     where: {
@@ -78,9 +86,7 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
         pricePerSeat: priceFilters,
       }),
       ...textFilters,
-      ...(Object.keys(departureTimeFilter).length > 0 && {
-        departureTime: departureTimeFilter,
-      }),
+      departureTime: departureTimeFilter,
     },
     include: {
       driver: {
