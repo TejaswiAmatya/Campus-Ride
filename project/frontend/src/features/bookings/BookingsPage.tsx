@@ -69,32 +69,34 @@ export function BookingsPage() {
             </p>
           </div>
 
-          <div className="inline-flex rounded-xl border bg-white/90 p-1 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setView("passenger")}
-              className={cn(
-                "rounded-lg px-4 py-2 text-sm font-medium transition",
-                view === "passenger"
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:bg-slate-100",
-              )}
-            >
-              My bookings
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("driver")}
-              className={cn(
-                "rounded-lg px-4 py-2 text-sm font-medium transition",
-                view === "driver"
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:bg-slate-100",
-              )}
-            >
-              Driver requests
-            </button>
-          </div>
+          {user?.role === "DRIVER" && (
+            <div className="inline-flex rounded-xl border bg-white/90 p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setView("passenger")}
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm font-medium transition",
+                  view === "passenger"
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-600 hover:bg-slate-100",
+                )}
+              >
+                My bookings
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("driver")}
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm font-medium transition",
+                  view === "driver"
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-600 hover:bg-slate-100",
+                )}
+              >
+                Driver requests
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
