@@ -9,9 +9,29 @@ export const AccountStatusSchema = z.enum([
   'BANNED',
 ])
 
+export const AcademicRoleSchema = z.enum([
+  'STUDENT',
+  'STAFF',
+])
+
+export const AcademicVerificationStatusSchema = z.enum([
+  'NOT_SUBMITTED',
+  'PENDING',
+  'VERIFIED',
+  'REJECTED',
+])
+
 export const ModerationStateSchema = z.object({
   accountStatus: AccountStatusSchema,
   suspendedUntil: z.string().datetime().nullable(),
+})
+
+export const AcademicVerificationStateSchema = z.object({
+  academicRole: AcademicRoleSchema.nullable(),
+  academicVerificationStatus: AcademicVerificationStatusSchema,
+  academicIdPath: z.string().nullable(),
+  academicVerifiedAt: z.string().datetime().nullable(),
+  academicRejectionReason: z.string().nullable(),
 })
 
 export const RegisterSchema = z.object({
@@ -36,10 +56,28 @@ export const UpdateProfileSchema = z
     name: z.string().min(2).max(100).optional(),
     phone: z.string().optional(),
     avatarPath: z.string().optional(),
+    bio: z.string().nullable().optional(),
+    homeAddress: z.string().nullable().optional(),
+    homeLat: z.number().nullable().optional(),
+    homeLng: z.number().nullable().optional(),
+    campusAddress: z.string().nullable().optional(),
+    campusLat: z.number().nullable().optional(),
+    campusLng: z.number().nullable().optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'At least one field must be provided',
   })
+
+export const ProfileFieldsSchema = z.object({
+  phone: z.string().nullable(),
+  bio: z.string().nullable(),
+  homeAddress: z.string().nullable(),
+  homeLat: z.number().nullable(),
+  homeLng: z.number().nullable(),
+  campusAddress: z.string().nullable(),
+  campusLat: z.number().nullable(),
+  campusLng: z.number().nullable(),
+})
 
 const VehicleInfoSchema = z.object({
   make: z.string().min(1),
@@ -65,6 +103,10 @@ export const DriverApplicationSchema = z.object({
   }, VehicleInfoSchema),
 })
 
+export const SubmitAcademicVerificationSchema = z.object({
+  role: AcademicRoleSchema,
+})
+
 export const MeResponseSchema = z.object({
   id: z.string(),
   email: z.string().email(),
@@ -74,7 +116,9 @@ export const MeResponseSchema = z.object({
   avatarPath: z.string().nullable(),
   driverStatus: z.enum(['PENDING', 'APPROVED', 'REJECTED']).nullable(),
   createdAt: z.string().datetime(),
+  ...ProfileFieldsSchema.shape,
   ...ModerationStateSchema.shape,
+  ...AcademicVerificationStateSchema.shape,
 })
 
 export const BlockedAuthErrorSchema = z.object({
@@ -98,8 +142,13 @@ export const BlockedAuthErrorSchema = z.object({
 export type RegisterInput = z.infer<typeof RegisterSchema>
 export type LoginInput = z.infer<typeof LoginSchema>
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>
+export type ProfileFields = z.infer<typeof ProfileFieldsSchema>
 export type DriverApplicationInput = z.infer<typeof DriverApplicationSchema>
+export type SubmitAcademicVerificationInput = z.infer<typeof SubmitAcademicVerificationSchema>
 export type AccountStatus = z.infer<typeof AccountStatusSchema>
+export type AcademicRole = z.infer<typeof AcademicRoleSchema>
+export type AcademicVerificationStatus = z.infer<typeof AcademicVerificationStatusSchema>
 export type ModerationState = z.infer<typeof ModerationStateSchema>
+export type AcademicVerificationState = z.infer<typeof AcademicVerificationStateSchema>
 export type MeResponse = z.infer<typeof MeResponseSchema>
 export type BlockedAuthError = z.infer<typeof BlockedAuthErrorSchema>

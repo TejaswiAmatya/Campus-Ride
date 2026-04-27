@@ -6,7 +6,8 @@ import { api } from '@/api/client'
 import { DocumentUpload } from './components/DocumentUpload'
 
 export function DriverRegistrationPage() {
-  const [file, setFile] = useState<File | null>(null)
+  const [licenceFile, setLicenceFile] = useState<File | null>(null)
+  const [insuranceFile, setInsuranceFile] = useState<File | null>(null)
   const [make, setMake] = useState('')
   const [model, setModel] = useState('')
   const [year, setYear] = useState('')
@@ -18,14 +19,15 @@ export function DriverRegistrationPage() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!file || isSubmitting) return
+    if (!licenceFile || !insuranceFile || isSubmitting) return
 
     setIsSubmitting(true)
     setErrorMessage('')
 
     try {
       const formData = new FormData()
-      formData.append('licence', file)
+      formData.append('licence', licenceFile)
+      formData.append('insurance', insuranceFile)
       formData.append(
         'vehicle',
         JSON.stringify({ make, model, year: Number(year), colour, plateNumber }),
@@ -62,10 +64,10 @@ export function DriverRegistrationPage() {
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Application submitted</h1>
           <p className="mt-3 text-sm leading-7 text-slate-500">
-            Your licence and vehicle details are with the admin team. You'll be notified once your account is approved and you can start posting rides.
+            Your licence, insurance, and vehicle details are with the admin team. You'll be notified once your account is approved and you can start posting rides.
           </p>
           <div className="mt-8 space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-4 text-left">
-            {['Licence document received', 'Vehicle details saved', 'Pending admin review'].map((item) => (
+            {['Licence document received', 'Insurance document received', 'Vehicle details saved', 'Pending admin review'].map((item) => (
               <div key={item} className="flex items-center gap-2.5 text-sm text-slate-700">
                 <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" strokeWidth={2.5} />
                 {item}
@@ -93,7 +95,7 @@ export function DriverRegistrationPage() {
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Apply as a driver</h1>
         <p className="mt-2 text-sm text-slate-500">
-          Upload your licence and add your vehicle. An admin will review your application before you can post rides.
+          Upload your licence, insurance, and vehicle details. An admin will review the full application before you can post rides.
         </p>
       </div>
 
@@ -106,13 +108,20 @@ export function DriverRegistrationPage() {
         <section>
           <SectionLabel number={1} title="Driver's licence" />
           <div className="mt-4">
-            <DocumentUpload onFileSelect={setFile} />
+            <DocumentUpload onFileSelect={setLicenceFile} />
+          </div>
+        </section>
+
+        <section>
+          <SectionLabel number={2} title="Vehicle insurance" />
+          <div className="mt-4">
+            <DocumentUpload onFileSelect={setInsuranceFile} />
           </div>
         </section>
 
         {/* Vehicle section */}
         <section>
-          <SectionLabel number={2} title="Vehicle details" />
+          <SectionLabel number={3} title="Vehicle details" />
           <div className="mt-4 grid grid-cols-2 gap-4">
             <Field label="Make" value={make} onChange={setMake} placeholder="Toyota" />
             <Field label="Model" value={model} onChange={setModel} placeholder="Prius" />
@@ -148,7 +157,7 @@ export function DriverRegistrationPage() {
         <div className="border-t border-slate-100 pt-6">
           <button
             type="submit"
-            disabled={!file || isSubmitting}
+            disabled={!licenceFile || !insuranceFile || isSubmitting}
             className="w-full rounded-lg bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isSubmitting ? 'Submitting…' : 'Submit application'}
@@ -163,7 +172,7 @@ export function DriverRegistrationPage() {
 }
 
 function Steps() {
-  const steps = ['Upload licence', 'Add vehicle', 'Submit for review']
+  const steps = ['Upload documents', 'Add vehicle', 'Submit for review']
   return (
     <div className="flex items-center gap-0">
       {steps.map((label, i) => (

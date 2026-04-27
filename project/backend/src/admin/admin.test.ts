@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  AcademicDecisionSchema,
   DriverDecisionSchema,
   UpdateConfigSchema,
   ResolveReportSchema,
@@ -22,16 +23,57 @@ describe("DriverDecisionSchema", () => {
     ).toBe(true);
   });
 
-  it("accepts a rejection without a reason (reason is optional)", () => {
+  it("rejects a rejection without a reason", () => {
     expect(DriverDecisionSchema.safeParse({ approved: false }).success).toBe(
-      true,
+      false,
     );
+  });
+
+  it("rejects a rejection with a blank reason", () => {
+    expect(
+      DriverDecisionSchema.safeParse({
+        approved: false,
+        reason: "   ",
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects when approved is not a boolean", () => {
     expect(DriverDecisionSchema.safeParse({ approved: "yes" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("AcademicDecisionSchema", () => {
+  it("accepts an approval", () => {
+    expect(AcademicDecisionSchema.safeParse({ approved: true }).success).toBe(
+      true,
+    );
+  });
+
+  it("accepts a rejection with a reason", () => {
+    expect(
+      AcademicDecisionSchema.safeParse({
+        approved: false,
+        reason: "Student ID image was unreadable",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a rejection without a reason", () => {
+    expect(AcademicDecisionSchema.safeParse({ approved: false }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects a rejection with a blank reason", () => {
+    expect(
+      AcademicDecisionSchema.safeParse({
+        approved: false,
+        reason: "   ",
+      }).success,
+    ).toBe(false);
   });
 });
 

@@ -79,49 +79,124 @@ export async function deleteAuthUser(userId: string) {
   return getSupabaseAdminClient().auth.admin.deleteUser(userId)
 }
 
-export async function uploadLicense(
+const PRIVATE_DOCUMENTS_BUCKET = 'license'
+
+function sanitizeFilename(filename: string): string {
+  const trimmed = filename.trim()
+  const fallback = 'document'
+  const normalized = trimmed || fallback
+
+  return normalized
+    .replace(/[/\\]/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9._-]/g, '')
+}
+
+function buildPrivateDocumentPath(
+  folder: 'licences' | 'insurance' | 'academic-ids',
+  userId: string,
+  filename: string,
+): string {
+  const timestamp = Date.now()
+  const safeFilename = sanitizeFilename(filename)
+  return `${folder}/${userId}/${timestamp}-${safeFilename}`
+}
+
+async function uploadPrivateDocument(
+  folder: 'licences' | 'insurance' | 'academic-ids',
   userId: string,
   buffer: Buffer,
-  filetype: string
-) : Promise<string> {
-  // Get the extension from the mimetype
-  const ext = filetype.split('/')[1]
-  const path = `${userId}/license.${ext}`
+  filetype: string,
+  filename: string,
+  errorLabel: string,
+): Promise<string> {
+  const path = buildPrivateDocumentPath(folder, userId, filename)
 
-  // Upload the file to Supabase Storage
-  const { error } = await getSupabaseAdminClient().storage.from('DriversInfo').upload(path, buffer, {
-    contentType: filetype,
-    upsert: true,
-  })
+  const { error } = await getSupabaseAdminClient()
+    .storage
+    .from(PRIVATE_DOCUMENTS_BUCKET)
+    .upload(path, buffer, {
+      contentType: filetype,
+      upsert: true,
+    })
 
   if (error) {
-    console.error('Supabase license upload failed:', {
+    console.error(`Supabase ${errorLabel} upload failed:`, {
       message: error.message,
       name: error.name,
       userId,
       path,
       filetype,
     })
-    throw new AppError('UPLOAD_FAILED', 'Failed to upload license', 500)
+    throw new AppError('UPLOAD_FAILED', `Failed to upload ${errorLabel}`, 500)
   }
+
   return path
 }
 
-export async function createSignedLicenseUrl(path: string): Promise<string> {
+export async function uploadLicense(
+  userId: string,
+  buffer: Buffer,
+  filetype: string,
+  filename: string,
+) : Promise<string> {
+  return uploadPrivateDocument(
+    'licences',
+    userId,
+    buffer,
+    filetype,
+    filename,
+    'license',
+  )
+}
+
+export async function uploadInsurance(
+  userId: string,
+  buffer: Buffer,
+  filetype: string,
+  filename: string,
+): Promise<string> {
+  return uploadPrivateDocument(
+    'insurance',
+    userId,
+    buffer,
+    filetype,
+    filename,
+    'insurance',
+  )
+}
+
+export async function createSignedPrivateDocumentUrl(path: string): Promise<string> {
   const { data, error } = await supabaseAdmin.storage
-    .from('DriversInfo')
+    .from(PRIVATE_DOCUMENTS_BUCKET)
     .createSignedUrl(path, 60 * 60)
 
   if (error || !data?.signedUrl) {
-    console.error('Supabase signed license URL creation failed:', {
+    console.error('Supabase signed private document URL creation failed:', {
       message: error?.message,
       name: error?.name,
       path,
     })
-    throw new AppError('UPLOAD_FAILED', 'Failed to access license', 500)
+    throw new AppError('UPLOAD_FAILED', 'Failed to access document', 500)
   }
 
   return data.signedUrl
+}
+
+export async function uploadAcademicId(
+  userId: string,
+  buffer: Buffer,
+  filetype: string,
+  filename: string,
+): Promise<string> {
+  return uploadPrivateDocument(
+    'academic-ids',
+    userId,
+    buffer,
+    filetype,
+    filename,
+    'academic ID',
+  )
 }
 
 export async function uploadAvatar(

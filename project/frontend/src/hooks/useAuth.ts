@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { api, extractApiError } from '../api/client'
+import { api, extractApiError, fetchMe } from '../api/client'
 import { useAuthStore, type AuthErrorState } from '@/store/authStore'
-import { fetchMe, meQueryKey, type ProfileUser } from './useProfile'
+import { meQueryKey, type ProfileUser } from './useProfile'
 
 export type AuthUser = ProfileUser
 

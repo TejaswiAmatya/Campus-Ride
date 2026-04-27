@@ -77,6 +77,21 @@ async function driverRejected(
   await enqueue("driverRejected", { driverId, email, name, reason });
 }
 
+async function academicApproved(userId: string, email: string, name: string) {
+  console.log("[emailQueue] academicApproved queued", { userId, email });
+  await enqueue("academicApproved", { userId, email, name });
+}
+
+async function academicRejected(
+  userId: string,
+  email: string,
+  name: string,
+  reason?: string,
+) {
+  console.log("[emailQueue] academicRejected queued", { userId, email });
+  await enqueue("academicRejected", { userId, email, name, reason });
+}
+
 async function moderationAction(
   userId: string,
   email: string,
@@ -106,5 +121,7 @@ export const emailQueue = {
   rideUpdated,
   driverApproved,
   driverRejected,
+  academicApproved,
+  academicRejected,
   moderationAction,
 };

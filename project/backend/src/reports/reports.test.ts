@@ -39,19 +39,25 @@ describe("createReport", () => {
     };
   };
 
-  const makeUser = (overrides: Partial<User> = {}): User => ({
-    id: otherUserId,
-    email: "driver@example.com",
-    name: "Driver Demo",
-    phone: null,
-    role: Role.DRIVER,
-    accountStatus: "ACTIVE",
-    suspendedUntil: null,
-    avatarPath: null,
-    createdAt: new Date("2024-01-01T10:00:00.000Z"),
-    updatedAt: new Date("2024-01-01T10:00:00.000Z"),
-    ...overrides,
-  });
+  const makeUser = (overrides: Partial<User> = {}): User =>
+    ({
+      id: otherUserId,
+      email: "driver@example.com",
+      name: "Driver Demo",
+      phone: null,
+      role: Role.DRIVER,
+      accountStatus: "ACTIVE",
+      suspendedUntil: null,
+      avatarPath: null,
+      academicRole: null,
+      academicVerificationStatus: "NOT_SUBMITTED",
+      academicIdPath: null,
+      academicVerifiedAt: null,
+      academicRejectionReason: null,
+      createdAt: new Date("2024-01-01T10:00:00.000Z"),
+      updatedAt: new Date("2024-01-01T10:00:00.000Z"),
+      ...overrides,
+    }) as User;
 
   const makeRide = (overrides: Partial<Ride> = {}): Ride => ({
     id: validRideId,

@@ -1,15 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, LayoutDashboard, XCircle } from "lucide-react";
 import { api } from "@/api/client";
-
-interface PendingDriver {
-  id: string;
-  name: string;
-  email: string;
-  licenceUrl?: string;
-  vehicle?: { make: string; model: string; year: number; plateNumber: string };
-  createdAt: string;
-}
+import { AdminDecisionInline } from "@/components/AdminDecisionInline";
+import {
+  pendingAcademicVerificationsQueryKey,
+  usePendingAcademicVerifications,
+} from "@/features/admin/usePendingAcademicVerifications";
+import type { PendingDriver } from "./types";
 
 export function DriverApprovalsPage() {
   const queryClient = useQueryClient();
@@ -33,6 +30,30 @@ export function DriverApprovalsPage() {
     },
   });
 
+  const { data: pendingAcademicVerifications } =
+    usePendingAcademicVerifications();
+
+  const academicDecisionMutation = useMutation({
+    mutationFn: ({
+      userId,
+      approved,
+      reason,
+    }: {
+      userId: string;
+      approved: boolean;
+      reason?: string;
+    }) =>
+      api.patch(`/api/admin/verifications/academic/${userId}`, {
+        approved,
+        ...(approved ? {} : { reason }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: pendingAcademicVerificationsQueryKey,
+      });
+    },
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -53,6 +74,7 @@ export function DriverApprovalsPage() {
                 <th className="px-4 py-3 text-left font-medium">Email</th>
                 <th className="px-4 py-3 text-left font-medium">Vehicle</th>
                 <th className="px-4 py-3 text-left font-medium">Licence</th>
+                <th className="px-4 py-3 text-left font-medium">Insurance</th>
                 <th className="px-4 py-3 text-left font-medium">Applied</th>
                 <th className="px-4 py-3 text-left font-medium">Actions</th>
               </tr>
@@ -76,6 +98,22 @@ export function DriverApprovalsPage() {
                     {driver.licenceUrl ? (
                       <a
                         href={driver.licenceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        View
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Not uploaded
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {driver.insuranceUrl ? (
+                      <a
+                        href={driver.insuranceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline"
@@ -127,6 +165,89 @@ export function DriverApprovalsPage() {
           </table>
         </div>
       )}
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Academic Badge Verifications</h2>
+        </div>
+
+        {(pendingAcademicVerifications ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No pending academic verifications
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {(pendingAcademicVerifications ?? []).map((verification) => {
+              const academicIdSignedUrl =
+                (
+                  verification as {
+                    academicIdSignedUrl?: string | null;
+                    academicIdUrl?: string | null;
+                  }
+                ).academicIdSignedUrl ??
+                (
+                  verification as {
+                    academicIdSignedUrl?: string | null;
+                    academicIdUrl?: string | null;
+                  }
+                ).academicIdUrl;
+
+              return (
+                <div key={verification.userId} className="rounded-lg border p-4">
+                  <div className="space-y-2">
+                    <p className="font-medium">{verification.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {verification.academicRole === "STAFF"
+                        ? "Staff"
+                        : verification.academicRole === "STUDENT"
+                          ? "Student"
+                          : "—"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(verification.createdAt).toLocaleDateString(
+                        "en-GB",
+                      )}
+                    </p>
+                    {academicIdSignedUrl ? (
+                      <a
+                        href={academicIdSignedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        View ID Document
+                      </a>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        ID document unavailable
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    <AdminDecisionInline
+                      isPending={academicDecisionMutation.isPending}
+                      onApprove={() =>
+                        academicDecisionMutation.mutate({
+                          userId: verification.userId,
+                          approved: true,
+                        })
+                      }
+                      onReject={(reason) =>
+                        academicDecisionMutation.mutate({
+                          userId: verification.userId,
+                          approved: false,
+                          reason,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -26,7 +26,9 @@ export function startEmailWorker(): Worker {
     async (job) => {
       if (job.name === "welcomeEmail") {
         const { email, userId } = job.data;
-        console.log(`[emailWorker] welcome email → ${email} for user ${userId}`);
+        console.log(
+          `[emailWorker] welcome email → ${email} for user ${userId}`,
+        );
         const user = await prisma.user.findUnique({ where: { id: userId } });
         const built = buildEmail({
           type: "welcome",
@@ -152,6 +154,37 @@ export function startEmailWorker(): Worker {
           type: "driver-approved",
           to: email,
           userName: name,
+        });
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM,
+          to: email,
+          ...built,
+        });
+      } else if (job.name === "academicApproved") {
+        const { userId, email, name } = job.data;
+        console.log(
+          `[emailWorker] academicApproved email → ${email} for user ${userId}`,
+        );
+        const built = buildEmail({
+          type: "academic-approved",
+          to: email,
+          userName: name,
+        });
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM,
+          to: email,
+          ...built,
+        });
+      } else if (job.name === "academicRejected") {
+        const { userId, email, name, reason } = job.data;
+        console.log(
+          `[emailWorker] academicRejected email → ${email} for user ${userId}`,
+        );
+        const built = buildEmail({
+          type: "academic-rejected",
+          to: email,
+          userName: name,
+          reason,
         });
         await transporter.sendMail({
           from: process.env.SMTP_FROM,

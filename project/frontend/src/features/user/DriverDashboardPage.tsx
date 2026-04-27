@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Bell, Car, CirclePlus, TrendingUp } from 'lucide-react'
 import { fetchMe } from '@/api/client'
 import { DashboardCard } from '@/components/DashboardCard'
+import { ProfileCompletionCard } from '@/components/ProfileCompletionCard'
 import { ProfileSummaryCard } from '@/components/ProfileSummaryCard'
 import type { AppRole } from '@/features/auth/routing'
 
@@ -23,6 +24,8 @@ export function DriverDashboardPage() {
         avatarUrl={user?.avatarPath ?? null}
         role={role}
       />
+
+      {user ? <ProfileCompletionCard user={user} /> : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <DashboardCard

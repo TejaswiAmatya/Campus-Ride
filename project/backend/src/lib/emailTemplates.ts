@@ -6,6 +6,8 @@ export type EmailJobType =
   | "booking-cancelled"
   | "driver-approved"
   | "driver-rejected"
+  | "academic-approved"
+  | "academic-rejected"
   | "moderation-action";
 
 type BaseEmailPayload = {
@@ -60,6 +62,17 @@ export type DriverRejectedEmailPayload = BaseEmailPayload & {
   reason?: string;
 };
 
+export type AcademicApprovedEmailPayload = BaseEmailPayload & {
+  type: "academic-approved";
+  userName: string;
+};
+
+export type AcademicRejectedEmailPayload = BaseEmailPayload & {
+  type: "academic-rejected";
+  userName: string;
+  reason?: string;
+};
+
 export type ModerationActionEmailPayload = BaseEmailPayload & {
   type: "moderation-action";
   userName: string;
@@ -77,6 +90,8 @@ export type EmailJobPayload =
   | BookingCancelledEmailPayload
   | DriverApprovedEmailPayload
   | DriverRejectedEmailPayload
+  | AcademicApprovedEmailPayload
+  | AcademicRejectedEmailPayload
   | ModerationActionEmailPayload;
 
 type BuiltEmail = {
@@ -207,6 +222,37 @@ export function buildEmail(payload: EmailJobPayload): BuiltEmail {
                 : ""
             }
             <p>You can review your information and apply again later if needed.</p>
+          `,
+        ),
+      };
+
+    case "academic-approved":
+      return {
+        subject: "Your academic verification was approved",
+        html: wrapHtml(
+          "Academic Verification Approved",
+          `
+            <p>Hi ${payload.userName},</p>
+            <p>Your academic verification has been approved.</p>
+            <p>Your verified student or staff badge is now visible on your profile.</p>
+          `,
+        ),
+      };
+
+    case "academic-rejected":
+      return {
+        subject: "Your academic verification was rejected",
+        html: wrapHtml(
+          "Academic Verification Rejected",
+          `
+            <p>Hi ${payload.userName},</p>
+            <p>Your academic verification was not approved at this time.</p>
+            ${
+              payload.reason
+                ? `<p><strong>Reason:</strong> ${payload.reason}</p>`
+                : ""
+            }
+            <p>You can review your document and submit it again from your profile.</p>
           `,
         ),
       };

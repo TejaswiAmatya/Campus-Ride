@@ -1,5 +1,5 @@
-import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
 
 import type { PendingDriver } from './types'
 
@@ -39,6 +39,7 @@ export function DriverApprovalTable({
           <TableRow>
             <TableHead>Applicant</TableHead>
             <TableHead>Licence</TableHead>
+            <TableHead>Insurance</TableHead>
             <TableHead>Vehicle</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -67,6 +68,20 @@ export function DriverApprovalTable({
                     </a>
                   ) : (
                     <span className="text-muted-foreground">No licence uploaded</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {driver.insuranceUrl ? (
+                    <a
+                      href={driver.insuranceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex text-sm text-primary hover:underline"
+                    >
+                      View insurance
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground">No insurance uploaded</span>
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
