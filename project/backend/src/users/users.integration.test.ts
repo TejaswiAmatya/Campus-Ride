@@ -1,13 +1,9 @@
 import request from 'supertest'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it } from 'vitest'
 import { app } from '../app'
 import { prisma } from '../lib/prisma'
 import { supabaseAdmin } from '../lib/supabase'
-
-const runLiveIntegrationTests = ['1', 'true'].includes(
-  (process.env.RUN_LIVE_INTEGRATION_TESTS ?? '').toLowerCase(),
-)
-const describeLiveIntegration = runLiveIntegrationTests ? describe.sequential : describe.skip
+import { describeAuthIntegration } from '../test/integration/gates'
 
 type ApiError = {
   code: string
@@ -55,7 +51,7 @@ type MeResponse = {
   createdAt: string
 }
 
-describeLiveIntegration('Users/Auth integration', () => {
+describeAuthIntegration('Users/Auth integration (requires full Supabase auth stack)', () => {
   const createdUserIds: string[] = []
   const createdEmails: string[] = []
 
