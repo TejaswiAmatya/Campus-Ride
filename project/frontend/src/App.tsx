@@ -9,6 +9,7 @@ import {
 } from "./components/ProtectedRoute";
 import { LoginPage } from "./features/auth/LoginPage";
 import { RegisterPage } from "./features/auth/RegisterPage";
+import { ConfirmSignupPage } from "./features/auth/ConfirmSignupPage";
 import { DriverRegistrationPage } from "./features/auth/DriverRegistrationPage";
 import { SearchRidesPage } from "./features/rides/SearchRidesPage";
 import { PostRidePage } from "./features/rides/PostRidePage";
@@ -120,6 +121,7 @@ export function App() {
               {/* Public */}
               <Route path="/auth/login" element={<LoginPage />} />
               <Route path="/auth/register" element={<RegisterPage />} />
+              <Route path="/auth/confirm" element={<ConfirmSignupPage />} />
               <Route path="/profile/:id" element={<PublicProfilePage />} />
 
               {/* Authenticated */}
