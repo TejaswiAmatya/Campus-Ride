@@ -147,14 +147,76 @@ open http://localhost:5173
 ## Running tests
 
 ```bash
-# Backend unit tests (Vitest)
+# Backend unit tests only (default fast path)
 docker-compose exec backend npm test
+
+# Explicit backend unit profile
+docker-compose exec backend npm run test:unit
+
+# Backend unit quality gate
+docker-compose exec backend npm run test:unit:gate
+
+# Explicit backend integration profile
+docker-compose exec backend npm run test:integration
+
+# Backend integration quality gate
+docker-compose exec backend npm run test:integration:gate
+
+# Full backend sweep
+docker-compose exec backend npm run test:all
 
 # Type-check the frontend
 docker-compose exec frontend npm run type-check
 
 # Or run backend tests locally without Docker
 cd backend && npm ci && npx prisma generate && npm test
+```
+
+### Backend test profiles
+
+- `npm test`
+  Runs only the fast `*.unit.test.ts` suite. No database, Supabase, Redis, filesystem, or outbound HTTP access is allowed.
+- `npm run test:unit:gate`
+  Runs the unit suite with coverage and enforces stronger thresholds on the targeted business-logic modules instead of applying one blunt repo-wide minimum.
+- `npm run test:integration`
+  Runs `*.integration.test.ts` with `RUN_LIVE_INTEGRATION_TESTS=true` automatically enabled.
+  Auth-backed API flows remain separately gated behind `RUN_AUTH_INTEGRATION_TESTS=true`.
+- `npm run test:integration:gate`
+  Runs the integration suite and then verifies that the critical infra/auth flow test files still exist and that auth-backed flows remain explicitly gated.
+- `npm run test:all`
+  Runs the full backend Vitest config, including unit, integration, and any remaining legacy `*.test.ts` files during migration.
+
+### Integration test prerequisites
+
+`npm run test:integration` is expected to run against real infrastructure for the DB/auth integration flows.
+
+Required environment variables:
+
+```bash
+DATABASE_URL=postgresql://...
+# or TEST_DATABASE_URL=postgresql://...
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+RUN_AUTH_INTEGRATION_TESTS=true   # only when running the auth-backed API subset
+```
+
+Required services:
+
+- PostgreSQL reachable at `DATABASE_URL` or `TEST_DATABASE_URL`
+- For auth-backed API integration: a Supabase project with Auth enabled and reachable through the configured `SUPABASE_*` values
+
+Notes:
+
+- Redis is not required for the Vitest integration profile because the BullMQ email queue is disabled in test mode.
+- CI currently runs the infra-backed integration subset with PostgreSQL provisioned, while auth-backed API integration remains gated until the workflow provisions a real Supabase/Auth environment.
+- Before running the integration profile against a fresh database, apply migrations:
+
+```bash
+cd backend
+npx prisma generate
+npx prisma migrate deploy
+npm run test:integration
 ```
 
 ---
