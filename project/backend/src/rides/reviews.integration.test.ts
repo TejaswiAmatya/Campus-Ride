@@ -1,8 +1,9 @@
 import request from 'supertest'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, expect, it } from 'vitest'
 import { app } from '../app'
 import { prisma } from '../lib/prisma'
 import { supabaseAdmin } from '../lib/supabase'
+import { describeAuthIntegration } from '../test/integration/gates'
 
 type ApiEnvelope<T> = { data: T | null; error: { code: string; message: string } | null }
 
@@ -148,7 +149,7 @@ async function completeRide(rideId: string, driverToken: string) {
   expect(completeResponse.status).toBe(200)
 }
 
-describe.sequential('Ride reviews integration', () => {
+describeAuthIntegration('Ride reviews integration (requires full Supabase auth stack)', () => {
   const prefix = `ride-reviews-${Date.now()}-`
 
   afterEach(async () => {

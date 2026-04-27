@@ -5,6 +5,7 @@ import { getCancellationRefundResult } from './controller'
 import {
   CancelBookingSchema,
   CreateBookingSchema,
+  ListBookingsSchema,
   UpdateBookingCheckpointSchema,
   UpdateBookingStatusSchema,
 } from './schemas'
@@ -136,6 +137,15 @@ describe('UpdateBookingStatusSchema', () => {
     ).toBe(true)
   })
 
+  it('accepts DECLINED with an optional reason', () => {
+    expect(
+      UpdateBookingStatusSchema.safeParse({
+        status: 'DECLINED',
+        reason: 'Route is full',
+      }).success,
+    ).toBe(true)
+  })
+
   it('rejects PENDING (not a valid transition target)', () => {
     expect(
       UpdateBookingStatusSchema.safeParse({ status: 'PENDING' }).success,
@@ -157,6 +167,30 @@ describe('CancelBookingSchema', () => {
     expect(
       CancelBookingSchema.safeParse({ reason: 'I no longer need the seat' }).success,
     ).toBe(true)
+  })
+})
+
+describe('ListBookingsSchema', () => {
+  it('transforms asDriver and upcoming query flags into booleans', () => {
+    const parsed = ListBookingsSchema.parse({
+      asDriver: 'true',
+      upcoming: 'false',
+      status: 'CONFIRMED',
+    })
+
+    expect(parsed).toEqual({
+      asDriver: true,
+      upcoming: false,
+      status: 'CONFIRMED',
+    })
+  })
+
+  it('rejects an unsupported booking status filter', () => {
+    expect(
+      ListBookingsSchema.safeParse({
+        status: 'DECLINED',
+      }).success,
+    ).toBe(false)
   })
 })
 

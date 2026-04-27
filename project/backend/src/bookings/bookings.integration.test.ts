@@ -1,13 +1,9 @@
 import request from 'supertest'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, expect, it } from 'vitest'
 import { app } from '../app'
 import { prisma } from '../lib/prisma'
 import { supabaseAdmin } from '../lib/supabase'
-
-const runLiveIntegrationTests = ['1', 'true'].includes(
-  (process.env.RUN_LIVE_INTEGRATION_TESTS ?? '').toLowerCase(),
-)
-const describeLiveIntegration = runLiveIntegrationTests ? describe.sequential : describe.skip
+import { describeAuthIntegration } from '../test/integration/gates'
 
 type ApiEnvelope<T> = { data: T | null; error: { code: string; message: string } | null }
 
@@ -62,7 +58,7 @@ async function cleanupByEmailPrefix(prefix: string) {
   }
 }
 
-describeLiveIntegration('Bookings integration (book → confirm / decline)', () => {
+describeAuthIntegration('Bookings integration (requires full Supabase auth stack)', () => {
   const prefix = `bkflow-${Date.now()}-`
   const driverEmail = `${prefix}drv@university.edu`
   const passengerEmail = `${prefix}pax@university.edu`
