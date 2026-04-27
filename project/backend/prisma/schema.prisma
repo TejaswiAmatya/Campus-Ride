@@ -118,6 +118,7 @@ model User {
   announcementsCreated   Announcement[]     @relation("AnnouncementCreator")
   announcementReads      AnnouncementRead[]
   mustChangePassword     Boolean            @default(false)
+  chatMessages           ChatMessage[]
 }
 
 model Announcement {
@@ -134,10 +135,10 @@ model Announcement {
 }
 
 model AnnouncementRead {
-  id             String       @id @default(cuid())
+  id             String   @id @default(cuid())
   announcementId String
   userId         String
-  readAt         DateTime     @default(now())
+  readAt         DateTime @default(now())
 
   announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -188,11 +189,12 @@ model Ride {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
-  driver     User        @relation("DriverRides", fields: [driverId], references: [id])
-  rideSeries RideSeries? @relation(fields: [rideSeriesId], references: [id], onDelete: SetNull)
-  stops      RideStop[]
-  bookings   Booking[]
-  reviews    Review[]
+  driver       User          @relation("DriverRides", fields: [driverId], references: [id])
+  rideSeries   RideSeries?   @relation(fields: [rideSeriesId], references: [id], onDelete: SetNull)
+  stops        RideStop[]
+  bookings     Booking[]
+  reviews      Review[]
+  chatMessages ChatMessage[]
 
   @@index([rideSeriesId])
 }
@@ -345,4 +347,18 @@ model ModerationAction {
 
   @@index([targetUserId, createdAt])
   @@index([adminId, createdAt])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  rideId    String
+  senderId  String
+  text      String
+  createdAt DateTime @default(now())
+
+  ride   Ride @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id])
+
+  @@index([rideId, createdAt])
+  @@index([senderId])
 }

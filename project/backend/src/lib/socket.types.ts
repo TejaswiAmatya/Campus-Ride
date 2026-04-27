@@ -70,3 +70,17 @@ export interface AnnouncementPayload {
   message: string;
   createdAt: string;
 }
+
+export interface ChatMessageInputPayload {
+  rideId: string;
+  text: string;
+}
+
+export interface ChatMessagePayload {
+  rideId: string;
+  senderId: string;
+  senderName: string;
+  senderAvatarPath?: string | null;
+  text: string;
+  createdAt: string;
+}
