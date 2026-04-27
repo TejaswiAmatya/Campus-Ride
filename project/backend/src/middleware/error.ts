@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { ZodError } from 'zod'
 
-export const ACCOUNT_STATUSES = ['ACTIVE', 'WARNED', 'SUSPENDED', 'BANNED'] as const
+export const ACCOUNT_STATUSES = ['ACTIVE', 'WARNED', 'SUSPENDED', 'BANNED', 'DEACTIVATED'] as const
 
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number]
 
@@ -46,6 +46,14 @@ export function getBlockedAccountError({
     return new AppError(
       'ACCOUNT_BANNED',
       'Your account has been banned. Please contact support if you think this is a mistake.',
+      403,
+    )
+  }
+
+  if (accountStatus === 'DEACTIVATED') {
+    return new AppError(
+      'ACCOUNT_DEACTIVATED',
+      'This account has been closed and is no longer available.',
       403,
     )
   }
