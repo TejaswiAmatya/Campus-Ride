@@ -9,6 +9,7 @@ adminRouter.post("/reports", requireAuth, controller.createReport);
 adminRouter.use(requireAuth, requireRole("ADMIN"));
 
 adminRouter.get("/stats", controller.getStats);
+adminRouter.get("/analytics/user-growth", controller.getUserGrowthAnalytics);
 adminRouter.get("/drivers/pending", controller.listPendingDrivers);
 adminRouter.patch("/drivers/:id/decision", controller.driverDecision);
 adminRouter.get("/reports", controller.listReports);

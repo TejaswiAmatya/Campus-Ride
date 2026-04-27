@@ -28,6 +28,118 @@ type VehicleInfo = {
 
 const prismaUntyped = prisma as any;
 
+type GrowthBucket = {
+  periodStart: Date;
+  periodEnd: Date;
+};
+
+type UserGrowthPoint = {
+  periodStart: string;
+  periodEnd: string;
+  driverCount: number;
+  passengerCount: number;
+  totalNewUsers: number;
+  cumulativeTotalUsers: number;
+  deactivatedOrBannedUsers: number;
+  netGrowth: number;
+};
+
+function getDailyBuckets(now: Date, days = 30): GrowthBucket[] {
+  const buckets: GrowthBucket[] = [];
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const periodStart = new Date(todayStart);
+    periodStart.setDate(periodStart.getDate() - index);
+    const periodEnd = new Date(periodStart);
+    periodEnd.setDate(periodEnd.getDate() + 1);
+    buckets.push({ periodStart, periodEnd });
+  }
+
+  return buckets;
+}
+
+function getWeeklyBuckets(now: Date, weeks = 12): GrowthBucket[] {
+  const buckets: GrowthBucket[] = [];
+  const currentWeekStart = getStartOfWeek(now);
+
+  for (let index = weeks - 1; index >= 0; index -= 1) {
+    const periodStart = new Date(currentWeekStart);
+    periodStart.setDate(periodStart.getDate() - index * 7);
+    const periodEnd = new Date(periodStart);
+    periodEnd.setDate(periodEnd.getDate() + 7);
+    buckets.push({ periodStart, periodEnd });
+  }
+
+  return buckets;
+}
+
+function getMonthlyBuckets(now: Date, months = 12): GrowthBucket[] {
+  const buckets: GrowthBucket[] = [];
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  for (let index = months - 1; index >= 0; index -= 1) {
+    const periodStart = new Date(
+      currentMonthStart.getFullYear(),
+      currentMonthStart.getMonth() - index,
+      1,
+    );
+    const periodEnd = new Date(
+      periodStart.getFullYear(),
+      periodStart.getMonth() + 1,
+      1,
+    );
+    buckets.push({ periodStart, periodEnd });
+  }
+
+  return buckets;
+}
+
+function buildGrowthSeries(
+  buckets: GrowthBucket[],
+  users: Array<{
+    role: string;
+    createdAt: Date;
+  }>,
+  deactivationEvents: Array<{ updatedAt: Date }>,
+  initialTotal: number,
+): UserGrowthPoint[] {
+  const points: UserGrowthPoint[] = [];
+  let runningTotal = initialTotal;
+
+  for (const bucket of buckets) {
+    const newUsers = users.filter(
+      (user) =>
+        user.createdAt >= bucket.periodStart && user.createdAt < bucket.periodEnd,
+    );
+    const driverCount = newUsers.filter((user) => user.role === "DRIVER").length;
+    const passengerCount = newUsers.filter(
+      (user) => user.role === "PASSENGER",
+    ).length;
+    const totalNewUsers = driverCount + passengerCount;
+    runningTotal += totalNewUsers;
+
+    const deactivatedOrBannedUsers = deactivationEvents.filter(
+      (event) =>
+        event.updatedAt >= bucket.periodStart && event.updatedAt < bucket.periodEnd,
+    ).length;
+
+    points.push({
+      periodStart: bucket.periodStart.toISOString(),
+      periodEnd: bucket.periodEnd.toISOString(),
+      driverCount,
+      passengerCount,
+      totalNewUsers,
+      cumulativeTotalUsers: runningTotal,
+      deactivatedOrBannedUsers,
+      netGrowth: totalNewUsers - deactivatedOrBannedUsers,
+    });
+  }
+
+  return points;
+}
+
 /**
  * GET /api/admin/stats
  *
@@ -98,6 +210,90 @@ export async function getStats(
       totalPassengers,
       totalRevenue: revenueResult._sum?.platformFee ?? 0,
       newUsersThisMonth,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/analytics/user-growth
+ *
+ * Returns daily (30d), weekly (12w), and monthly (12m) user growth analytics
+ * with role split, cumulative totals, and net growth.
+ */
+export async function getUserGrowthAnalytics(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const now = new Date();
+    const dailyBuckets = getDailyBuckets(now, 30);
+    const weeklyBuckets = getWeeklyBuckets(now, 12);
+    const monthlyBuckets = getMonthlyBuckets(now, 12);
+
+    const oldestBoundary = monthlyBuckets[0]?.periodStart ?? new Date(now);
+
+    const [
+      usersInRange,
+      baselineTotalUsers,
+      deactivationEventsInRange,
+      currentDrivers,
+      currentPassengers,
+    ] = await prisma.$transaction([
+      prisma.user.findMany({
+        where: {
+          createdAt: { gte: oldestBoundary },
+          role: { in: ["DRIVER", "PASSENGER"] },
+        },
+        select: { role: true, createdAt: true },
+      }),
+      prisma.user.count({
+        where: {
+          createdAt: { lt: oldestBoundary },
+          role: { in: ["DRIVER", "PASSENGER"] },
+        },
+      }),
+      prisma.user.findMany({
+        where: {
+          updatedAt: { gte: oldestBoundary },
+          accountStatus: { in: ["SUSPENDED", "BANNED"] },
+        },
+        select: { updatedAt: true },
+      }),
+      prisma.user.count({ where: { role: "DRIVER" } }),
+      prisma.user.count({ where: { role: "PASSENGER" } }),
+    ]);
+
+    const daily = buildGrowthSeries(
+      dailyBuckets,
+      usersInRange,
+      deactivationEventsInRange,
+      baselineTotalUsers,
+    );
+    const weekly = buildGrowthSeries(
+      weeklyBuckets,
+      usersInRange,
+      deactivationEventsInRange,
+      baselineTotalUsers,
+    );
+    const monthly = buildGrowthSeries(
+      monthlyBuckets,
+      usersInRange,
+      deactivationEventsInRange,
+      baselineTotalUsers,
+    );
+
+    res.json({
+      daily,
+      weekly,
+      monthly,
+      totals: {
+        drivers: currentDrivers,
+        passengers: currentPassengers,
+        users: currentDrivers + currentPassengers,
+      },
     });
   } catch (err) {
     next(err);
