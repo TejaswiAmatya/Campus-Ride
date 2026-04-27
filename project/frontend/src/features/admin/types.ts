@@ -13,7 +13,18 @@ export interface PendingDriver {
   name: string;
   email: string;
   licenceUrl?: string | null;
+  insuranceUrl?: string | null;
   vehicle?: PendingDriverVehicle | null;
+  createdAt: string;
+}
+
+export interface PendingAcademicVerification {
+  userId: string;
+  name: string;
+  academicRole: "STUDENT" | "STAFF" | null;
+  academicVerificationStatus: "PENDING";
+  academicRejectionReason: string | null;
+  academicIdSignedUrl: string;
   createdAt: string;
 }
 

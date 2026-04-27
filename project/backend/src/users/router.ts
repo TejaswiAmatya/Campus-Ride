@@ -18,4 +18,18 @@ usersRouter.get('/:id/reviews', userController.getUserReviews)
 usersRouter.get('/me', requireAuth, userController.getCurrentUser)
 usersRouter.patch('/me', requireAuth, userController.updateCurrentUser)
 usersRouter.post('/me/avatar', requireAuth, upload.single('avatar'), userController.uploadCurrentUserAvatar)
-usersRouter.post('/me/driver', requireAuth, upload.single('licence'), userController.applyAsDriver)
+usersRouter.post(
+  '/me/academic-verification',
+  requireAuth,
+  upload.single('document'),
+  userController.submitAcademicVerification,
+)
+usersRouter.post(
+  '/me/driver',
+  requireAuth,
+  upload.fields([
+    { name: 'licence', maxCount: 1 },
+    { name: 'insurance', maxCount: 1 },
+  ]),
+  userController.applyAsDriver,
+)

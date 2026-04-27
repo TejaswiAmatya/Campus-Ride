@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { EditUserDetailForm } from "@/components/EditUserDetailForm";
+import { VerificationBadge } from "@/components/VerificationBadge";
 import type { ProfileUser as UserProfile } from "@/hooks/useProfile";
 
 interface UserProfileCardProps {
@@ -38,6 +39,10 @@ export function UserProfileCard({
                 </button>
               </div>
 
+              <VerificationBadge
+                academicRole={user.academicRole}
+                academicVerificationStatus={user.academicVerificationStatus}
+              />
               <p className="text-sm text-muted-foreground">{user.email}</p>
             </div>
 

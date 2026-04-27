@@ -35,10 +35,23 @@ type MeResponse = {
   id: string
   email: string
   name: string
+  phone: string | null
   role: string
   accountStatus: 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED'
   suspendedUntil: string | null
   avatarPath: string | null
+  bio: string | null
+  homeAddress: string | null
+  homeLat: number | null
+  homeLng: number | null
+  campusAddress: string | null
+  campusLat: number | null
+  campusLng: number | null
+  academicRole: 'STUDENT' | 'STAFF' | null
+  academicVerificationStatus: 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED'
+  academicIdPath: string | null
+  academicVerifiedAt: string | null
+  academicRejectionReason: string | null
   driverStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | null
   createdAt: string
 }
@@ -103,6 +116,19 @@ describeLiveIntegration('Users/Auth integration', () => {
     expect(meBody.email).toBe(email)
     expect(meBody.accountStatus).toBe('ACTIVE')
     expect(meBody.suspendedUntil).toBeNull()
+    expect(meBody.phone).toBeNull()
+    expect(meBody.bio).toBeNull()
+    expect(meBody.homeAddress).toBeNull()
+    expect(meBody.homeLat).toBeNull()
+    expect(meBody.homeLng).toBeNull()
+    expect(meBody.campusAddress).toBeNull()
+    expect(meBody.campusLat).toBeNull()
+    expect(meBody.campusLng).toBeNull()
+    expect(meBody.academicRole).toBeNull()
+    expect(meBody.academicVerificationStatus).toBe('NOT_SUBMITTED')
+    expect(meBody.academicIdPath).toBeNull()
+    expect(meBody.academicVerifiedAt).toBeNull()
+    expect(meBody.academicRejectionReason).toBeNull()
     expect(meBody.driverStatus).toBeNull()
   })
 

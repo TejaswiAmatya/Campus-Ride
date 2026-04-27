@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import {
+  AcademicDecisionSchema,
   CreateModerationActionSchema,
   DriverDecisionSchema,
   UpdateConfigSchema,
@@ -10,7 +11,7 @@ import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { notify } from "../lib/notify";
-import { createSignedLicenseUrl, supabaseAdmin } from "../lib/supabase";
+import { createSignedPrivateDocumentUrl, supabaseAdmin } from "../lib/supabase";
 import { validateReportTarget } from "../reports/validation";
 import {
   getAdminConfigMap,
@@ -139,6 +140,18 @@ function buildGrowthSeries(
 
   return points;
 }
+
+type PendingDriverRecord = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  licencePath: string;
+  insurancePath: string | null;
+  vehicleInfo: unknown;
+  createdAt: Date;
+};
 
 /**
  * GET /api/admin/stats
@@ -312,7 +325,7 @@ export async function listPendingDrivers(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const drivers = await prisma.driverProfile.findMany({
+    const drivers = await prismaUntyped.driverProfile.findMany({
       where: { status: "PENDING" },
       include: {
         user: {
@@ -323,11 +336,14 @@ export async function listPendingDrivers(
     });
 
     const serializedDrivers = await Promise.all(
-      drivers.map(async (driver) => ({
+      drivers.map(async (driver: PendingDriverRecord) => ({
         id: driver.user.id,
         name: driver.user.name,
         email: driver.user.email,
-        licenceUrl: await createSignedLicenseUrl(driver.licencePath),
+        licenceUrl: await createSignedPrivateDocumentUrl(driver.licencePath),
+        insuranceUrl: driver.insurancePath
+          ? await createSignedPrivateDocumentUrl(driver.insurancePath)
+          : null,
         vehicle: driver.vehicleInfo as VehicleInfo,
         createdAt: driver.createdAt,
       })),
@@ -336,6 +352,139 @@ export async function listPendingDrivers(
     res.json({
       data: serializedDrivers,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/verifications/academic/pending
+ *
+ * Lists all users with pending academic verification and signed document URLs.
+ */
+export async function listPendingAcademicVerifications(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const users = await prismaUntyped.user.findMany({
+      where: { academicVerificationStatus: "PENDING" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        academicRole: true,
+        academicIdPath: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const serializedUsers = await Promise.all(
+      users.map(async (user: {
+        id: string;
+        name: string;
+        email: string;
+        academicRole: "STUDENT" | "STAFF" | null;
+        academicIdPath: string | null;
+        createdAt: Date;
+      }) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        academicRole: user.academicRole,
+        academicIdUrl: user.academicIdPath
+          ? await createSignedPrivateDocumentUrl(user.academicIdPath)
+          : null,
+        createdAt: user.createdAt,
+      })),
+    );
+
+    res.json({
+      data: serializedUsers,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/admin/verifications/academic/:userId
+ *
+ * Approve or reject an academic verification submission.
+ */
+export async function academicDecision(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { userId } = req.params;
+    const body = AcademicDecisionSchema.parse(req.body);
+
+    const existingUser = await prismaUntyped.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        academicVerificationStatus: true,
+      },
+    });
+
+    if (!existingUser) {
+      throw new AppError("NOT_FOUND", "Academic verification not found", 404);
+    }
+
+    const user = await prismaUntyped.user.update({
+      where: { id: userId },
+      data: {
+        academicVerificationStatus: body.approved ? "VERIFIED" : "REJECTED",
+        academicVerifiedAt: body.approved ? new Date() : null,
+        academicRejectionReason: body.approved ? null : body.reason,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        academicRole: true,
+        academicVerificationStatus: true,
+        academicVerifiedAt: true,
+        academicRejectionReason: true,
+      },
+    });
+
+    res.json({
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        academicRole: user.academicRole,
+        academicVerificationStatus: user.academicVerificationStatus,
+        academicVerifiedAt: user.academicVerifiedAt,
+        academicRejectionReason: user.academicRejectionReason,
+      },
+    });
+
+    try {
+      if (body.approved) {
+        await emailQueue.academicApproved(user.id, user.email, user.name);
+      } else {
+        await emailQueue.academicRejected(
+          user.id,
+          user.email,
+          user.name,
+          body.reason,
+        );
+      }
+    } catch (queueErr) {
+      console.error("[admin/academicDecision] academic decision queue failed", {
+        userId: user.id,
+        approved: body.approved,
+        error: queueErr,
+      });
+    }
   } catch (err) {
     next(err);
   }
@@ -369,12 +518,14 @@ export async function driverDecision(
       throw new AppError("NOT_FOUND", "Driver application not found", 404);
     }
 
+    // tx means transaction which maintains atomicity of the operation
     const updatedDriver = await prisma.$transaction(async (tx) => {
       const profile = await tx.driverProfile.update({
         where: { userId: id },
         data: {
           status: body.approved ? "APPROVED" : "REJECTED",
           approvedAt: body.approved ? new Date() : null,
+          rejectionReason: body.approved ? null : body.reason,
         },
       });
 
@@ -418,6 +569,7 @@ export async function driverDecision(
         role: updatedDriver.user.role,
         status: updatedDriver.profile.status,
         approvedAt: updatedDriver.profile.approvedAt,
+        reason: updatedDriver.profile.rejectionReason ?? null,
       },
     });
   } catch (err) {
@@ -565,6 +717,11 @@ export async function getReportDetail(
           role: true,
           accountStatus: true,
           suspendedUntil: true,
+          academicRole: true,
+          academicVerificationStatus: true,
+          academicIdPath: true,
+          academicVerifiedAt: true,
+          academicRejectionReason: true,
           createdAt: true,
         },
       }),
@@ -855,7 +1012,7 @@ export async function changePassword(
       );
     }
 
-    await prisma.user.update({
+    await prismaUntyped.user.update({
       where: { id: adminId },
       data: { mustChangePassword: false },
     });

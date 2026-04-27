@@ -94,6 +94,21 @@ describe("buildEmail", () => {
         "You can now create rides in Campus Ride.",
       ],
     },
+    {
+      name: "academic approved email",
+      payload: {
+        type: "academic-approved",
+        to: "alex@example.com",
+        userName: "Alex",
+      } satisfies EmailJobPayload,
+      expectedSubject: "Your academic verification was approved",
+      expectedBodyParts: [
+        "Academic Verification Approved",
+        "Hi Alex,",
+        "Your academic verification has been approved.",
+        "Your verified student or staff badge is now visible on your profile.",
+      ],
+    },
   ])("builds the $name", ({ payload, expectedSubject, expectedBodyParts }) => {
     const email = buildEmail(payload);
     const html = normalizeHtml(email.html);
@@ -145,6 +160,49 @@ describe("buildEmail", () => {
     expect(html).not.toContain("<strong>Reason:</strong>");
     expect(html).toContain(
       "You can review your information and apply again later if needed.",
+    );
+  });
+
+  it("includes the academic rejection reason when provided", () => {
+    const email = buildEmail({
+      type: "academic-rejected",
+      to: "alex@example.com",
+      userName: "Alex",
+      reason: "Student ID photo was too blurry",
+    });
+    const html = normalizeHtml(email.html);
+
+    expect(email.subject).toBe("Your academic verification was rejected");
+    expect(html).toContain("Academic Verification Rejected");
+    expect(html).toContain("Hi Alex,");
+    expect(html).toContain(
+      "Your academic verification was not approved at this time.",
+    );
+    expect(html).toContain(
+      "<strong>Reason:</strong> Student ID photo was too blurry",
+    );
+    expect(html).toContain(
+      "You can review your document and submit it again from your profile.",
+    );
+  });
+
+  it("omits the academic rejection reason when not provided", () => {
+    const email = buildEmail({
+      type: "academic-rejected",
+      to: "alex@example.com",
+      userName: "Alex",
+    });
+    const html = normalizeHtml(email.html);
+
+    expect(email.subject).toBe("Your academic verification was rejected");
+    expect(html).toContain("Academic Verification Rejected");
+    expect(html).toContain("Hi Alex,");
+    expect(html).toContain(
+      "Your academic verification was not approved at this time.",
+    );
+    expect(html).not.toContain("<strong>Reason:</strong>");
+    expect(html).toContain(
+      "You can review your document and submit it again from your profile.",
     );
   });
 });

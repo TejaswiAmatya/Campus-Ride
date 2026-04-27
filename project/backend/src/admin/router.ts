@@ -11,6 +11,14 @@ adminRouter.use(requireAuth, requireRole("ADMIN"));
 adminRouter.get("/stats", controller.getStats);
 adminRouter.get("/analytics/user-growth", controller.getUserGrowthAnalytics);
 adminRouter.get("/drivers/pending", controller.listPendingDrivers);
+adminRouter.get(
+  "/verifications/academic/pending",
+  controller.listPendingAcademicVerifications,
+);
+adminRouter.patch(
+  "/verifications/academic/:userId",
+  controller.academicDecision,
+);
 adminRouter.patch("/drivers/:id/decision", controller.driverDecision);
 adminRouter.get("/reports", controller.listReports);
 adminRouter.get("/reports/:id", controller.getReportDetail);

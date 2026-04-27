@@ -5,61 +5,33 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { api } from "@/api/client";
+import {
+  api,
+  fetchMe,
+  normalizeMeUser,
+  type MeApiResponse,
+  type MeLegacyResponse,
+  type MeUser,
+} from "@/api/client";
 import { useAuthStore } from "@/store/authStore";
 
-export interface ProfileUser {
-  id: string;
-  email: string;
-  name: string;
-  role: "PASSENGER" | "DRIVER" | "ADMIN";
-  mustChangePassword: boolean;
-  accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
-  suspendedUntil: string | null;
-  driverStatus?: "PENDING" | "APPROVED" | "REJECTED" | null;
-  avatarPath?: string;
-  phone?: string;
-  isDriverApproved?: boolean;
-}
+export type ProfileUser = MeUser;
 
 export interface MeResponse {
-  data: ProfileUser | MeApiResponse;
+  data: MeApiResponse;
 }
-
-interface MeApiResponse {
-  id: string;
-  email: string;
-  name: string;
-  role: "PASSENGER" | "DRIVER" | "ADMIN";
-  mustChangePassword: boolean;
-  accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
-  suspendedUntil: string | null;
-  avatarPath: string | null;
-  driverStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
-  createdAt: string;
-}
-
-const normalizeProfileUser = (payload: ProfileUser | MeApiResponse): ProfileUser => {
-  const driverStatus = payload.driverStatus ?? null;
-
-  return {
-    id: payload.id,
-    email: payload.email,
-    name: payload.name,
-    role: payload.role,
-    mustChangePassword: payload.mustChangePassword,
-    accountStatus: payload.accountStatus,
-    suspendedUntil: payload.suspendedUntil,
-    avatarPath: payload.avatarPath ?? undefined,
-    isDriverApproved: driverStatus === "APPROVED",
-    driverStatus,
-  };
-};
 
 interface UpdateProfileInput {
   name?: string;
   phone?: string;
   avatarPath?: string;
+  bio?: string | null;
+  homeAddress?: string | null;
+  homeLat?: number | null;
+  homeLng?: number | null;
+  campusAddress?: string | null;
+  campusLat?: number | null;
+  campusLng?: number | null;
 }
 
 export interface ReviewUserSummary {
@@ -96,12 +68,6 @@ export const rideDetailQueryKey = (rideId?: string) =>
   ["rides", "detail", rideId] as const;
 export const myRidesQueryKey = ["rides", "mine"] as const;
 
-export const fetchMe = async (): Promise<ProfileUser> => {
-  const res = await api.get<MeApiResponse | MeResponse>("/api/users/me");
-  const payload = "data" in res.data ? res.data.data : res.data;
-  return normalizeProfileUser(payload);
-};
-
 export function useProfile() {
   const token = useAuthStore((state) => state.accessToken);
 
@@ -118,8 +84,12 @@ export function useUpdateProfile() {
 
   return useMutation({
     mutationFn: async (payload: UpdateProfileInput) => {
-      const res = await api.patch<MeResponse>("/api/users/me", payload);
-      return normalizeProfileUser(res.data.data);
+      const res = await api.patch<MeApiResponse | MeLegacyResponse>(
+        "/api/users/me",
+        payload,
+      );
+      const responsePayload = "data" in res.data ? res.data.data : res.data;
+      return normalizeMeUser(responsePayload);
     },
     onSuccess: (user) => {
       queryClient.setQueryData(meQueryKey, (current?: ProfileUser) =>
@@ -131,6 +101,34 @@ export function useUpdateProfile() {
         setUser({ ...currentUser, ...user });
       }
 
+      void queryClient.invalidateQueries({ queryKey: meQueryKey });
+    },
+  });
+}
+
+export function useSubmitAcademicVerification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      role,
+      document,
+    }: {
+      role: "STUDENT" | "STAFF";
+      document: File;
+    }) => {
+      const formData = new FormData();
+      formData.append("role", role);
+      formData.append("document", document);
+
+      const res = await api.post<MeResponse>(
+        "/api/users/me/academic-verification",
+        formData,
+      );
+
+      return res.data.data;
+    },
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: meQueryKey });
     },
   });
