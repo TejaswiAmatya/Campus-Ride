@@ -112,6 +112,7 @@ export const MeResponseSchema = z.object({
   email: z.string().email(),
   name: z.string(),
   role: z.enum(['PASSENGER', 'DRIVER', 'ADMIN']),
+  mustChangePassword: z.boolean(),
   avatarPath: z.string().nullable(),
   driverStatus: z.enum(['PENDING', 'APPROVED', 'REJECTED']).nullable(),
   createdAt: z.string().datetime(),

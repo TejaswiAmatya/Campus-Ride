@@ -24,6 +24,7 @@ const currentUserSelect = {
   name: true,
   phone: true,
   role: true,
+  mustChangePassword: true,
   accountStatus: true,
   suspendedUntil: true,
   avatarPath: true,
@@ -53,6 +54,7 @@ type CurrentUserRecord = {
   name: string;
   phone: string | null;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
+  mustChangePassword: boolean;
   accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
   suspendedUntil: Date | null;
   avatarPath: string | null;
@@ -85,6 +87,7 @@ function serializeCurrentUser(user: CurrentUserRecord): MeResponse {
     name: user.name,
     phone: user.phone,
     role: user.role,
+    mustChangePassword: user.mustChangePassword,
     accountStatus: user.accountStatus,
     suspendedUntil: user.suspendedUntil?.toISOString() ?? null,
     avatarPath: user.avatarPath ?? null,
@@ -112,6 +115,7 @@ function serializeCurrentUserProfile(user: CurrentUserRecord) {
     name: user.name,
     phone: user.phone,
     role: user.role,
+    mustChangePassword: user.mustChangePassword,
     accountStatus: user.accountStatus,
     suspendedUntil: user.suspendedUntil?.toISOString() ?? null,
     avatarPath: user.avatarPath ?? null,
