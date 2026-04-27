@@ -1,4 +1,5 @@
 import {
+  notifyAnnouncement,
   notifyBookingNew,
   notifyBookingStatus,
   notifyModerationAction,
@@ -7,6 +8,7 @@ import {
 } from "./socket";
 
 import type {
+  AnnouncementPayload,
   BookingNewPayload,
   BookingStatusPayload,
   ModerationActionPayload,
@@ -50,7 +52,14 @@ async function moderationAction(userId: string, payload: ModerationActionPayload
   notifyModerationAction(userId, payload);
 }
 
+async function announcement(payload: AnnouncementPayload) {
+  console.log("[notify] announcement", { announcementId: payload.id });
+
+  notifyAnnouncement(payload);
+}
+
 export const notify = {
+  announcement,
   bookingNew,
   bookingStatus,
   moderationAction,

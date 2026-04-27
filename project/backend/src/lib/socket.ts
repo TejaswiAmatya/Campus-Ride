@@ -1,6 +1,7 @@
 import { Server as HttpServer } from "http";
 import { Server, Socket } from "socket.io";
 import {
+  AnnouncementPayload,
   BookingNewPayload,
   BookingStatusPayload,
   DriverLocationPayload,
@@ -103,4 +104,9 @@ export function notifyModerationAction(
 ) {
   io = getIO();
   io.to(`user:${userId}`).emit("user:moderation", payload);
+}
+
+export function notifyAnnouncement(payload: AnnouncementPayload) {
+  io = getIO();
+  io.emit("announcement", payload);
 }

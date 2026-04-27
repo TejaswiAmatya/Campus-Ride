@@ -15,6 +15,7 @@ import { Link } from "react-router-dom";
 import { StatsCard } from "./StatsCard";
 import { useAdminStats } from "@/features/admin/useAdminStats";
 import { Button } from "@/components/ui/button";
+import { UserGrowthTrendsCard } from "./UserGrowthTrendsCard";
 
 export function AdminDashboard() {
   const {
@@ -180,6 +181,13 @@ export function AdminDashboard() {
             value={stats?.openReports ?? 0}
           />
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Analytics
+        </h2>
+        <UserGrowthTrendsCard />
       </section>
       {/* TODO Sprint 2: Reports table */}
       {/* TODO Sprint 2: Config editor (platform fee) */}
