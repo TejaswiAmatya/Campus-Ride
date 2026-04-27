@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   AcademicDecisionSchema,
+  CreateModerationActionSchema,
   DriverDecisionSchema,
   MarkAnnouncementReadSchema,
   UpdateConfigSchema,
@@ -126,6 +127,15 @@ describe("UpdateConfigSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("rejects a negative platform fee percentage", () => {
+    expect(
+      UpdateConfigSchema.safeParse({
+        key: "platformFeePercent",
+        value: "-1",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("ResolveReportSchema", () => {
@@ -241,6 +251,39 @@ describe("MarkAnnouncementReadSchema", () => {
     expect(
       MarkAnnouncementReadSchema.safeParse({
         announcementId: "   ",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("CreateModerationActionSchema", () => {
+  it("accepts a suspension with a report id and end time", () => {
+    expect(
+      CreateModerationActionSchema.safeParse({
+        actionType: "SUSPENSION",
+        reason: "Repeated no-shows",
+        note: "Three incidents in one week",
+        reportId: "550e8400-e29b-41d4-a716-446655440000",
+        suspendedUntil: "2026-06-01T12:00:00.000Z",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a moderation action reason shorter than 3 characters", () => {
+    expect(
+      CreateModerationActionSchema.safeParse({
+        actionType: "WARNING",
+        reason: "no",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an invalid report id", () => {
+    expect(
+      CreateModerationActionSchema.safeParse({
+        actionType: "BAN",
+        reason: "Unsafe behavior",
+        reportId: "not-a-uuid",
       }).success,
     ).toBe(false);
   });
