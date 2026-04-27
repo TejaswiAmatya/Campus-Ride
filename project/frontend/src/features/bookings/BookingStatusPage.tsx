@@ -15,6 +15,8 @@ import {
 import { MapView } from "@/components/MapView";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RideChatPanel } from "@/features/chat/RideChatPanel";
+import { useAuth } from "@/hooks/useAuth";
 
 import { useBooking, useCancelBooking } from "./hooks";
 import { StatusBadge } from "./StatusBadge";
@@ -47,6 +49,7 @@ export function BookingStatusPage() {
   const { data: booking, isLoading, isError } = useBooking(id);
   const cancelMutation = useCancelBooking();
   const [now, setNow] = useState(() => Date.now());
+  const { user } = useAuth();
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -107,6 +110,19 @@ export function BookingStatusPage() {
   const isUpcomingConfirmed =
     booking.status === "CONFIRMED" &&
     new Date(booking.ride.departureTime).getTime() > now;
+  const canAccessRideChat = booking.status === "CONFIRMED" && !!user;
+  const rideChatParticipants = [
+    {
+      id: booking.ride.driver.id,
+      name: booking.ride.driver.name,
+      avatarPath: booking.ride.driver.avatarUrl,
+    },
+    {
+      id: booking.passenger.id,
+      name: booking.passenger.name,
+      avatarPath: booking.passenger.avatarUrl,
+    },
+  ];
 
   const statusMessage =
     booking.status === "CONFIRMED"
@@ -335,6 +351,14 @@ export function BookingStatusPage() {
               </div>
             </CardContent>
           </Card>
+
+          {canAccessRideChat && user && (
+            <RideChatPanel
+              rideId={booking.ride.id}
+              currentUserId={user.id}
+              knownParticipants={rideChatParticipants}
+            />
+          )}
 
           <div className="flex flex-wrap gap-2">
             {canCancel && (

@@ -25,6 +25,7 @@ import { LeaveReviewSection } from "@/components/LeaveReviewSection";
 import { MapView } from "@/components/MapView";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RideChatPanel } from "@/features/chat/RideChatPanel";
 import {
   useBookings,
   useMarkBookingNoShow,
@@ -205,6 +206,50 @@ export function RideDetailPage() {
         (booking.status === "CONFIRMED" || booking.status === "COMPLETED"),
     );
   }, [myBookings, ride, user]);
+  const isConfirmedPassengerParticipant = useMemo(() => {
+    if (!user || !ride || user.id === ride.driver.id) {
+      return false;
+    }
+
+    return myBookings.some(
+      (booking) => booking.ride.id === ride.id && booking.status === "CONFIRMED",
+    );
+  }, [myBookings, ride, user]);
+  const canAccessRideChat =
+    !!user &&
+    !!ride &&
+    (user.id === ride.driver.id || isConfirmedPassengerParticipant);
+  const rideChatParticipants = useMemo(() => {
+    if (!ride) {
+      return [];
+    }
+
+    const participants = [
+      {
+        id: ride.driver.id,
+        name: ride.driver.name,
+        avatarPath: ride.driver.avatarUrl ?? null,
+      },
+      ...(ride.participants ?? []).map((participant) => ({
+        id: participant.id,
+        name: participant.name,
+        avatarPath: participant.avatarUrl ?? null,
+      })),
+    ];
+
+    if (
+      user &&
+      !participants.some((participant) => participant.id === user.id)
+    ) {
+      participants.push({
+        id: user.id,
+        name: user.name,
+        avatarPath: user.avatarPath ?? null,
+      });
+    }
+
+    return participants;
+  }, [ride, user]);
 
   const hasReviewedDriver = useMemo(() => {
     if (!user || !ride) {
@@ -523,6 +568,14 @@ export function RideDetailPage() {
           </p>
         </div>
       </div>
+
+      {canAccessRideChat && user && (
+        <RideChatPanel
+          rideId={ride.id}
+          currentUserId={user.id}
+          knownParticipants={rideChatParticipants}
+        />
+      )}
 
       {isDriverViewingOwnActiveRide && (
         <section className="rounded-lg border p-5">
