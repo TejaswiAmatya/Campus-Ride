@@ -5,6 +5,7 @@ import {
   UpdateProfileSchema,
   DriverApplicationSchema,
   SubmitAcademicVerificationSchema,
+  DeleteMyAccountSchema,
   AccountStatusSchema,
   MeResponseSchema,
   BlockedAuthErrorSchema,
@@ -74,6 +75,7 @@ describe('AccountStatusSchema', () => {
     expect(AccountStatusSchema.safeParse('WARNED').success).toBe(true)
     expect(AccountStatusSchema.safeParse('SUSPENDED').success).toBe(true)
     expect(AccountStatusSchema.safeParse('BANNED').success).toBe(true)
+    expect(AccountStatusSchema.safeParse('DEACTIVATED').success).toBe(true)
   })
 
   it('rejects unsupported moderation states', () => {
@@ -134,6 +136,17 @@ describe('BlockedAuthErrorSchema', () => {
         error: {
           code: 'ACCOUNT_BANNED',
           message: 'Your account has been banned.',
+        },
+      }).success,
+    ).toBe(true)
+  })
+
+  it('accepts the deactivated account error shape', () => {
+    expect(
+      BlockedAuthErrorSchema.safeParse({
+        error: {
+          code: 'ACCOUNT_DEACTIVATED',
+          message: 'This account has been closed.',
         },
       }).success,
     ).toBe(true)
@@ -225,5 +238,19 @@ describe('SubmitAcademicVerificationSchema', () => {
     expect(
       SubmitAcademicVerificationSchema.safeParse({ role: 'FACULTY' }).success,
     ).toBe(false)
+  })
+})
+
+describe('DeleteMyAccountSchema', () => {
+  it('accepts the required confirmation phrase', () => {
+    expect(DeleteMyAccountSchema.safeParse({ confirmation: 'DELETE' }).success).toBe(true)
+  })
+
+  it('rejects missing confirmation', () => {
+    expect(DeleteMyAccountSchema.safeParse({}).success).toBe(false)
+  })
+
+  it('rejects the wrong confirmation phrase', () => {
+    expect(DeleteMyAccountSchema.safeParse({ confirmation: 'delete' }).success).toBe(false)
   })
 })

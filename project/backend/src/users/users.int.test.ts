@@ -37,7 +37,7 @@ type MeResponse = {
   name: string
   phone: string | null
   role: string
-  accountStatus: 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED'
+  accountStatus: 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED' | 'DEACTIVATED'
   suspendedUntil: string | null
   avatarPath: string | null
   bio: string | null

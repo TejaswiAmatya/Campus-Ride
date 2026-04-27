@@ -7,6 +7,7 @@ export const AccountStatusSchema = z.enum([
   'WARNED',
   'SUSPENDED',
   'BANNED',
+  'DEACTIVATED',
 ])
 
 export const AcademicRoleSchema = z.enum([
@@ -121,6 +122,10 @@ export const SubmitAcademicVerificationSchema = z.object({
   role: AcademicRoleSchema,
 })
 
+export const DeleteMyAccountSchema = z.object({
+  confirmation: z.literal('DELETE'),
+})
+
 export const MeResponseSchema = z.object({
   id: z.string(),
   email: z.string().email(),
@@ -150,6 +155,10 @@ export const BlockedAuthErrorSchema = z.object({
       code: z.literal('ACCOUNT_BANNED'),
       message: z.string(),
     }),
+    z.object({
+      code: z.literal('ACCOUNT_DEACTIVATED'),
+      message: z.string(),
+    }),
   ]),
 })
 
@@ -159,6 +168,7 @@ export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>
 export type ProfileFields = z.infer<typeof ProfileFieldsSchema>
 export type DriverApplicationInput = z.infer<typeof DriverApplicationSchema>
 export type SubmitAcademicVerificationInput = z.infer<typeof SubmitAcademicVerificationSchema>
+export type DeleteMyAccountInput = z.infer<typeof DeleteMyAccountSchema>
 export type AccountStatus = z.infer<typeof AccountStatusSchema>
 export type AcademicRole = z.infer<typeof AcademicRoleSchema>
 export type AcademicResponseRole = z.infer<typeof AcademicResponseRoleSchema>

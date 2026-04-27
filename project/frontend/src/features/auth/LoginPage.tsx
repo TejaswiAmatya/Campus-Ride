@@ -16,6 +16,10 @@ function getModerationMessage(
     return "Your account has been permanently banned. Contact support.";
   }
 
+  if (authError.code === "ACCOUNT_DEACTIVATED") {
+    return "This account has been closed and is no longer available.";
+  }
+
   if (authError.code === "ACCOUNT_SUSPENDED" && authError.suspendedUntil) {
     return `Your account is suspended until ${new Date(
       authError.suspendedUntil,
@@ -99,7 +103,8 @@ export function LoginPage() {
             role="alert"
             className={`rounded-md px-3 py-2 text-sm ${
               authError.code === "ACCOUNT_BANNED" ||
-              authError.code === "ACCOUNT_SUSPENDED"
+              authError.code === "ACCOUNT_SUSPENDED" ||
+              authError.code === "ACCOUNT_DEACTIVATED"
                 ? "bg-orange-50 text-orange-600"
                 : "bg-red-50 text-red-600"
             }`}

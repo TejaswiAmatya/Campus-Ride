@@ -19,6 +19,7 @@ import {
 import { searchRidesByLocation } from "./location";
 import { emailQueue } from "../lib/emailQueue";
 import { notify } from "../lib/notify";
+import { toAvatarPathSummary, toAvatarUrlSummary } from "../lib/userDisplay";
 import {
   formatDepartureTimeLocal,
   generateRideOccurrences,
@@ -230,6 +231,7 @@ export async function createRide(
                 id: true,
                 name: true,
                 avatarPath: true,
+                accountStatus: true,
                 driverProfile: { select: { vehicleInfo: true } },
               },
             },
@@ -274,6 +276,7 @@ export async function updateRide(
             id: true,
             name: true,
             avatarPath: true,
+            accountStatus: true,
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
@@ -472,6 +475,7 @@ export async function updateRide(
               id: true,
               name: true,
               avatarPath: true,
+              accountStatus: true,
               driverProfile: { select: { vehicleInfo: true } },
             },
           },
@@ -534,6 +538,7 @@ export async function startRide(
             id: true,
             name: true,
             avatarPath: true,
+            accountStatus: true,
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
@@ -574,6 +579,7 @@ export async function startRide(
             id: true,
             name: true,
             avatarPath: true,
+            accountStatus: true,
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
@@ -651,6 +657,7 @@ export async function getMyRides(
             id: true,
             name: true,
             avatarPath: true,
+            accountStatus: true,
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
@@ -661,6 +668,7 @@ export async function getMyRides(
                 id: true,
                 name: true,
                 avatarPath: true,
+                accountStatus: true,
               },
             },
           },
@@ -711,6 +719,7 @@ export async function getRide(
             id: true,
             name: true,
             avatarPath: true,
+            accountStatus: true,
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
@@ -722,6 +731,7 @@ export async function getRide(
                 id: true,
                 name: true,
                 avatarPath: true,
+                accountStatus: true,
               },
             },
           },
@@ -733,16 +743,8 @@ export async function getRide(
     });
 
     const participants = [
-      {
-        id: ride.driver.id,
-        name: ride.driver.name,
-        avatarUrl: ride.driver.avatarPath ?? null,
-      },
-      ...ride.bookings.map((booking) => ({
-        id: booking.passenger.id,
-        name: booking.passenger.name,
-        avatarUrl: booking.passenger.avatarPath ?? null,
-      })),
+      toAvatarUrlSummary(ride.driver),
+      ...ride.bookings.map((booking) => toAvatarUrlSummary(booking.passenger)),
     ].filter(
       (participant, index, all) =>
         all.findIndex((candidate) => candidate.id === participant.id) === index,
@@ -820,6 +822,7 @@ export async function updateRideStatus(
             id: true,
             name: true,
             avatarPath: true,
+            accountStatus: true,
             driverProfile: { select: { vehicleInfo: true } },
           },
         },
@@ -871,6 +874,7 @@ export async function updateRideStatus(
                     id: true,
                     name: true,
                     avatarPath: true,
+                    accountStatus: true,
                     driverProfile: { select: { vehicleInfo: true } },
                   },
                 },
@@ -886,6 +890,7 @@ export async function updateRideStatus(
                   id: true,
                   name: true,
                   avatarPath: true,
+                  accountStatus: true,
                   driverProfile: { select: { vehicleInfo: true } },
                 },
               },
@@ -948,6 +953,7 @@ export async function cancelRide(
                 id: true,
                 name: true,
                 avatarPath: true,
+                accountStatus: true,
                 driverProfile: { select: { vehicleInfo: true } },
               },
             },
@@ -1033,6 +1039,7 @@ export async function cancelRide(
                 id: true,
                 name: true,
                 avatarPath: true,
+                accountStatus: true,
                 driverProfile: { select: { vehicleInfo: true } },
               },
             },
@@ -1106,6 +1113,7 @@ export async function createReview(
         id: true,
         name: true,
         avatarPath: true,
+        accountStatus: true,
       },
     });
 
@@ -1209,11 +1217,7 @@ export async function createReview(
         rating: review.rating,
         comment: review.comment,
         createdAt: review.createdAt.toISOString(),
-        reviewer: {
-          id: reviewer.id,
-          name: reviewer.name,
-          avatarPath: reviewer.avatarPath,
-        },
+        reviewer: toAvatarPathSummary(reviewer),
       },
     });
   } catch (err) {

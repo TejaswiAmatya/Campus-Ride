@@ -6,7 +6,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type AccountStatus = "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
+type AccountStatus =
+  | "ACTIVE"
+  | "WARNED"
+  | "SUSPENDED"
+  | "BANNED"
+  | "DEACTIVATED";
 
 interface AccountStatusBannerProps {
   accountStatus: AccountStatus;
@@ -103,6 +108,34 @@ export function AccountStatusBanner({
     );
   }
 
+  if (accountStatus === "DEACTIVATED") {
+    return (
+      <section
+        role="alert"
+        className={cn(
+          "relative overflow-hidden rounded-2xl border border-slate-300/90 bg-[linear-gradient(135deg,rgba(248,250,252,1),rgba(255,255,255,0.96)_40%,rgba(241,245,249,0.96))] px-5 py-4 shadow-[0_20px_44px_-32px_rgba(15,23,42,0.45)]",
+          className,
+        )}
+      >
+        <div className="absolute inset-y-0 left-0 w-2 bg-slate-500" />
+        <div className="relative flex items-start gap-3">
+          <div className="mt-0.5 rounded-full bg-slate-100 p-2 text-slate-700">
+            <Ban className="h-4 w-4" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-700">
+              Account closed
+            </p>
+            <p className="text-sm leading-6 text-slate-900">
+              This account has been closed and can no longer access ride or
+              booking features.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       role="alert"
@@ -129,4 +162,3 @@ export function AccountStatusBanner({
     </section>
   );
 }
-

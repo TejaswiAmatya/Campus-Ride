@@ -1,6 +1,6 @@
 export type AppRole = 'PASSENGER' | 'DRIVER' | 'ADMIN'
 export type DriverStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | null
-export type AccountStatus = 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED'
+export type AccountStatus = 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED' | 'DEACTIVATED'
 
 export interface RoutingUser {
   role: AppRole
@@ -20,7 +20,11 @@ export function isDriverPending(user: RoutingUser): boolean {
 }
 
 export function getDefaultRoute(user: RoutingUser): string {
-  if (user.accountStatus === 'SUSPENDED' || user.accountStatus === 'BANNED') {
+  if (
+    user.accountStatus === 'SUSPENDED' ||
+    user.accountStatus === 'BANNED' ||
+    user.accountStatus === 'DEACTIVATED'
+  ) {
     return '/profile'
   }
   if (user.role === 'DRIVER' && isDriverPending(user)) return '/dashboard'
