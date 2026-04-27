@@ -90,6 +90,7 @@ describe('MeResponseSchema', () => {
         name: 'Alice',
         phone: null,
         role: 'PASSENGER',
+        mustChangePassword: true,
         accountStatus: 'ACTIVE',
         suspendedUntil: null,
         avatarPath: null,
