@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navbar } from "./components/Navbar";
+import { AnnouncementToast } from "./components/AnnouncementToast";
 import { PublicProfilePage } from "./components/PublicProfilePage";
 import {
   ProtectedRoute,
@@ -28,8 +29,10 @@ import { ProfilePage } from "./features/user/ProfilePage";
 import { DriverDashboardPage } from "./features/user/DriverDashboardPage";
 import { SettingsPage } from "./features/admin/SettingsPage";
 import { ChangePasswordPage } from "./features/admin/ChangePasswordPage";
+import { SendAnnouncementPage } from "./features/admin/SendAnnouncementPage";
 import { EarningsPage } from "./features/user/EarningsPage";
 import { useBookingRealtime } from "./features/bookings/hooks";
+import { useAnnouncements } from "./hooks/useAnnouncements";
 import { Toaster } from "./components/ui/toaster";
 
 const queryClient = new QueryClient({
@@ -72,8 +75,36 @@ function RequireAdmin() {
 }
 
 function RealtimeBootstrap() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return <RealtimeAuthenticatedBootstrap />;
+}
+
+function RealtimeAuthenticatedBootstrap() {
   useBookingRealtime(); // opens socket + emits join:user + subscribes to events
   return null; // renders nothing, just runs the hook
+}
+
+function AnnouncementBootstrap() {
+  const { isAuthenticated } = useAuth();
+  const { currentAnnouncement, dismissAnnouncement, queueLength } =
+    useAnnouncements();
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return (
+    <AnnouncementToast
+      announcement={currentAnnouncement}
+      onDismiss={dismissAnnouncement}
+      queueLength={queueLength}
+    />
+  );
 }
 
 export function App() {
@@ -135,6 +166,10 @@ export function App() {
                 <Route path="/admin/reports" element={<ReportsPage />} />
                 <Route path="/admin/health" element={<PlatformHealthPage />} />
                 <Route path="/admin/settings" element={<SettingsPage />} />
+                <Route
+                  path="/admin/announcements"
+                  element={<SendAnnouncementPage />}
+                />
               </Route>
 
               {/* Legacy redirects */}
@@ -159,6 +194,7 @@ export function App() {
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </main>
+          <AnnouncementBootstrap />
         </div>
       </BrowserRouter>
     </QueryClientProvider>

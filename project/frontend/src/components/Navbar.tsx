@@ -12,6 +12,7 @@ import {
   Bell,
   Settings,
   ShieldAlert,
+  Megaphone,
 } from "lucide-react";
 import { useAuth, useLogout } from "@/hooks/useAuth";
 import {
@@ -119,6 +120,11 @@ export function Navbar() {
                   to="/admin/health"
                   icon={<ShieldAlert className="h-4 w-4" />}
                   label="Health"
+                />
+                <RouteNavLink
+                  to="/admin/announcements"
+                  icon={<Megaphone className="h-4 w-4" />}
+                  label="Send Announcement"
                 />
                 <RouteNavLink
                   to="/admin/settings"

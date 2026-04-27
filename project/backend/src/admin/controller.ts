@@ -2,7 +2,9 @@ import type { Request, Response, NextFunction } from "express";
 import {
   AcademicDecisionSchema,
   CreateModerationActionSchema,
+  MarkAnnouncementReadSchema,
   DriverDecisionSchema,
+  SendAnnouncementSchema,
   UpdateConfigSchema,
   ResolveReportSchema,
   CreateReportSchema,
@@ -202,6 +204,27 @@ type PlatformHealthResponseItem = {
   avgRating: number | null;
   noShowCount: number | null;
 };
+
+type AnnouncementResponse = {
+  id: string;
+  subject: string;
+  message: string;
+  createdAt: string;
+};
+
+function serializeAnnouncement(announcement: {
+  id: string;
+  subject: string;
+  message: string;
+  createdAt: Date;
+}): AnnouncementResponse {
+  return {
+    id: announcement.id,
+    subject: announcement.subject,
+    message: announcement.message,
+    createdAt: announcement.createdAt.toISOString(),
+  };
+}
 
 function getPlatformHealthEntry(
   userEntries: Map<string, PlatformHealthEntry>,
@@ -1242,6 +1265,122 @@ export async function createModerationAction(
         user: result.user,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function sendAnnouncement(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const body = SendAnnouncementSchema.parse(req.body);
+    const announcement = await prisma.announcement.create({
+      data: {
+        subject: body.subject,
+        message: body.message,
+        createdById: adminId,
+      },
+      select: {
+        id: true,
+        subject: true,
+        message: true,
+        createdAt: true,
+      },
+    });
+
+    const payload = serializeAnnouncement(announcement);
+
+    try {
+      await notify.announcement(payload);
+    } catch (socketErr) {
+      console.error("[admin/sendAnnouncement] announcement socket failed", {
+        announcementId: announcement.id,
+        error: socketErr,
+      });
+    }
+
+    res.status(201).json({ data: payload });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getUnreadAnnouncements(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const announcements = await prisma.announcement.findMany({
+      where: {
+        reads: {
+          none: {
+            userId,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+      select: {
+        id: true,
+        subject: true,
+        message: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({ data: announcements.map(serializeAnnouncement) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function markAnnouncementRead(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const body = MarkAnnouncementReadSchema.parse({
+      announcementId: req.params.id ?? req.body?.announcementId,
+    });
+
+    await prisma.announcementRead.upsert({
+      where: {
+        announcementId_userId: {
+          announcementId: body.announcementId,
+          userId,
+        },
+      },
+      update: {
+        readAt: new Date(),
+      },
+      create: {
+        announcementId: body.announcementId,
+        userId,
+      },
+    });
+
+    res.status(204).send();
   } catch (err) {
     next(err);
   }
