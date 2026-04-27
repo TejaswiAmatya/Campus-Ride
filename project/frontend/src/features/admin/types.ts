@@ -24,7 +24,7 @@ export interface PendingAcademicVerification {
   academicRole: "STUDENT" | "STAFF" | null;
   academicVerificationStatus: "PENDING";
   academicRejectionReason: string | null;
-  academicIdSignedUrl: string;
+  academicIdSignedUrl: string | null;
   createdAt: string;
 }
 
