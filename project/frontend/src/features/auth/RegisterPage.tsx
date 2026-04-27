@@ -1,19 +1,11 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Car } from 'lucide-react'
 import { useRegister } from '@/hooks/useAuth'
 
 export function RegisterPage() {
-  const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' })
   const registerMutation = useRegister()
-
-  useEffect(() => {
-    if (registerMutation.isSuccess) {
-      // TODO: auto-login after register, or redirect to a "check your email" page
-      navigate('/login')
-    }
-  }, [registerMutation.isSuccess, navigate])
 
   const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
@@ -103,7 +95,7 @@ export function RegisterPage() {
 
         {registerMutation.isSuccess && (
           <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
-            Account created! Redirecting to login…
+            Check your email to confirm your account before signing in.
           </p>
         )}
 
@@ -118,7 +110,7 @@ export function RegisterPage() {
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Already have an account?{' '}
-        <Link to="/login" className="font-medium text-primary hover:underline">
+        <Link to="/auth/login" className="font-medium text-primary hover:underline">
           Sign in
         </Link>
       </p>

@@ -54,10 +54,36 @@ SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
 SUPABASE_JWT_SECRET=...
 DATABASE_URL=postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
+APP_URL=http://localhost:5173
+SMTP_HOST=sandbox.smtp.mailtrap.io
+SMTP_PORT=2525
+SMTP_USER=...
+SMTP_PASS=...
+SMTP_FROM=Campus Ride <no-reply@campusride.local>
 ```
 
 Frontend values can be edited in `frontend/.env` (for example `VITE_API_URL`).
-Redis, port, and CORS values in `backend/.env` are pre-filled for local development.
+Redis, port, `APP_URL`, and CORS values in `backend/.env` are pre-filled for local development.
+
+### Supabase Auth email confirmation
+
+Configure these once in the Supabase dashboard:
+
+1. **Authentication → Providers → Email**
+   - enable **Confirm email**
+2. **Authentication → URL Configuration**
+   - set `Site URL` to `http://localhost:5173`
+   - add `http://localhost:5173/auth/confirm` to additional redirect URLs
+3. **Authentication → SMTP Settings**
+   - enable custom SMTP and paste the Mailtrap sandbox values from `backend/.env`
+4. **Authentication → Email Templates → Confirm signup**
+   - point the link to your app route using the token hash, for example:
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">
+  Confirm your signup
+</a>
+```
 
 ---
 

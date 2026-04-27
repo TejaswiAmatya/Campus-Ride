@@ -9,6 +9,7 @@ export const authRouter = Router()
 
 // Auth routes
 authRouter.post('/register', authController.register)
+authRouter.post('/confirm-signup', authController.confirmSignup)
 authRouter.post('/login', authController.login)
 
 // Public user routes

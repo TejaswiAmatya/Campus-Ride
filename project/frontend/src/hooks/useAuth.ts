@@ -24,9 +24,15 @@ interface RegisterInput {
 
 interface RegisterResponse {
   data: {
-    id: string
     email: string
-    name: string
+    requiresEmailConfirmation: boolean
+  }
+}
+
+interface ConfirmSignupResponse {
+  data: {
+    email: string
+    status: 'confirmed'
   }
 }
 
@@ -137,6 +143,17 @@ export function useRegister() {
   return useMutation({
     mutationFn: async (payload: RegisterInput) => {
       const res = await api.post<RegisterResponse>('/api/auth/register', payload)
+      return res.data.data
+    },
+  })
+}
+
+export function useConfirmSignup() {
+  return useMutation({
+    mutationFn: async ({ tokenHash }: { tokenHash: string }) => {
+      const res = await api.post<ConfirmSignupResponse>('/api/auth/confirm-signup', {
+        tokenHash,
+      })
       return res.data.data
     },
   })
