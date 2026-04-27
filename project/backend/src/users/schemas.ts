@@ -66,6 +66,10 @@ export const LoginSchema = z.object({
   password: z.string().min(1),
 })
 
+export const ConfirmSignupSchema = z.object({
+  tokenHash: z.string().min(1, 'Confirmation token is required'),
+})
+
 export const UpdateProfileSchema = z
   .object({
     name: z.string().min(2).max(100).optional(),
@@ -164,6 +168,7 @@ export const BlockedAuthErrorSchema = z.object({
 
 export type RegisterInput = z.infer<typeof RegisterSchema>
 export type LoginInput = z.infer<typeof LoginSchema>
+export type ConfirmSignupInput = z.infer<typeof ConfirmSignupSchema>
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>
 export type ProfileFields = z.infer<typeof ProfileFieldsSchema>
 export type DriverApplicationInput = z.infer<typeof DriverApplicationSchema>

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   RegisterSchema,
   LoginSchema,
+  ConfirmSignupSchema,
   UpdateProfileSchema,
   DriverApplicationSchema,
   SubmitAcademicVerificationSchema,
@@ -66,6 +67,16 @@ describe('LoginSchema', () => {
     expect(
       LoginSchema.safeParse({ email: 'alice@university.edu', password: '' }).success,
     ).toBe(false)
+  })
+})
+
+describe('ConfirmSignupSchema', () => {
+  it('accepts a token hash', () => {
+    expect(ConfirmSignupSchema.safeParse({ tokenHash: 'token-hash' }).success).toBe(true)
+  })
+
+  it('rejects an empty token hash', () => {
+    expect(ConfirmSignupSchema.safeParse({ tokenHash: '' }).success).toBe(false)
   })
 })
 
