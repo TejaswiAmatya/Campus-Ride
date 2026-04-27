@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import axios from "axios";
 import Rating from "@mui/material/Rating";
 import { Link, useParams } from "react-router-dom";
 import { Star, UserRound } from "lucide-react";
@@ -13,7 +14,7 @@ function formatShortId(id: string) {
 export function PublicProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { data: reviews = [], isLoading, isError } = useUserReviews(id);
+  const { data: reviews = [], isLoading, isError, error } = useUserReviews(id);
 
   const isOwnProfile = !!user && user.id === id;
 
@@ -35,7 +36,6 @@ export function PublicProfilePage() {
   const profileRole = isOwnProfile ? user.role : "PUBLIC";
   const profileAvatar = isOwnProfile ? user.avatarPath : null;
   const profileInitial = (profileName.trim().charAt(0) || "U").toUpperCase();
-
   if (!id) {
     return (
       <div className="mx-auto max-w-4xl rounded-3xl border border-dashed p-8 text-center">
@@ -59,6 +59,19 @@ export function PublicProfilePage() {
   }
 
   if (isError) {
+    if (
+      axios.isAxiosError<{ error?: { code?: string } }>(error) &&
+      error.response?.data?.error?.code === "ACCOUNT_DEACTIVATED"
+    ) {
+      return (
+        <div className="mx-auto max-w-4xl rounded-3xl border border-dashed p-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            This profile is no longer available.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-4xl rounded-3xl border border-dashed p-8 text-center">
         <p className="text-sm text-muted-foreground">
