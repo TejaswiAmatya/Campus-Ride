@@ -70,12 +70,13 @@ type CurrentUserRecord = {
   campusAddress: string | null;
   campusLat: number | null;
   campusLng: number | null;
-  academicRole: "STUDENT" | "STAFF" | null;
+  academicRole: "STUDENT" | "FACULTY" | "STAFF" | null;
   academicVerificationStatus:
     | "NOT_SUBMITTED"
     | "PENDING"
     | "VERIFIED"
-    | "REJECTED";
+    | "REJECTED"
+    | "APPROVED";
   academicIdPath: string | null;
   academicVerifiedAt: Date | null;
   academicRejectionReason: string | null;
