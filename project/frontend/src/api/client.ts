@@ -37,7 +37,7 @@ api.interceptors.request.use((config) => {
 
 type Role = 'PASSENGER' | 'DRIVER' | 'ADMIN'
 type DriverStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | null
-type AccountStatus = 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED'
+type AccountStatus = 'ACTIVE' | 'WARNED' | 'SUSPENDED' | 'BANNED' | 'DEACTIVATED'
 type AcademicRole = 'STUDENT' | 'STAFF' | null
 type AcademicVerificationStatus =
   | 'NOT_SUBMITTED'

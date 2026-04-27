@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import axios from "axios";
 import { Link } from "react-router-dom";
 import { Car, Star } from "lucide-react";
 import { api } from "@/api/client";
@@ -7,6 +8,7 @@ import { AccountStatusBanner } from "@/components/AccountStatusBanner";
 import { UserProfileCard } from "@/components/UserProfileCard";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import {
+  useDeleteMyAccount,
   useProfile,
   useSubmitAcademicVerification,
   useUpdateProfile,
@@ -24,6 +26,7 @@ export function ProfilePage() {
   const { data: user } = useProfile();
   const updateProfileMutation = useUpdateProfile();
   const submitAcademicVerificationMutation = useSubmitAcademicVerification();
+  const deleteMyAccountMutation = useDeleteMyAccount();
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [bioDraft, setBioDraft] = useState("");
   const [isEditingAddresses, setIsEditingAddresses] = useState(false);
@@ -33,6 +36,7 @@ export function ProfilePage() {
     "STUDENT" | "STAFF" | ""
   >((user?.academicRole ?? "") as "STUDENT" | "STAFF" | "");
   const [academicDocument, setAcademicDocument] = useState<File | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const { data: reviews } = useQuery({
     queryKey: ["reviews", user?.id],
@@ -51,6 +55,14 @@ export function ProfilePage() {
   const showAcademicForm =
     user.academicVerificationStatus === "NOT_SUBMITTED" ||
     user.academicVerificationStatus === "REJECTED";
+  const deleteAccountErrorMessage = axios.isAxiosError<{
+    error?: { message?: string };
+  }>(deleteMyAccountMutation.error)
+    ? deleteMyAccountMutation.error.response?.data?.error?.message ??
+      "Unable to close your account right now."
+    : deleteMyAccountMutation.error instanceof Error
+      ? deleteMyAccountMutation.error.message
+      : null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -384,6 +396,62 @@ export function ProfilePage() {
           )}
         </div>
       )}
+
+      <section className="rounded-lg border border-red-200 bg-white p-6 space-y-4">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-red-700">Danger zone</p>
+          <h2 className="text-lg font-semibold">Delete my account</h2>
+          <p className="text-sm text-muted-foreground">
+            This permanently closes your account, removes access immediately,
+            clears your profile and uploaded documents, and keeps historical
+            ride records without keeping your public profile active.
+          </p>
+        </div>
+
+        <div className="rounded-md border border-red-200 bg-white px-4 py-3">
+          <p className="text-sm text-slate-900">
+            Type <span className="font-semibold text-red-700">DELETE</span> to
+            confirm this irreversible action.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Confirmation</label>
+          <input
+            type="text"
+            value={deleteConfirmation}
+            onChange={(event) =>
+              setDeleteConfirmation(event.target.value.toUpperCase())
+            }
+            placeholder="DELETE"
+            className="w-full rounded-md border border-red-200 bg-white px-3 py-2 text-sm uppercase tracking-[0.12em] placeholder:tracking-[0.12em] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-red-200"
+          />
+        </div>
+
+        {deleteAccountErrorMessage ? (
+          <p className="rounded-md bg-red-100 px-3 py-2 text-sm text-red-700">
+            {deleteAccountErrorMessage}
+          </p>
+        ) : null}
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={
+              deleteMyAccountMutation.isPending ||
+              deleteConfirmation !== "DELETE"
+            }
+            onClick={() =>
+              deleteMyAccountMutation.mutate({ confirmation: "DELETE" })
+            }
+            className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {deleteMyAccountMutation.isPending
+              ? "Deleting account…"
+              : "Delete my account"}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

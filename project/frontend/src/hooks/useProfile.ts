@@ -134,6 +134,24 @@ export function useSubmitAcademicVerification() {
   });
 }
 
+export function useDeleteMyAccount() {
+  const queryClient = useQueryClient();
+  const clearSession = useAuthStore((state) => state.clearSession);
+
+  return useMutation({
+    mutationFn: async ({ confirmation }: { confirmation: "DELETE" }) => {
+      await api.delete("/api/users/me", {
+        data: { confirmation },
+      });
+    },
+    onSuccess: () => {
+      clearSession();
+      queryClient.clear();
+      window.location.href = "/login";
+    },
+  });
+}
+
 export function useUserReviews(userId?: string) {
   return useQuery({
     queryKey: userReviewsQueryKey(userId),
