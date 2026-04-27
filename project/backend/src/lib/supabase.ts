@@ -80,6 +80,7 @@ export async function deleteAuthUser(userId: string) {
 }
 
 const PRIVATE_DOCUMENTS_BUCKET = 'license'
+const AVATARS_BUCKET = 'avatars'
 
 function sanitizeFilename(filename: string): string {
   const trimmed = filename.trim()
@@ -207,7 +208,7 @@ export async function uploadAvatar(
   const ext = filetype.split('/')[1] ?? 'jpg'
   const path = `${userId}/avatar-${Date.now()}.${ext}`
 
-  const { error } = await getSupabaseAdminClient().storage.from('avatars').upload(path, buffer, {
+  const { error } = await getSupabaseAdminClient().storage.from(AVATARS_BUCKET).upload(path, buffer, {
     contentType: filetype,
     upsert: false,
   })
@@ -223,6 +224,66 @@ export async function uploadAvatar(
     throw new AppError('UPLOAD_FAILED', 'Failed to upload avatar', 500)
   }
 
-  const { data } = getSupabaseAdminClient().storage.from('avatars').getPublicUrl(path)
+  const { data } = getSupabaseAdminClient().storage.from(AVATARS_BUCKET).getPublicUrl(path)
   return data.publicUrl
+}
+
+async function removeStorageObjects(
+  bucket: string,
+  paths: string[],
+  errorLabel: string,
+): Promise<void> {
+  const filteredPaths = Array.from(
+    new Set(paths.map((path) => path.trim()).filter(Boolean)),
+  )
+
+  if (filteredPaths.length === 0) {
+    return
+  }
+
+  const { error } = await getSupabaseAdminClient().storage
+    .from(bucket)
+    .remove(filteredPaths)
+
+  if (error) {
+    console.error(`Supabase ${errorLabel} deletion failed:`, {
+      message: error.message,
+      name: error.name,
+      bucket,
+      paths: filteredPaths,
+    })
+    throw new AppError('UPLOAD_FAILED', `Failed to delete ${errorLabel}`, 500)
+  }
+}
+
+function extractAvatarStoragePath(publicUrl: string): string | null {
+  const publicMarker = `/storage/v1/object/public/${AVATARS_BUCKET}/`
+  const objectMarker = `/object/public/${AVATARS_BUCKET}/`
+  const marker = publicUrl.includes(publicMarker) ? publicMarker : objectMarker
+  const index = publicUrl.indexOf(marker)
+
+  if (index === -1) {
+    return null
+  }
+
+  const rawPath = publicUrl.slice(index + marker.length)
+  const pathWithoutQuery = rawPath.split('?')[0] ?? rawPath
+  return decodeURIComponent(pathWithoutQuery)
+}
+
+export async function deleteAvatar(publicUrl: string): Promise<void> {
+  const path = extractAvatarStoragePath(publicUrl)
+
+  if (!path) {
+    console.warn('[supabase] Unable to derive avatar storage path from public URL', {
+      publicUrl,
+    })
+    return
+  }
+
+  await removeStorageObjects(AVATARS_BUCKET, [path], 'avatar')
+}
+
+export async function deletePrivateDocuments(paths: string[]): Promise<void> {
+  await removeStorageObjects(PRIVATE_DOCUMENTS_BUCKET, paths, 'private documents')
 }

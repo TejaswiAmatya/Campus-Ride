@@ -3,18 +3,23 @@ import {
   UpdateProfileSchema,
   DriverApplicationSchema,
   SubmitAcademicVerificationSchema,
+  DeleteMyAccountSchema,
   type DriverApplicationInput,
   type SubmitAcademicVerificationInput,
   type MeResponse,
 } from "./schemas";
 import { prisma } from "../lib/prisma";
 import {
+  deleteAuthUser,
+  deleteAvatar,
+  deletePrivateDocuments,
   uploadAcademicId,
   uploadAvatar,
   uploadInsurance,
   uploadLicense,
 } from "../lib/supabase";
 import { AppError } from "../middleware/error";
+import { toAvatarPathSummary } from "../lib/userDisplay";
 
 const prismaUntyped = prisma as any;
 
@@ -55,7 +60,7 @@ type CurrentUserRecord = {
   phone: string | null;
   role: "PASSENGER" | "DRIVER" | "ADMIN";
   mustChangePassword: boolean;
-  accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED";
+  accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED" | "DEACTIVATED";
   suspendedUntil: Date | null;
   avatarPath: string | null;
   bio: string | null;
@@ -80,6 +85,71 @@ type CurrentUserRecord = {
     status: "PENDING" | "APPROVED" | "REJECTED";
   } | null;
 };
+
+type AccountDeletionUserRecord = {
+  id: string;
+  email: string;
+  name: string;
+  role: "PASSENGER" | "DRIVER" | "ADMIN";
+  avatarPath: string | null;
+  accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED" | "DEACTIVATED";
+  academicVerificationStatus:
+    | "NOT_SUBMITTED"
+    | "PENDING"
+    | "VERIFIED"
+    | "REJECTED";
+  academicIdPath: string | null;
+  driverProfile: {
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    licencePath: string | null;
+    insurancePath: string | null;
+  } | null;
+};
+
+async function cleanupClosedAccountFiles(user: AccountDeletionUserRecord): Promise<void> {
+  const cleanupTasks: Array<Promise<void>> = [];
+
+  if (user.avatarPath) {
+    cleanupTasks.push(deleteAvatar(user.avatarPath));
+  }
+
+  cleanupTasks.push(
+    deletePrivateDocuments(
+      [
+        user.academicIdPath,
+        user.driverProfile?.licencePath,
+        user.driverProfile?.insurancePath,
+      ].filter((path): path is string => !!path),
+    ),
+  );
+
+  const cleanupResults = await Promise.allSettled(cleanupTasks);
+  for (const result of cleanupResults) {
+    if (result.status === "rejected") {
+      console.error("[users/deleteMyAccount] file cleanup failed", {
+        userId: user.id,
+        error: result.reason,
+      });
+    }
+  }
+}
+
+async function cleanupClosedAccountAuth(userId: string): Promise<void> {
+  try {
+    const { error } = await deleteAuthUser(userId);
+    if (error) {
+      console.error("[users/deleteMyAccount] auth cleanup failed", {
+        userId,
+        error: error.message,
+      });
+    }
+  } catch (error) {
+    console.error("[users/deleteMyAccount] auth cleanup threw", {
+      userId,
+      error,
+    });
+  }
+}
 
 function serializeCurrentUser(user: CurrentUserRecord): MeResponse {
   return {
@@ -210,6 +280,180 @@ export async function updateCurrentUser(
     res.json({
       data: serializeCurrentUserProfile(user),
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * DELETE /api/users/me
+ *
+ * Closes the current user's account while preserving historical records.
+ */
+export async function deleteMyAccount(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.user?.id) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    DeleteMyAccountSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatarPath: true,
+        accountStatus: true,
+        academicVerificationStatus: true,
+        academicIdPath: true,
+        driverProfile: {
+          select: {
+            status: true,
+            licencePath: true,
+            insurancePath: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new AppError("NOT_FOUND", "User not found", 404);
+    }
+
+    if (user.role === "ADMIN") {
+      throw new AppError(
+        "FORBIDDEN",
+        "Admin accounts cannot be deleted through self-service account closure",
+        403,
+      );
+    }
+
+    const [
+      activeRidesCount,
+      activeBookingsCount,
+      pendingDriverApplicationsCount,
+    ] = await Promise.all([
+      prisma.ride.count({
+        where: {
+          driverId: user.id,
+          status: { in: ["OPEN", "FULL", "IN_PROGRESS"] },
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          passengerId: user.id,
+          status: { in: ["PENDING", "CONFIRMED"] },
+        },
+      }),
+      prisma.driverProfile.count({
+        where: {
+          userId: user.id,
+          status: "PENDING",
+        },
+      }),
+    ]);
+
+    if (activeRidesCount > 0) {
+      throw new AppError(
+        "ACCOUNT_DELETION_BLOCKED",
+        "You cannot delete your account while you have active rides.",
+        409,
+      );
+    }
+
+    if (activeBookingsCount > 0) {
+      throw new AppError(
+        "ACCOUNT_DELETION_BLOCKED",
+        "You cannot delete your account while you have active bookings.",
+        409,
+      );
+    }
+
+    if (pendingDriverApplicationsCount > 0) {
+      throw new AppError(
+        "ACCOUNT_DELETION_BLOCKED",
+        "You cannot delete your account while your driver application is under review.",
+        409,
+      );
+    }
+
+    if (user.academicVerificationStatus === "PENDING") {
+      throw new AppError(
+        "ACCOUNT_DELETION_BLOCKED",
+        "You cannot delete your account while your academic verification is under review.",
+        409,
+      );
+    }
+
+    const closedUser = await prisma.$transaction(async (tx) => {
+      const txUntyped = tx as any;
+
+      await txUntyped.user.update({
+        where: { id: user.id },
+        data: {
+          accountStatus: "DEACTIVATED" as any,
+          mustChangePassword: false,
+          suspendedUntil: null,
+          phone: null,
+          avatarPath: null,
+          bio: null,
+          homeAddress: null,
+          homeLat: null,
+          homeLng: null,
+          campusAddress: null,
+          campusLat: null,
+          campusLng: null,
+          academicRole: null,
+          academicVerificationStatus: "NOT_SUBMITTED",
+          academicIdPath: null,
+          academicVerifiedAt: null,
+          academicRejectionReason: null,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          avatarPath: true,
+          accountStatus: true,
+          academicVerificationStatus: true,
+          academicIdPath: true,
+          driverProfile: {
+            select: {
+              status: true,
+              licencePath: true,
+              insurancePath: true,
+            },
+          },
+        },
+      });
+
+      if (user.driverProfile) {
+        await txUntyped.driverProfile.updateMany({
+          where: { userId: user.id },
+          data: {
+            licencePath: null as any,
+            insurancePath: null,
+          },
+        });
+      }
+
+      return user;
+    });
+
+    await Promise.all([
+      cleanupClosedAccountAuth(closedUser.id),
+      cleanupClosedAccountFiles(closedUser),
+    ]);
+
+    res.status(204).send();
   } catch (err) {
     next(err);
   }
@@ -444,6 +688,19 @@ export async function getUserReviews(
 ): Promise<void> {
   try {
     const { id } = req.params;
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { accountStatus: true },
+    });
+
+    if ((user?.accountStatus as string | undefined) === "DEACTIVATED") {
+      throw new AppError(
+        "ACCOUNT_DEACTIVATED",
+        "This account is no longer available.",
+        410,
+      );
+    }
+
     const reviews = await prisma.review.findMany({
       where: { revieweeId: id },
       include: {
@@ -452,6 +709,7 @@ export async function getUserReviews(
             id: true,
             name: true,
             avatarPath: true,
+            accountStatus: true,
           },
         },
       },
@@ -466,11 +724,7 @@ export async function getUserReviews(
         rating: review.rating,
         comment: review.comment,
         createdAt: review.createdAt.toISOString(),
-        reviewer: {
-          id: review.reviewer.id,
-          name: review.reviewer.name,
-          avatarPath: review.reviewer.avatarPath,
-        },
+        reviewer: toAvatarPathSummary(review.reviewer),
       })),
     });
   } catch (err) {

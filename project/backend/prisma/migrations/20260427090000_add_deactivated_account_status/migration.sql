@@ -1,1 +1,4 @@
--- Migration applied directly to DB; recovered for history sync
+ALTER TYPE "AccountStatus" ADD VALUE 'DEACTIVATED';
+
+ALTER TABLE "DriverProfile"
+ALTER COLUMN "licencePath" DROP NOT NULL;
