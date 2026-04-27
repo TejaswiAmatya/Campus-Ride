@@ -1,0 +1,1 @@
+-- Captured drift: FACULTY, APPROVED, mustChangePassword already applied directly to DB

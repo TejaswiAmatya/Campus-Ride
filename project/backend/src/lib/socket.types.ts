@@ -63,3 +63,10 @@ export interface ModerationActionPayload {
   suspendedUntil?: string | null;
   updatedAt: string;
 }
+
+export interface AnnouncementPayload {
+  id: string;
+  subject: string;
+  message: string;
+  createdAt: string;
+}

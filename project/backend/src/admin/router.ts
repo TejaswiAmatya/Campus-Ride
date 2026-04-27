@@ -5,10 +5,23 @@ import * as controller from "./controller";
 export const adminRouter = Router();
 
 adminRouter.post("/reports", requireAuth, controller.createReport);
+adminRouter.get(
+  "/announcements/unread",
+  requireAuth,
+  controller.getUnreadAnnouncements,
+);
+adminRouter.post(
+  "/announcements/:id/read",
+  requireAuth,
+  controller.markAnnouncementRead,
+);
 
 adminRouter.use(requireAuth, requireRole("ADMIN"));
 
+adminRouter.post("/announcements", controller.sendAnnouncement);
+adminRouter.get("/health", controller.getPlatformHealth);
 adminRouter.get("/stats", controller.getStats);
+adminRouter.get("/analytics/user-growth", controller.getUserGrowthAnalytics);
 adminRouter.get("/drivers/pending", controller.listPendingDrivers);
 adminRouter.get(
   "/verifications/academic/pending",

@@ -2,7 +2,9 @@ import type { Request, Response, NextFunction } from "express";
 import {
   AcademicDecisionSchema,
   CreateModerationActionSchema,
+  MarkAnnouncementReadSchema,
   DriverDecisionSchema,
+  SendAnnouncementSchema,
   UpdateConfigSchema,
   ResolveReportSchema,
   CreateReportSchema,
@@ -29,6 +31,118 @@ type VehicleInfo = {
 
 const prismaUntyped = prisma as any;
 
+type GrowthBucket = {
+  periodStart: Date;
+  periodEnd: Date;
+};
+
+type UserGrowthPoint = {
+  periodStart: string;
+  periodEnd: string;
+  driverCount: number;
+  passengerCount: number;
+  totalNewUsers: number;
+  cumulativeTotalUsers: number;
+  deactivatedOrBannedUsers: number;
+  netGrowth: number;
+};
+
+function getDailyBuckets(now: Date, days = 30): GrowthBucket[] {
+  const buckets: GrowthBucket[] = [];
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const periodStart = new Date(todayStart);
+    periodStart.setDate(periodStart.getDate() - index);
+    const periodEnd = new Date(periodStart);
+    periodEnd.setDate(periodEnd.getDate() + 1);
+    buckets.push({ periodStart, periodEnd });
+  }
+
+  return buckets;
+}
+
+function getWeeklyBuckets(now: Date, weeks = 12): GrowthBucket[] {
+  const buckets: GrowthBucket[] = [];
+  const currentWeekStart = getStartOfWeek(now);
+
+  for (let index = weeks - 1; index >= 0; index -= 1) {
+    const periodStart = new Date(currentWeekStart);
+    periodStart.setDate(periodStart.getDate() - index * 7);
+    const periodEnd = new Date(periodStart);
+    periodEnd.setDate(periodEnd.getDate() + 7);
+    buckets.push({ periodStart, periodEnd });
+  }
+
+  return buckets;
+}
+
+function getMonthlyBuckets(now: Date, months = 12): GrowthBucket[] {
+  const buckets: GrowthBucket[] = [];
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  for (let index = months - 1; index >= 0; index -= 1) {
+    const periodStart = new Date(
+      currentMonthStart.getFullYear(),
+      currentMonthStart.getMonth() - index,
+      1,
+    );
+    const periodEnd = new Date(
+      periodStart.getFullYear(),
+      periodStart.getMonth() + 1,
+      1,
+    );
+    buckets.push({ periodStart, periodEnd });
+  }
+
+  return buckets;
+}
+
+function buildGrowthSeries(
+  buckets: GrowthBucket[],
+  users: Array<{
+    role: string;
+    createdAt: Date;
+  }>,
+  deactivationEvents: Array<{ updatedAt: Date }>,
+  initialTotal: number,
+): UserGrowthPoint[] {
+  const points: UserGrowthPoint[] = [];
+  let runningTotal = initialTotal;
+
+  for (const bucket of buckets) {
+    const newUsers = users.filter(
+      (user) =>
+        user.createdAt >= bucket.periodStart && user.createdAt < bucket.periodEnd,
+    );
+    const driverCount = newUsers.filter((user) => user.role === "DRIVER").length;
+    const passengerCount = newUsers.filter(
+      (user) => user.role === "PASSENGER",
+    ).length;
+    const totalNewUsers = driverCount + passengerCount;
+    runningTotal += totalNewUsers;
+
+    const deactivatedOrBannedUsers = deactivationEvents.filter(
+      (event) =>
+        event.updatedAt >= bucket.periodStart && event.updatedAt < bucket.periodEnd,
+    ).length;
+
+    points.push({
+      periodStart: bucket.periodStart.toISOString(),
+      periodEnd: bucket.periodEnd.toISOString(),
+      driverCount,
+      passengerCount,
+      totalNewUsers,
+      cumulativeTotalUsers: runningTotal,
+      deactivatedOrBannedUsers,
+      netGrowth: totalNewUsers - deactivatedOrBannedUsers,
+    });
+  }
+
+  return points;
+}
+
 type PendingDriverRecord = {
   user: {
     id: string;
@@ -40,6 +154,347 @@ type PendingDriverRecord = {
   vehicleInfo: unknown;
   createdAt: Date;
 };
+
+const PLATFORM_HEALTH_SIGNAL_ORDER = [
+  "High Cancellation Rate",
+  "Multiple Reports Received",
+  "Low Average Rating",
+  "No-Show Pattern",
+  "New Account Activity Spike",
+] as const;
+
+type PlatformHealthSignalLabel =
+  (typeof PLATFORM_HEALTH_SIGNAL_ORDER)[number];
+
+const PLATFORM_HEALTH_SIGNAL_WEIGHTS: Record<
+  PlatformHealthSignalLabel,
+  number
+> = {
+  "High Cancellation Rate": 30,
+  "Multiple Reports Received": 30,
+  "Low Average Rating": 20,
+  "No-Show Pattern": 15,
+  "New Account Activity Spike": 5,
+};
+
+type PlatformHealthUserSummary = {
+  id: string;
+  name: string;
+  email: string;
+  role: "PASSENGER" | "DRIVER" | "ADMIN";
+  createdAt: Date;
+};
+
+type PlatformHealthEntry = {
+  userId: string;
+  reasons: Set<PlatformHealthSignalLabel>;
+  score: number;
+  cancellationRate: number | null;
+  reportsReceived: number | null;
+  avgRating: number | null;
+  noShowCount: number | null;
+};
+
+type PlatformHealthResponseItem = {
+  user: PlatformHealthUserSummary;
+  reasons: PlatformHealthSignalLabel[];
+  score: number;
+  cancellationRate: number | null;
+  reportsReceived: number | null;
+  avgRating: number | null;
+  noShowCount: number | null;
+};
+
+type AnnouncementResponse = {
+  id: string;
+  subject: string;
+  message: string;
+  createdAt: string;
+};
+
+function serializeAnnouncement(announcement: {
+  id: string;
+  subject: string;
+  message: string;
+  createdAt: Date;
+}): AnnouncementResponse {
+  return {
+    id: announcement.id,
+    subject: announcement.subject,
+    message: announcement.message,
+    createdAt: announcement.createdAt.toISOString(),
+  };
+}
+
+function getPlatformHealthEntry(
+  userEntries: Map<string, PlatformHealthEntry>,
+  userId: string,
+): PlatformHealthEntry {
+  const existingEntry = userEntries.get(userId);
+  if (existingEntry) {
+    return existingEntry;
+  }
+
+  const nextEntry: PlatformHealthEntry = {
+    userId,
+    reasons: new Set<PlatformHealthSignalLabel>(),
+    score: 0,
+    cancellationRate: null,
+    reportsReceived: null,
+    avgRating: null,
+    noShowCount: null,
+  };
+  userEntries.set(userId, nextEntry);
+  return nextEntry;
+}
+
+function applyPlatformHealthSignal(
+  userEntries: Map<string, PlatformHealthEntry>,
+  userId: string,
+  signal: PlatformHealthSignalLabel,
+  stats?: Partial<
+    Pick<
+      PlatformHealthEntry,
+      "cancellationRate" | "reportsReceived" | "avgRating" | "noShowCount"
+    >
+  >,
+): void {
+  const entry = getPlatformHealthEntry(userEntries, userId);
+
+  if (!entry.reasons.has(signal)) {
+    entry.reasons.add(signal);
+    entry.score = Math.min(
+      100,
+      entry.score + PLATFORM_HEALTH_SIGNAL_WEIGHTS[signal],
+    );
+  }
+
+  if (stats?.cancellationRate !== undefined) {
+    entry.cancellationRate = stats.cancellationRate;
+  }
+  if (stats?.reportsReceived !== undefined) {
+    entry.reportsReceived = stats.reportsReceived;
+  }
+  if (stats?.avgRating !== undefined) {
+    entry.avgRating = stats.avgRating;
+  }
+  if (stats?.noShowCount !== undefined) {
+    entry.noShowCount = stats.noShowCount;
+  }
+}
+
+/**
+ * GET /api/admin/health
+ *
+ * Returns suspicious users ranked by weighted platform health signals.
+ */
+export async function getPlatformHealth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const now = new Date();
+    const staleRideThreshold = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    const recentAccountThreshold = new Date(
+      now.getTime() - 7 * 24 * 60 * 60 * 1000,
+    );
+
+    const [
+      bookingsByPassenger,
+      reportsByTargetUser,
+      reviewsByReviewee,
+      staleRidesByDriver,
+      recentUsers,
+    ] = await Promise.all([
+      prisma.booking.findMany({
+        select: {
+          passengerId: true,
+          status: true,
+        },
+      }),
+      prisma.report.groupBy({
+        by: ["targetUserId"],
+        _count: { _all: true },
+      }),
+      prisma.review.groupBy({
+        by: ["revieweeId"],
+        _avg: { rating: true },
+        _count: { _all: true },
+      }),
+      prisma.ride.groupBy({
+        by: ["driverId"],
+        where: {
+          status: "IN_PROGRESS",
+          updatedAt: { lt: staleRideThreshold },
+        },
+        _count: { _all: true },
+      }),
+      prisma.user.findMany({
+        where: {
+          createdAt: { gte: recentAccountThreshold },
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          bookings: {
+            select: {
+              status: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const suspiciousUsersById = new Map<string, PlatformHealthEntry>();
+
+    const bookingStatsByPassengerId = new Map<
+      string,
+      { total: number; cancelled: number }
+    >();
+
+    for (const booking of bookingsByPassenger) {
+      const bookingStats = bookingStatsByPassengerId.get(booking.passengerId) ?? {
+        total: 0,
+        cancelled: 0,
+      };
+
+      bookingStats.total += 1;
+      if (booking.status === "CANCELLED") {
+        bookingStats.cancelled += 1;
+      }
+
+      bookingStatsByPassengerId.set(booking.passengerId, bookingStats);
+    }
+
+    for (const [passengerId, bookingStats] of bookingStatsByPassengerId) {
+      if (bookingStats.total < 5) {
+        continue;
+      }
+
+      const cancellationRate = bookingStats.cancelled / bookingStats.total;
+      if (cancellationRate >= 0.4) {
+        applyPlatformHealthSignal(
+          suspiciousUsersById,
+          passengerId,
+          "High Cancellation Rate",
+          { cancellationRate },
+        );
+      }
+    }
+
+    for (const reportSummary of reportsByTargetUser) {
+      if (reportSummary._count._all >= 2) {
+        applyPlatformHealthSignal(
+          suspiciousUsersById,
+          reportSummary.targetUserId,
+          "Multiple Reports Received",
+          { reportsReceived: reportSummary._count._all },
+        );
+      }
+    }
+
+    for (const reviewSummary of reviewsByReviewee) {
+      const averageRating = reviewSummary._avg.rating;
+      if (reviewSummary._count._all >= 3 && averageRating !== null && averageRating <= 2.5) {
+        applyPlatformHealthSignal(
+          suspiciousUsersById,
+          reviewSummary.revieweeId,
+          "Low Average Rating",
+          { avgRating: averageRating },
+        );
+      }
+    }
+
+    for (const staleRideSummary of staleRidesByDriver) {
+      if (staleRideSummary._count._all >= 2) {
+        applyPlatformHealthSignal(
+          suspiciousUsersById,
+          staleRideSummary.driverId,
+          "No-Show Pattern",
+          { noShowCount: staleRideSummary._count._all },
+        );
+      }
+    }
+
+    for (const user of recentUsers) {
+      const accountAgeMs = now.getTime() - user.createdAt.getTime();
+      if (accountAgeMs >= 7 * 24 * 60 * 60 * 1000) {
+        continue;
+      }
+
+      const totalBookings = user.bookings.length;
+      const cancellationCount = user.bookings.filter(
+        (booking) => booking.status === "CANCELLED",
+      ).length;
+
+      if (totalBookings > 5 || cancellationCount > 2) {
+        applyPlatformHealthSignal(
+          suspiciousUsersById,
+          user.id,
+          "New Account Activity Spike",
+        );
+      }
+    }
+
+    const suspiciousUserIds = Array.from(suspiciousUsersById.keys());
+    if (suspiciousUserIds.length === 0) {
+      res.json({ data: [] satisfies PlatformHealthResponseItem[] });
+      return;
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: suspiciousUserIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    const usersById = new Map(users.map((user) => [user.id, user]));
+
+    const rankedUsers: PlatformHealthResponseItem[] = suspiciousUserIds
+      .map((userId) => {
+        const user = usersById.get(userId);
+        const entry = suspiciousUsersById.get(userId);
+
+        if (!user || !entry) {
+          return null;
+        }
+
+        return {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            createdAt: user.createdAt,
+          },
+          reasons: PLATFORM_HEALTH_SIGNAL_ORDER.filter((signal) =>
+            entry.reasons.has(signal),
+          ),
+          score: entry.score,
+          cancellationRate: entry.cancellationRate,
+          reportsReceived: entry.reportsReceived,
+          avgRating: entry.avgRating,
+          noShowCount: entry.noShowCount,
+        };
+      })
+      .filter(
+        (entry): entry is PlatformHealthResponseItem => entry !== null,
+      )
+      .sort((left, right) => right.score - left.score);
+
+    res.json({ data: rankedUsers });
+  } catch (err) {
+    next(err);
+  }
+}
 
 /**
  * GET /api/admin/stats
@@ -111,6 +566,90 @@ export async function getStats(
       totalPassengers,
       totalRevenue: revenueResult._sum?.platformFee ?? 0,
       newUsersThisMonth,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/analytics/user-growth
+ *
+ * Returns daily (30d), weekly (12w), and monthly (12m) user growth analytics
+ * with role split, cumulative totals, and net growth.
+ */
+export async function getUserGrowthAnalytics(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const now = new Date();
+    const dailyBuckets = getDailyBuckets(now, 30);
+    const weeklyBuckets = getWeeklyBuckets(now, 12);
+    const monthlyBuckets = getMonthlyBuckets(now, 12);
+
+    const oldestBoundary = monthlyBuckets[0]?.periodStart ?? new Date(now);
+
+    const [
+      usersInRange,
+      baselineTotalUsers,
+      deactivationEventsInRange,
+      currentDrivers,
+      currentPassengers,
+    ] = await prisma.$transaction([
+      prisma.user.findMany({
+        where: {
+          createdAt: { gte: oldestBoundary },
+          role: { in: ["DRIVER", "PASSENGER"] },
+        },
+        select: { role: true, createdAt: true },
+      }),
+      prisma.user.count({
+        where: {
+          createdAt: { lt: oldestBoundary },
+          role: { in: ["DRIVER", "PASSENGER"] },
+        },
+      }),
+      prisma.user.findMany({
+        where: {
+          updatedAt: { gte: oldestBoundary },
+          accountStatus: { in: ["SUSPENDED", "BANNED"] },
+        },
+        select: { updatedAt: true },
+      }),
+      prisma.user.count({ where: { role: "DRIVER" } }),
+      prisma.user.count({ where: { role: "PASSENGER" } }),
+    ]);
+
+    const daily = buildGrowthSeries(
+      dailyBuckets,
+      usersInRange,
+      deactivationEventsInRange,
+      baselineTotalUsers,
+    );
+    const weekly = buildGrowthSeries(
+      weeklyBuckets,
+      usersInRange,
+      deactivationEventsInRange,
+      baselineTotalUsers,
+    );
+    const monthly = buildGrowthSeries(
+      monthlyBuckets,
+      usersInRange,
+      deactivationEventsInRange,
+      baselineTotalUsers,
+    );
+
+    res.json({
+      daily,
+      weekly,
+      monthly,
+      totals: {
+        drivers: currentDrivers,
+        passengers: currentPassengers,
+        users: currentDrivers + currentPassengers,
+      },
     });
   } catch (err) {
     next(err);
@@ -726,6 +1265,122 @@ export async function createModerationAction(
         user: result.user,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function sendAnnouncement(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const body = SendAnnouncementSchema.parse(req.body);
+    const announcement = await prisma.announcement.create({
+      data: {
+        subject: body.subject,
+        message: body.message,
+        createdById: adminId,
+      },
+      select: {
+        id: true,
+        subject: true,
+        message: true,
+        createdAt: true,
+      },
+    });
+
+    const payload = serializeAnnouncement(announcement);
+
+    try {
+      await notify.announcement(payload);
+    } catch (socketErr) {
+      console.error("[admin/sendAnnouncement] announcement socket failed", {
+        announcementId: announcement.id,
+        error: socketErr,
+      });
+    }
+
+    res.status(201).json({ data: payload });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getUnreadAnnouncements(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const announcements = await prisma.announcement.findMany({
+      where: {
+        reads: {
+          none: {
+            userId,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+      select: {
+        id: true,
+        subject: true,
+        message: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({ data: announcements.map(serializeAnnouncement) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function markAnnouncementRead(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+    }
+
+    const body = MarkAnnouncementReadSchema.parse({
+      announcementId: req.params.id ?? req.body?.announcementId,
+    });
+
+    await prisma.announcementRead.upsert({
+      where: {
+        announcementId_userId: {
+          announcementId: body.announcementId,
+          userId,
+        },
+      },
+      update: {
+        readAt: new Date(),
+      },
+      create: {
+        announcementId: body.announcementId,
+        userId,
+      },
+    });
+
+    res.status(204).send();
   } catch (err) {
     next(err);
   }
