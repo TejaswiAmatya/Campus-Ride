@@ -14,8 +14,10 @@ Campus Ride is a university ride-sharing platform (DAT240 final project). Driver
 npm run dev          # Dev server with hot reload (tsx watch)
 npm run build        # Compile TypeScript → dist/
 npm start            # Run compiled production build
-npm test             # Run Vitest unit tests
+npm test             # Run Vitest tests
 npm run test:watch   # Tests in watch mode
+npm run test:unit    # Fast isolated unit suite
+npm run test:integration  # Integration suite
 npm run db:generate  # Generate Prisma Client (required once per session)
 npm run db:migrate   # Run database migrations
 npm run db:seed      # Seed demo data
@@ -105,7 +107,12 @@ Key models: `User`, `DriverProfile` (licence, vehicle JSON, status, approvedAt),
 
 ### Testing
 
-- Vitest; unit tests (`*.test.ts`) cover Zod schema validations; integration tests (`*.int.test.ts`) cover full request flows
+- Vitest is the shared test runner for backend and frontend
+- Preferred naming convention:
+  `*.unit.test.ts` / `*.unit.test.tsx` for business logic
+  `*.integration.test.ts` / `*.integration.test.tsx` for infra, HTTP, DB, and side-effect flows
+- Keep legacy `*.test.ts` / `*.test.tsx` files runnable during migration, but use the explicit suffixes for new tests
+- Backend `test:unit` uses a harness that blocks live Prisma, Supabase, Redis, filesystem, and outbound HTTP/network access
 - CI (`.github/workflows/ci.yml`) runs backend type-check + tests and frontend type-check on every push/PR to `main`
 - `prisma generate` runs in CI without a real DB connection (schema only)
 
@@ -185,12 +192,12 @@ project/
 				controller.ts
 				router.ts
 				schemas.ts
-				admin.test.ts
+				admin.unit.test.ts
 			bookings/
 				controller.ts
 				router.ts
 				schemas.ts
-				bookings.test.ts
+				bookings.unit.test.ts
 				bookings.integration.test.ts
 			config/
 				redis.ts
@@ -209,7 +216,7 @@ project/
 				controller.ts
 				router.ts
 				validation.ts
-				reports.test.ts
+				reports.unit.test.ts
 			rides/
 				controller.ts
 				router.ts
@@ -222,8 +229,8 @@ project/
 				router.ts
 				schemas.ts
 				userController.ts
-				users.test.ts
-				users.int.test.ts
+				users.unit.test.ts
+				users.integration.test.ts
 			workers/
 				emailWorkers.ts
 		tsconfig.json

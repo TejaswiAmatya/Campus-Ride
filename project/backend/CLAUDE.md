@@ -8,8 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev          # tsx watch src/index.ts (hot reload)
 npm run build        # tsc → dist/
 npm start            # node dist/index.js
-npm test             # vitest run (all *.test.ts files)
+npm test             # vitest run
 npm run test:watch   # vitest interactive mode
+npm run test:unit    # fast isolated unit suite (no services/env required)
+npm run test:integration  # integration suite (DB/auth/side-effect flows)
 npm run db:generate  # generate Prisma Client (run after any schema change)
 npm run db:migrate   # prisma migrate dev
 npm run db:seed      # tsx prisma/seed.ts
@@ -17,7 +19,7 @@ npm run db:seed      # tsx prisma/seed.ts
 
 **Run a single test file:**
 ```bash
-npx vitest run src/admin/admin.test.ts
+npx vitest run src/admin/admin.unit.test.ts
 ```
 
 `db:generate` requires `DATABASE_URL`; CI uses a dummy value (`postgresql://x@localhost/x`).
@@ -62,11 +64,20 @@ src/<feature>/
   router.ts      # Express Router; applies auth middleware per-route
   controller.ts  # async handlers; always pass errors to next(err)
   schemas.ts     # Zod schemas + inferred TypeScript types
-  *.test.ts      # unit tests (mock Prisma/Supabase)
-  *.integration.test.ts  # supertest integration tests (import app directly)
+  *.unit.test.ts         # preferred for business logic tests
+  *.integration.test.ts  # preferred for supertest / DB / side-effect flows
+  *.test.ts              # legacy tests kept runnable during migration
 ```
 
 Zod schema types are exported as `z.infer<typeof SchemaName>` and used in controller function signatures.
+
+### Unit-test harness
+
+- `vitest.unit.config.ts` is the fast isolated harness for `*.unit.test.ts`
+- It blocks live Prisma, Supabase, Redis, filesystem, and outbound HTTP/network access
+- It also bans `supertest` in the unit suite; HTTP/app flow coverage belongs in `*.integration.test.ts`
+- Use deterministic builders from `src/test/unit/builders.ts`
+- Mock only boundaries such as repository modules and notifier/email ports; do not mock internal business logic inside the unit under test
 
 ## Database notes
 
