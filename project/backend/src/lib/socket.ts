@@ -4,12 +4,16 @@ import {
   AnnouncementPayload,
   BookingNewPayload,
   BookingStatusPayload,
+  ChatMessageInputPayload,
   DriverLocationPayload,
   DriverLocationUpdatePayload,
   ModerationActionPayload,
   RideStatusPayload,
   RideUpdatePayload,
+  ChatMessagePayload,
 } from "./socket.types";
+import { isRideParticipant } from "../chat/controller";
+import { prisma } from "./prisma";
 
 let io: Server | null = null;
 
@@ -27,6 +31,11 @@ export function initSocket(server: HttpServer): Server {
 
     // Frontend emits: socket.emit("join:user", { userId: "42" })
     socket.on("join:user", ({ userId }: { userId: string }) => {
+      if (!userId) {
+        return;
+      }
+
+      socket.data.userId = userId;
       socket.join(`user:${userId}`);
       console.log(`[socket] ${socket.id} joined room user:${userId}`);
     });
@@ -51,6 +60,44 @@ export function initSocket(server: HttpServer): Server {
         };
 
         io?.to(`ride:${rideId}`).emit("driver:location", payload);
+      },
+    );
+
+    socket.on(
+      "chat:message",
+      async ({ rideId, text }: ChatMessageInputPayload) => {
+        const userId = socket.data.userId as string | undefined;
+        if (!userId || !rideId || !text?.trim()) {
+          return;
+        }
+
+        try {
+          const allowed = await isRideParticipant(rideId, userId);
+          if (!allowed) {
+            return;
+          }
+
+          const saved = await prisma.chatMessage.create({
+            data: { rideId, senderId: userId, text: text.trim() },
+            include: {
+              sender: { select: { id: true, name: true, avatarPath: true } },
+            },
+          });
+
+          const io = getIO();
+          const payload: ChatMessagePayload = {
+            rideId,
+            senderId: saved.senderId,
+            senderName: saved.sender.name,
+            senderAvatarPath: saved.sender.avatarPath ?? null,
+            text: saved.text,
+            createdAt: saved.createdAt.toISOString(),
+          };
+
+          io.to(`ride:${rideId}`).emit("chat:message", payload);
+        } catch (error) {
+          console.error("[socket] chat:message handler failed", error);
+        }
       },
     );
 

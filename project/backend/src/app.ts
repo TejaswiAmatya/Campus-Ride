@@ -7,6 +7,7 @@ import { adminRouter } from "./admin/router";
 import { reportRouter } from "./reports/router";
 import { configRouter } from "./config/router";
 import { errorHandler } from "./middleware/error";
+import chatRouter from "./chat/route";
 
 const app = express();
 app.use(
@@ -29,6 +30,7 @@ app.use("/api/bookings", bookingsRouter);
 app.use("/api/reports", reportRouter);
 app.use("/api/config", configRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api", chatRouter);
 
 app.use(errorHandler);
 
