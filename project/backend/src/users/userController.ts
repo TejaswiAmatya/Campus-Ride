@@ -97,7 +97,8 @@ type AccountDeletionUserRecord = {
     | "NOT_SUBMITTED"
     | "PENDING"
     | "VERIFIED"
-    | "REJECTED";
+    | "REJECTED"
+    | "APPROVED";
   academicIdPath: string | null;
   driverProfile: {
     status: "PENDING" | "APPROVED" | "REJECTED";
