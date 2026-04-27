@@ -153,6 +153,326 @@ type PendingDriverRecord = {
   createdAt: Date;
 };
 
+const PLATFORM_HEALTH_SIGNAL_ORDER = [
+  "High Cancellation Rate",
+  "Multiple Reports Received",
+  "Low Average Rating",
+  "No-Show Pattern",
+  "New Account Activity Spike",
+] as const;
+
+type PlatformHealthSignalLabel =
+  (typeof PLATFORM_HEALTH_SIGNAL_ORDER)[number];
+
+const PLATFORM_HEALTH_SIGNAL_WEIGHTS: Record<
+  PlatformHealthSignalLabel,
+  number
+> = {
+  "High Cancellation Rate": 30,
+  "Multiple Reports Received": 30,
+  "Low Average Rating": 20,
+  "No-Show Pattern": 15,
+  "New Account Activity Spike": 5,
+};
+
+type PlatformHealthUserSummary = {
+  id: string;
+  name: string;
+  email: string;
+  role: "PASSENGER" | "DRIVER" | "ADMIN";
+  createdAt: Date;
+};
+
+type PlatformHealthEntry = {
+  userId: string;
+  reasons: Set<PlatformHealthSignalLabel>;
+  score: number;
+  cancellationRate: number | null;
+  reportsReceived: number | null;
+  avgRating: number | null;
+  noShowCount: number | null;
+};
+
+type PlatformHealthResponseItem = {
+  user: PlatformHealthUserSummary;
+  reasons: PlatformHealthSignalLabel[];
+  score: number;
+  cancellationRate: number | null;
+  reportsReceived: number | null;
+  avgRating: number | null;
+  noShowCount: number | null;
+};
+
+function getPlatformHealthEntry(
+  userEntries: Map<string, PlatformHealthEntry>,
+  userId: string,
+): PlatformHealthEntry {
+  const existingEntry = userEntries.get(userId);
+  if (existingEntry) {
+    return existingEntry;
+  }
+
+  const nextEntry: PlatformHealthEntry = {
+    userId,
+    reasons: new Set<PlatformHealthSignalLabel>(),
+    score: 0,
+    cancellationRate: null,
+    reportsReceived: null,
+    avgRating: null,
+    noShowCount: null,
+  };
+  userEntries.set(userId, nextEntry);
+  return nextEntry;
+}
+
+function applyPlatformHealthSignal(
+  userEntries: Map<string, PlatformHealthEntry>,
+  userId: string,
+  signal: PlatformHealthSignalLabel,
+  stats?: Partial<
+    Pick<
+      PlatformHealthEntry,
+      "cancellationRate" | "reportsReceived" | "avgRating" | "noShowCount"
+    >
+  >,
+): void {
+  const entry = getPlatformHealthEntry(userEntries, userId);
+
+  if (!entry.reasons.has(signal)) {
+    entry.reasons.add(signal);
+    entry.score = Math.min(
+      100,
+      entry.score + PLATFORM_HEALTH_SIGNAL_WEIGHTS[signal],
+    );
+  }
+
+  if (stats?.cancellationRate !== undefined) {
+    entry.cancellationRate = stats.cancellationRate;
+  }
+  if (stats?.reportsReceived !== undefined) {
+    entry.reportsReceived = stats.reportsReceived;
+  }
+  if (stats?.avgRating !== undefined) {
+    entry.avgRating = stats.avgRating;
+  }
+  if (stats?.noShowCount !== undefined) {
+    entry.noShowCount = stats.noShowCount;
+  }
+}
+
+/**
+ * GET /api/admin/health
+ *
+ * Returns suspicious users ranked by weighted platform health signals.
+ */
+export async function getPlatformHealth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const now = new Date();
+    const staleRideThreshold = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    const recentAccountThreshold = new Date(
+      now.getTime() - 7 * 24 * 60 * 60 * 1000,
+    );
+
+    const [
+      bookingsByPassenger,
+      reportsByTargetUser,
+      reviewsByReviewee,
+      staleRidesByDriver,
+      recentUsers,
+    ] = await Promise.all([
+      prisma.booking.findMany({
+        select: {
+          passengerId: true,
+          status: true,
+        },
+      }),
+      prisma.report.groupBy({
+        by: ["targetUserId"],
+        _count: { _all: true },
+      }),
+      prisma.review.groupBy({
+        by: ["revieweeId"],
+        _avg: { rating: true },
+        _count: { _all: true },
+      }),
+      prisma.ride.groupBy({
+        by: ["driverId"],
+        where: {
+          status: "IN_PROGRESS",
+          updatedAt: { lt: staleRideThreshold },
+        },
+        _count: { _all: true },
+      }),
+      prisma.user.findMany({
+        where: {
+          createdAt: { gte: recentAccountThreshold },
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          bookings: {
+            select: {
+              status: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const suspiciousUsersById = new Map<string, PlatformHealthEntry>();
+
+    const bookingStatsByPassengerId = new Map<
+      string,
+      { total: number; cancelled: number }
+    >();
+
+    for (const booking of bookingsByPassenger) {
+      const bookingStats = bookingStatsByPassengerId.get(booking.passengerId) ?? {
+        total: 0,
+        cancelled: 0,
+      };
+
+      bookingStats.total += 1;
+      if (booking.status === "CANCELLED") {
+        bookingStats.cancelled += 1;
+      }
+
+      bookingStatsByPassengerId.set(booking.passengerId, bookingStats);
+    }
+
+    for (const [passengerId, bookingStats] of bookingStatsByPassengerId) {
+      if (bookingStats.total < 5) {
+        continue;
+      }
+
+      const cancellationRate = bookingStats.cancelled / bookingStats.total;
+      if (cancellationRate >= 0.4) {
+        applyPlatformHealthSignal(
+          suspiciousUsersById,
+          passengerId,
+          "High Cancellation Rate",
+          { cancellationRate },
+        );
+      }
+    }
+
+    for (const reportSummary of reportsByTargetUser) {
+      if (reportSummary._count._all >= 2) {
+        applyPlatformHealthSignal(
+          suspiciousUsersById,
+          reportSummary.targetUserId,
+          "Multiple Reports Received",
+          { reportsReceived: reportSummary._count._all },
+        );
+      }
+    }
+
+    for (const reviewSummary of reviewsByReviewee) {
+      const averageRating = reviewSummary._avg.rating;
+      if (reviewSummary._count._all >= 3 && averageRating !== null && averageRating <= 2.5) {
+        applyPlatformHealthSignal(
+          suspiciousUsersById,
+          reviewSummary.revieweeId,
+          "Low Average Rating",
+          { avgRating: averageRating },
+        );
+      }
+    }
+
+    for (const staleRideSummary of staleRidesByDriver) {
+      if (staleRideSummary._count._all >= 2) {
+        applyPlatformHealthSignal(
+          suspiciousUsersById,
+          staleRideSummary.driverId,
+          "No-Show Pattern",
+          { noShowCount: staleRideSummary._count._all },
+        );
+      }
+    }
+
+    for (const user of recentUsers) {
+      const accountAgeMs = now.getTime() - user.createdAt.getTime();
+      if (accountAgeMs >= 7 * 24 * 60 * 60 * 1000) {
+        continue;
+      }
+
+      const totalBookings = user.bookings.length;
+      const cancellationCount = user.bookings.filter(
+        (booking) => booking.status === "CANCELLED",
+      ).length;
+
+      if (totalBookings > 5 || cancellationCount > 2) {
+        applyPlatformHealthSignal(
+          suspiciousUsersById,
+          user.id,
+          "New Account Activity Spike",
+        );
+      }
+    }
+
+    const suspiciousUserIds = Array.from(suspiciousUsersById.keys());
+    if (suspiciousUserIds.length === 0) {
+      res.json({ data: [] satisfies PlatformHealthResponseItem[] });
+      return;
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: suspiciousUserIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    const usersById = new Map(users.map((user) => [user.id, user]));
+
+    const rankedUsers: PlatformHealthResponseItem[] = suspiciousUserIds
+      .map((userId) => {
+        const user = usersById.get(userId);
+        const entry = suspiciousUsersById.get(userId);
+
+        if (!user || !entry) {
+          return null;
+        }
+
+        return {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            createdAt: user.createdAt,
+          },
+          reasons: PLATFORM_HEALTH_SIGNAL_ORDER.filter((signal) =>
+            entry.reasons.has(signal),
+          ),
+          score: entry.score,
+          cancellationRate: entry.cancellationRate,
+          reportsReceived: entry.reportsReceived,
+          avgRating: entry.avgRating,
+          noShowCount: entry.noShowCount,
+        };
+      })
+      .filter(
+        (entry): entry is PlatformHealthResponseItem => entry !== null,
+      )
+      .sort((left, right) => right.score - left.score);
+
+    res.json({ data: rankedUsers });
+  } catch (err) {
+    next(err);
+  }
+}
+
 /**
  * GET /api/admin/stats
  *
