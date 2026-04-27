@@ -35,7 +35,7 @@ type PendingDriverRecord = {
     name: string;
     email: string;
   };
-  licencePath: string;
+  licencePath: string | null;
   insurancePath: string | null;
   vehicleInfo: unknown;
   createdAt: Date;
@@ -144,7 +144,9 @@ export async function listPendingDrivers(
         id: driver.user.id,
         name: driver.user.name,
         email: driver.user.email,
-        licenceUrl: await createSignedPrivateDocumentUrl(driver.licencePath),
+        licenceUrl: driver.licencePath
+          ? await createSignedPrivateDocumentUrl(driver.licencePath)
+          : null,
         insuranceUrl: driver.insurancePath
           ? await createSignedPrivateDocumentUrl(driver.insurancePath)
           : null,
