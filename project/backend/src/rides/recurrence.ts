@@ -77,10 +77,11 @@ export function generateRideOccurrences({
 
     const weekday = cursor.getDay();
     const include =
-      recurrencePattern === "DAILY" ||
-      recurrencePattern === "WEEKLY"
-        ? weekday === firstDeparture.getDay()
-        : normalizedDays.includes(weekday);
+      recurrencePattern === "DAILY"
+        ? true
+        : recurrencePattern === "WEEKLY"
+          ? weekday === firstDeparture.getDay()
+          : normalizedDays.includes(weekday);
 
     if (!include) {
       continue;
