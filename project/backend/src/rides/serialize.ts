@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { toAvatarUrlSummary } from '../lib/userDisplay'
 
 export type RideDriverApi = {
   id: string
@@ -44,6 +45,7 @@ type DriverRow = {
   id: string
   name: string
   avatarPath: string | null
+  accountStatus?: string | null
   driverProfile: { vehicleInfo: Prisma.JsonValue } | null
 }
 
@@ -51,6 +53,7 @@ type PassengerRow = {
   id: string
   name: string
   avatarPath: string | null
+  accountStatus?: string | null
 }
 
 function parseVehicle(
@@ -81,19 +84,13 @@ function parseVehicle(
 
 export function mapDriverForApi(driver: DriverRow): RideDriverApi {
   return {
-    id: driver.id,
-    name: driver.name,
-    avatarUrl: driver.avatarPath ?? null,
+    ...toAvatarUrlSummary(driver),
     vehicle: parseVehicle(driver.driverProfile?.vehicleInfo ?? null),
   }
 }
 
 function mapPassengerForApi(passenger: PassengerRow) {
-  return {
-    id: passenger.id,
-    name: passenger.name,
-    avatarUrl: passenger.avatarPath ?? null,
-  }
+  return toAvatarUrlSummary(passenger)
 }
 
 function toDecimalString(value: Prisma.Decimal | string | number | null | undefined) {
