@@ -4,6 +4,7 @@ import { PlatformHealthPage } from "./PlatformHealthPage";
 import { ReportsPage } from "./ReportsPage";
 import { SettingsPage } from "./SettingsPage";
 import { ChangePasswordPage } from "./ChangePasswordPage";
+import { SendAnnouncementPage } from "./SendAnnouncementPage";
 import type { AppRoute } from "@/routes/types";
 
 export const adminRoutes: AppRoute[] = [
@@ -28,6 +29,12 @@ export const adminRoutes: AppRoute[] = [
   {
     path: "/admin/health",
     element: <PlatformHealthPage />,
+    requiresAuth: true,
+    requiredRole: "ADMIN",
+  },
+  {
+    path: "/admin/announcements",
+    element: <SendAnnouncementPage />,
     requiresAuth: true,
     requiredRole: "ADMIN",
   },

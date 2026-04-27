@@ -64,11 +64,22 @@ export const CreateReportSchema = z.object({
   reason: z.string().min(10).max(2000),
 });
 
+export const SendAnnouncementSchema = z.object({
+  subject: z.string().trim().min(1),
+  message: z.string().trim().min(1),
+});
+
+export const MarkAnnouncementReadSchema = z.object({
+  announcementId: z.string().trim().min(1),
+});
+
 export type DriverDecisionInput = z.infer<typeof DriverDecisionSchema>;
 export type AcademicDecisionInput = z.infer<typeof AcademicDecisionSchema>;
 export type UpdateConfigInput = z.infer<typeof UpdateConfigSchema>;
 export type ResolveReportInput = z.infer<typeof ResolveReportSchema>;
 export type CreateReportInput = z.infer<typeof CreateReportSchema>;
+export type SendAnnouncementInput = z.infer<typeof SendAnnouncementSchema>;
+export type MarkAnnouncementReadInput = z.infer<typeof MarkAnnouncementReadSchema>;
 export type CreateModerationActionInput = z.infer<
   typeof CreateModerationActionSchema
 >;

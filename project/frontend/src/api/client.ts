@@ -7,6 +7,8 @@ export const api = axios.create({
   withCredentials: true,
 })
 
+export const apiClient = api
+
 type ApiErrorPayload = {
   error?: {
     code?: string

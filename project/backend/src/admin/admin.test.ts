@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   AcademicDecisionSchema,
   DriverDecisionSchema,
+  MarkAnnouncementReadSchema,
   UpdateConfigSchema,
   ResolveReportSchema,
   CreateReportSchema,
+  SendAnnouncementSchema,
 } from "./schemas";
 
 describe("DriverDecisionSchema", () => {
@@ -192,6 +194,53 @@ describe("CreateReportSchema", () => {
         targetUserId: validUUID,
         targetRideId: validUUID,
         reason: "Bad",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("SendAnnouncementSchema", () => {
+  it("accepts a subject and message", () => {
+    expect(
+      SendAnnouncementSchema.safeParse({
+        subject: "System maintenance",
+        message: "The platform will be briefly unavailable tonight.",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a blank subject", () => {
+    expect(
+      SendAnnouncementSchema.safeParse({
+        subject: "   ",
+        message: "Valid message",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a blank message", () => {
+    expect(
+      SendAnnouncementSchema.safeParse({
+        subject: "Valid subject",
+        message: "   ",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("MarkAnnouncementReadSchema", () => {
+  it("accepts a non-empty announcement id", () => {
+    expect(
+      MarkAnnouncementReadSchema.safeParse({
+        announcementId: "announcement-1",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a blank announcement id", () => {
+    expect(
+      MarkAnnouncementReadSchema.safeParse({
+        announcementId: "   ",
       }).success,
     ).toBe(false);
   });
