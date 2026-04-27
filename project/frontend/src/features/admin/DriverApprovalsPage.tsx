@@ -178,22 +178,10 @@ export function DriverApprovalsPage() {
         ) : (
           <div className="space-y-4">
             {(pendingAcademicVerifications ?? []).map((verification) => {
-              const academicIdSignedUrl =
-                (
-                  verification as {
-                    academicIdSignedUrl?: string | null;
-                    academicIdUrl?: string | null;
-                  }
-                ).academicIdSignedUrl ??
-                (
-                  verification as {
-                    academicIdSignedUrl?: string | null;
-                    academicIdUrl?: string | null;
-                  }
-                ).academicIdUrl;
+              const userId = verification.userId;
 
               return (
-                <div key={verification.userId} className="rounded-lg border p-4">
+                <div key={userId} className="rounded-lg border p-4">
                   <div className="space-y-2">
                     <p className="font-medium">{verification.name}</p>
                     <p className="text-sm text-muted-foreground">
@@ -208,9 +196,9 @@ export function DriverApprovalsPage() {
                         "en-GB",
                       )}
                     </p>
-                    {academicIdSignedUrl ? (
+                    {verification.academicIdSignedUrl ? (
                       <a
-                        href={academicIdSignedUrl}
+                        href={verification.academicIdSignedUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline"
@@ -228,17 +216,21 @@ export function DriverApprovalsPage() {
                     <AdminDecisionInline
                       isPending={academicDecisionMutation.isPending}
                       onApprove={() =>
-                        academicDecisionMutation.mutate({
-                          userId: verification.userId,
-                          approved: true,
-                        })
+                        userId
+                          ? academicDecisionMutation.mutate({
+                              userId,
+                              approved: true,
+                            })
+                          : undefined
                       }
                       onReject={(reason) =>
-                        academicDecisionMutation.mutate({
-                          userId: verification.userId,
-                          approved: false,
-                          reason,
-                        })
+                        userId
+                          ? academicDecisionMutation.mutate({
+                              userId,
+                              approved: false,
+                              reason,
+                            })
+                          : undefined
                       }
                     />
                   </div>
