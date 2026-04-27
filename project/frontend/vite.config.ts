@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { existsSync } from 'fs'
@@ -11,6 +11,19 @@ const proxyTarget = process.env.VITE_PROXY_TARGET ?? defaultProxyTarget
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    include: [
+      'src/**/*.unit.test.{ts,tsx}',
+      'src/**/*.integration.test.{ts,tsx}',
+      'src/**/*.{test,spec}.{ts,tsx}',
+    ],
+    coverage: {
+      provider: 'v8',
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -39,10 +52,23 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          query: ['@tanstack/react-query'],
-          map: ['leaflet', 'react-leaflet'],
+        manualChunks(id) {
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/react-router-dom/')
+          ) {
+            return 'vendor'
+          }
+          if (id.includes('node_modules/@tanstack/react-query/')) {
+            return 'query'
+          }
+          if (
+            id.includes('node_modules/leaflet/') ||
+            id.includes('node_modules/react-leaflet/')
+          ) {
+            return 'map'
+          }
         },
       },
     },
