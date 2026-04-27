@@ -1,15 +1,30 @@
 name: CI
 
+// on defines the events that trigger the workflow
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
+// jobs defines the steps that are executed in the workflow
 jobs:
   backend-tests:
     name: Backend — type-check & tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campus_ride_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d campus_ride_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Checkout code
@@ -33,6 +48,12 @@ jobs:
           # prisma generate only reads the schema — no real DB connection needed
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campus_ride_ci
 
+      - name: Apply Prisma migrations
+        working-directory: backend
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campus_ride_ci
+
       - name: Type-check
         working-directory: backend
         run: npx tsc --noEmit
@@ -44,6 +65,7 @@ jobs:
         run: npm test
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campus_ride_ci
+          RUN_LIVE_INTEGRATION_TESTS: true
           SUPABASE_JWT_SECRET: ci-test-jwt-secret-32-chars-long!!
 
   frontend-typecheck:
