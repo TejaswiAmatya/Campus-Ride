@@ -19,6 +19,7 @@ import { BookingStatusPage } from "./features/bookings/BookingStatusPage";
 import { AdminDashboard } from "./features/admin/AdminDashboard";
 import { DriverApprovalsPage } from "./features/admin/DriverApprovalsPage";
 import { ReportsPage } from "./features/admin/ReportsPage";
+import { PlatformHealthPage } from "./features/admin/PlatformHealthPage";
 import { useAuth } from "./hooks/useAuth";
 import { DriverApprovalPage } from "./features/admin/DriverApprovalPage";
 import { canAccessDriverRoutes } from "./features/auth/routing";
@@ -132,6 +133,7 @@ export function App() {
                   element={<DriverApprovalsPage />}
                 />
                 <Route path="/admin/reports" element={<ReportsPage />} />
+                <Route path="/admin/health" element={<PlatformHealthPage />} />
                 <Route path="/admin/settings" element={<SettingsPage />} />
               </Route>
 

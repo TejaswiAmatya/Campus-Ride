@@ -50,3 +50,26 @@ export interface AdminReport {
   createdAt: string;
   updatedAt: string;
 }
+
+export type PlatformHealthReason =
+  | "High Cancellation Rate"
+  | "Multiple Reports Received"
+  | "Low Average Rating"
+  | "No-Show Pattern"
+  | "New Account Activity Spike";
+
+export interface PlatformHealthUser {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "PASSENGER" | "DRIVER" | "ADMIN";
+    createdAt: string;
+  };
+  reasons: PlatformHealthReason[];
+  score: number;
+  cancellationRate: number | null;
+  reportsReceived: number | null;
+  avgRating: number | null;
+  noShowCount: number | null;
+}
