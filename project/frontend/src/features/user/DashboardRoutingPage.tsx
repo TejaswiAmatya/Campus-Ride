@@ -85,7 +85,7 @@ export function DashboardRoutingPage() {
             title="Ride History"
             subtitle="Your completed rides"
             icon={<Clock3 />}
-            href="/bookings"
+            href="/bookings/history"
             accent="violet"
           />
           <DashboardCard
