@@ -107,7 +107,7 @@ function BookingCard({ booking }: { booking: BookingListItem }) {
 
         <div className="flex shrink-0 flex-col items-end gap-2">
           <StatusBadge status={booking.status} />
-          <Link to={`/bookings/${booking.id}`} className="text-xs font-medium text-primary hover:underline">
+          <Link to={`/rides/${booking.ride.id}`} className="text-xs font-medium text-primary hover:underline">
             View details
           </Link>
         </div>

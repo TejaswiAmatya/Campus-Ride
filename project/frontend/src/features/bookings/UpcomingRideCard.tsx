@@ -159,7 +159,7 @@ export function UpcomingRideCard({
                   <Link to={`/profile/${booking.ride.driver.id}`}>View profile</Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <Link to={`/bookings/${booking.id}`}>Open booking</Link>
+                  <Link to={`/rides/${booking.ride.id}`}>Open details</Link>
                 </Button>
               </div>
               {booking.messageToDriver && (
@@ -183,7 +183,7 @@ export function UpcomingRideCard({
               {cancelPending ? 'Cancelling...' : 'Quick cancel'}
             </Button>
             <Button asChild variant="outline">
-              <Link to={`/bookings/${booking.id}`}>Full details</Link>
+              <Link to={`/rides/${booking.ride.id}`}>Full details</Link>
             </Button>
           </div>
         </div>
