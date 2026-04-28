@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 export function getDefaultAuthenticatedPath(
   role?: "PASSENGER" | "DRIVER" | "ADMIN",
 ) {
-  return role === "ADMIN" ? "/admin" : "/rides";
+  return role === "ADMIN" ? "/admin" : "/dashboard";
 }
 
 /**
