@@ -36,6 +36,10 @@ interface ConfirmSignupResponse {
   }
 }
 
+function parseConfirmSignupResponse(res: ConfirmSignupResponse) {
+  return res.data
+}
+
 /**
  * Returns the currently authenticated user by calling GET /api/users/me.
  * Only fires the request when an access_token is present in localStorage.
@@ -80,7 +84,7 @@ export function useAuth() {
     }
   }, [error, setAuthError, token])
 
-  const user = data ?? currentUser
+  const user = token ? data ?? currentUser : null
 
   return {
     user: user ?? null,
@@ -154,7 +158,18 @@ export function useConfirmSignup() {
       const res = await api.post<ConfirmSignupResponse>('/api/auth/confirm-signup', {
         tokenHash,
       })
-      return res.data.data
+      return parseConfirmSignupResponse(res.data)
+    },
+  })
+}
+
+export function useConfirmSignupSession() {
+  return useMutation({
+    mutationFn: async ({ accessToken }: { accessToken: string }) => {
+      const res = await api.post<ConfirmSignupResponse>('/api/auth/confirm-signup/session', {
+        accessToken,
+      })
+      return parseConfirmSignupResponse(res.data)
     },
   })
 }
