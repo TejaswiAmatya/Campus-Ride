@@ -211,7 +211,7 @@ beforeEach(() => {
 });
 
 describe("searchRidesByLocation", () => {
-  it("ranks rides by route fit, stops, timing, and preferences", async () => {
+  it("returns only route-relevant rides and ranks them by fit, timing, and preferences", async () => {
     const departureTime = new Date(futureDate);
 
     searchState.rides.push(
@@ -303,7 +303,6 @@ describe("searchRidesByLocation", () => {
     expect(results.map((ride) => ride.id)).toEqual([
       "ride-best-match",
       "ride-close-but-late",
-      "ride-cheap-but-off-route",
     ]);
     expect(results[0]?.matchScore).toBeGreaterThan(results[1]?.matchScore ?? 0);
   });

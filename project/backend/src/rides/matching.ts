@@ -256,3 +256,25 @@ export function rankSearchRides<T extends SearchRideCandidate>(
     return left.departureTime.getTime() - right.departureTime.getTime();
   });
 }
+
+export function isRelevantSearchRide<T extends SearchRideCandidate>(
+  ride: RankedRide<T>,
+  query: SearchRidesInput,
+) {
+  const hasPickupTarget =
+    (query.pickupLat !== undefined && query.pickupLng !== undefined) ||
+    (query.originLat !== undefined && query.originLng !== undefined);
+  const hasDropoffTarget =
+    (query.dropoffLat !== undefined && query.dropoffLng !== undefined) ||
+    (query.destLat !== undefined && query.destLng !== undefined);
+
+  if (hasPickupTarget && ride.matchBreakdown.pickup <= 0) {
+    return false;
+  }
+
+  if (hasDropoffTarget && ride.matchBreakdown.dropoff <= 0) {
+    return false;
+  }
+
+  return true;
+}
