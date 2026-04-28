@@ -30,7 +30,7 @@ export function getDefaultRoute(user: RoutingUser): string {
   if (user.role === 'DRIVER' && isDriverPending(user)) return '/dashboard'
   if (user.role === 'ADMIN') return '/admin'
   if (user.role === 'DRIVER') return '/driver/dashboard'
-  return '/rides'
+  return '/dashboard'
 }
 
 export function canAccessDriverRoutes(user: RoutingUser): boolean {
