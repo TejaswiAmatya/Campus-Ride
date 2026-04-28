@@ -1,4 +1,4 @@
-import { BookingsPage } from './BookingsPage'
+import { BookingsPage } from './components/BookingsPage'
 import type { AppRoute } from '@/routes/types'
 
 export const bookingRoutes: AppRoute[] = [

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { GripVertical, LoaderCircle, MapPin, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { GeocodingSuggestion } from '../geocoding'
-import { searchPlaces } from '../geocoding'
+import type { GeocodingSuggestion } from '../lib/geocoding'
+import { searchPlaces } from '../lib/geocoding'
 
 export type StopFormValue = {
   address: string

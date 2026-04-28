@@ -1,7 +1,7 @@
-import { LoginPage } from './LoginPage'
-import { RegisterPage } from './RegisterPage'
-import { ConfirmSignupPage } from './ConfirmSignupPage'
-import { DriverRegistrationPage } from './DriverRegistrationPage'
+import { ConfirmSignupPage } from './components/ConfirmSignupPage'
+import { DriverRegistrationPage } from './components/DriverRegistrationPage'
+import { LoginPage } from './components/LoginPage'
+import { RegisterPage } from './components/RegisterPage'
 import type { AppRoute } from '@/routes/types'
 
 export const authRoutes: AppRoute[] = [

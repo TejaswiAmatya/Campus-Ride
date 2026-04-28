@@ -1,5 +1,5 @@
 import { CircleMarker, Popup } from 'react-leaflet'
-import type { DriverLocation } from '../hooks'
+import type { DriverLocation } from '../hooks/useRides'
 
 export function DriverLocationLayer({ location }: { location: DriverLocation | null }) {
   if (!location) {
