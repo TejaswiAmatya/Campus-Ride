@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  Bell,
   CalendarDays,
   Car,
   CirclePlus,
   Clock3,
+  History,
   Search,
   TrendingUp,
   User,
@@ -125,11 +125,11 @@ export function DashboardRoutingPage() {
               accent="emerald"
             />
             <DashboardCard
-              title="Pending Requests"
-              subtitle="Booking requests awaiting action"
-              icon={<Bell />}
-              href="/bookings"
-              accent="amber"
+              title="Ride History"
+              subtitle="See your completed rides"
+              icon={<History />}
+              href="/driver/rides/history"
+              accent="violet"
             />
             <DashboardCard
               title="Earnings"

@@ -15,6 +15,7 @@ import { SearchRidesPage } from "./features/rides/SearchRidesPage";
 import { PostRidePage } from "./features/rides/PostRidePage";
 import { RideDetailPage } from "./features/rides/RideDetailPage";
 import { MyRidesPage } from "./features/rides/MyRidesPage";
+import { RideHistoryPage } from "./features/rides/RideHistoryPage";
 import { BookingsPage } from "./features/bookings/BookingsPage";
 import { BookingCheckoutPage } from "./features/bookings/BookingCheckoutPage";
 import { BookingStatusPage } from "./features/bookings/BookingStatusPage";
@@ -149,6 +150,10 @@ export function App() {
                   element={<Navigate to="/dashboard" replace />}
                 />
                 <Route path="/driver/rides" element={<MyRidesPage />} />
+                <Route
+                  path="/driver/rides/history"
+                  element={<RideHistoryPage />}
+                />
                 <Route path="/driver/rides/new" element={<PostRidePage />} />
                 <Route path="/driver/rides/:id" element={<ManageRidePage />} />
                 <Route path="/driver/earnings" element={<EarningsPage />} />
