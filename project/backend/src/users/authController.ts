@@ -1,9 +1,19 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { emailQueue } from "../lib/emailQueue";
-import { confirmAuthSignup, registerAuthUser, supabaseAuth } from "../lib/supabase";
+import {
+  confirmAuthSignup,
+  registerAuthUser,
+  supabaseAdmin,
+  supabaseAuth,
+} from "../lib/supabase";
 import { AppError, getBlockedAccountError } from "../middleware/error";
-import { ConfirmSignupSchema, LoginSchema, RegisterSchema } from "./schemas";
+import {
+  ConfirmSignupSchema,
+  ConfirmSignupSessionSchema,
+  LoginSchema,
+  RegisterSchema,
+} from "./schemas";
 
 type AuthUserProfile = {
   id: string;
@@ -169,6 +179,51 @@ export async function confirmSignup(
       await emailQueue.welcomeEmail(user.id, user.email);
     } catch (queueErr) {
       console.error("[auth/confirm-signup] welcomeEmail queue failed", {
+        userId: user.id,
+        email: user.email,
+        error: queueErr,
+      });
+    }
+
+    res.status(200).json({
+      data: {
+        email: user.email,
+        status: "confirmed",
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/auth/confirm-signup/session
+export async function confirmSignupSession(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const body = ConfirmSignupSessionSchema.parse(req.body);
+    const { data, error } = await supabaseAdmin.auth.getUser(body.accessToken);
+
+    if (error || !data.user) {
+      throw new AppError(
+        "INVALID_CONFIRMATION_TOKEN",
+        error?.message ?? "Unable to confirm signup",
+        400,
+      );
+    }
+
+    const user = await ensureAuthUserProfile({
+      id: data.user.id,
+      email: data.user.email,
+      metadata: data.user.user_metadata,
+    });
+
+    try {
+      await emailQueue.welcomeEmail(user.id, user.email);
+    } catch (queueErr) {
+      console.error("[auth/confirm-signup-session] welcomeEmail queue failed", {
         userId: user.id,
         email: user.email,
         error: queueErr,

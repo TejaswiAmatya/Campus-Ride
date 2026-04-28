@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../middleware/error";
-import { confirmSignup, login, register } from "./authController";
+import {
+  confirmSignup,
+  confirmSignupSession,
+  login,
+  register,
+} from "./authController";
 
 const mocks = vi.hoisted(() => ({
   userFindUnique: vi.fn(),
   userCreate: vi.fn(),
   registerAuthUser: vi.fn(),
   confirmAuthSignup: vi.fn(),
+  getUser: vi.fn(),
   signInWithPassword: vi.fn(),
   welcomeEmail: vi.fn(),
 }));
@@ -24,6 +30,11 @@ vi.mock("../lib/prisma", () => ({
 vi.mock("../lib/supabase", () => ({
   registerAuthUser: mocks.registerAuthUser,
   confirmAuthSignup: mocks.confirmAuthSignup,
+  supabaseAdmin: {
+    auth: {
+      getUser: mocks.getUser,
+    },
+  },
   supabaseAuth: {
     auth: {
       signInWithPassword: mocks.signInWithPassword,
@@ -137,6 +148,58 @@ describe("authController", () => {
     });
     expect(mocks.welcomeEmail).toHaveBeenCalledWith(
       "auth-user-2",
+      "alice@university.edu",
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      data: {
+        email: "alice@university.edu",
+        status: "confirmed",
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("confirmSignupSession provisions the Prisma user from a confirmed auth session", async () => {
+    mocks.getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: "auth-user-4",
+          email: "alice@university.edu",
+          user_metadata: {
+            name: "Alice",
+            phone: "+47 123 45 678",
+          },
+        },
+      },
+      error: null,
+    });
+    mocks.userFindUnique.mockResolvedValue(null);
+    mocks.userCreate.mockResolvedValue({
+      id: "auth-user-4",
+      email: "alice@university.edu",
+      name: "Alice",
+      phone: "+47 123 45 678",
+    });
+
+    const req = {
+      body: {
+        accessToken: "session-access-token",
+      },
+    } as Request;
+    const res = makeResponse();
+    const next = vi.fn();
+
+    await confirmSignupSession(
+      req,
+      res as unknown as Response,
+      next as NextFunction,
+    );
+
+    expect(mocks.getUser).toHaveBeenCalledWith("session-access-token");
+    expect(mocks.userCreate).toHaveBeenCalled();
+    expect(mocks.welcomeEmail).toHaveBeenCalledWith(
+      "auth-user-4",
       "alice@university.edu",
     );
     expect(res.status).toHaveBeenCalledWith(200);
