@@ -40,6 +40,19 @@ export interface ReviewUserSummary {
   avatarPath: string | null;
 }
 
+export interface PublicUserSummary {
+  id: string;
+  name: string;
+  role: "PASSENGER" | "DRIVER" | "ADMIN";
+  avatarPath: string | null;
+  academicRole: "STUDENT" | "STAFF" | null;
+  academicVerificationStatus:
+    | "NOT_SUBMITTED"
+    | "PENDING"
+    | "VERIFIED"
+    | "REJECTED";
+}
+
 export interface UserReview {
   id: string;
   rideId: string;
@@ -64,6 +77,8 @@ export interface DriverRideReviewPassenger {
 export const meQueryKey = ["me"] as const;
 export const userReviewsQueryKey = (userId?: string) =>
   ["reviews", userId] as const;
+export const publicUserProfileQueryKey = (userId?: string) =>
+  ["users", "public", userId] as const;
 export const rideDetailQueryKey = (rideId?: string) =>
   ["rides", "detail", rideId] as const;
 export const myRidesQueryKey = ["rides", "mine"] as const;
@@ -160,6 +175,19 @@ export function useUserReviews(userId?: string) {
 
       const res = await api.get<{ data: UserReview[] }>(`/api/users/${userId}/reviews`);
       return res.data.data ?? [];
+    },
+    enabled: !!userId,
+  });
+}
+
+export function usePublicUserProfile(userId?: string) {
+  return useQuery({
+    queryKey: publicUserProfileQueryKey(userId),
+    queryFn: async (): Promise<PublicUserSummary | null> => {
+      if (!userId) return null;
+
+      const res = await api.get<{ data: PublicUserSummary }>(`/api/users/${userId}`);
+      return res.data.data ?? null;
     },
     enabled: !!userId,
   });
