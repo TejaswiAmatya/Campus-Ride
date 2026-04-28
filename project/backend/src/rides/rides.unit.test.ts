@@ -399,6 +399,34 @@ describe("searchRidesByLocation", () => {
     expect(results[0]?.id).toBe("ride-mid");
     expect(results[0]?.pricePerSeat).toBe("80");
   });
+
+  it("uses pickup coordinates even when the pickup text does not match the stored origin address", async () => {
+    const departureTime = new Date(futureDate);
+
+    searchState.rides.push(
+      makeRideRecord({
+        id: "ride-origin-coordinate-match",
+        originAddress: "1 University Drive",
+        originLat: 58.9,
+        originLng: 5.7,
+        destinationAddress: "Central Station",
+        destinationLat: 58.97,
+        destinationLng: 5.73,
+        departureTime,
+      }),
+    );
+
+    const results = await searchRidesByLocation({
+      pickup: "University of Stavanger, Rennebergstien, Stavanger",
+      pickupLat: 58.9,
+      pickupLng: 5.7,
+      seats: 1,
+      sortBy: "bestMatch",
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.id).toBe("ride-origin-coordinate-match");
+  });
 });
 
 describe("CreateRideSchema", () => {

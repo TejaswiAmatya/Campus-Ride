@@ -54,14 +54,22 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
   const seats = query.seats ?? 1;
   const originText = query.pickup ?? query.origin ?? query.location;
   const destinationText = query.dropoff ?? query.dest;
+  const hasPickupCoordinates =
+    (query.pickupLat !== undefined && query.pickupLng !== undefined) ||
+    (query.originLat !== undefined && query.originLng !== undefined);
+  const hasDropoffCoordinates =
+    (query.dropoffLat !== undefined && query.dropoffLng !== undefined) ||
+    (query.destLat !== undefined && query.destLng !== undefined);
   const textFilters = {
-    ...(originText && {
+    ...(!hasPickupCoordinates &&
+      originText && {
       originAddress: {
         contains: originText,
         mode: "insensitive" as const,
       },
     }),
-    ...(destinationText && {
+    ...(!hasDropoffCoordinates &&
+      destinationText && {
       destinationAddress: {
         contains: destinationText,
         mode: "insensitive" as const,
