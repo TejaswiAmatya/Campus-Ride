@@ -226,6 +226,61 @@ function getUploadedFile(
 }
 
 /**
+ * GET /api/users/:id
+ *
+ * Returns a limited public profile summary for a user.
+ */
+export async function getPublicUserProfile(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        avatarPath: true,
+        accountStatus: true,
+        academicRole: true,
+        academicVerificationStatus: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError("NOT_FOUND", "User not found", 404);
+    }
+
+    if ((user.accountStatus as string | undefined) === "DEACTIVATED") {
+      throw new AppError(
+        "ACCOUNT_DEACTIVATED",
+        "This account is no longer available.",
+        410,
+      );
+    }
+
+    const summary = toAvatarPathSummary(user);
+
+    res.json({
+      data: {
+        id: summary.id,
+        name: summary.name,
+        role: user.role,
+        avatarPath: summary.avatarPath,
+        academicRole: user.academicRole,
+        academicVerificationStatus: user.academicVerificationStatus,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * GET /api/users/me
  *
  * Returns the full profile of the currently authenticated user,

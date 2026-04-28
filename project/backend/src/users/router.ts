@@ -14,6 +14,7 @@ authRouter.post('/confirm-signup/session', authController.confirmSignupSession)
 authRouter.post('/login', authController.login)
 
 // Public user routes
+usersRouter.get('/:id', userController.getPublicUserProfile)
 usersRouter.get('/:id/reviews', userController.getUserReviews)
 
 // Authenticated routes
