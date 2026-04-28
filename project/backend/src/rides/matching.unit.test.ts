@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { SearchRidesInput } from './schemas'
-import { rankSearchRides, scoreRideMatch } from './matching'
+import { isRelevantSearchRide, rankSearchRides, scoreRideMatch } from './matching'
 
 function makeRideCandidate(overrides: Partial<{
   id: string
@@ -109,6 +109,30 @@ describe('scoreRideMatch', () => {
 })
 
 describe('rankSearchRides', () => {
+  it('marks rides outside the requested route as irrelevant', () => {
+    const query: SearchRidesInput = {
+      pickupLat: 58.9,
+      pickupLng: 5.71,
+      dropoffLat: 58.95,
+      dropoffLng: 5.72,
+    }
+
+    const [ranked] = rankSearchRides([
+      makeRideCandidate({
+        id: 'off-route',
+        originLat: 59.2,
+        originLng: 5.2,
+        destinationLat: 59.25,
+        destinationLng: 5.25,
+        detourFlexibilityKm: 0,
+      }),
+    ], query)
+
+    expect(ranked.matchBreakdown.pickup).toBe(0)
+    expect(ranked.matchBreakdown.dropoff).toBe(0)
+    expect(isRelevantSearchRide(ranked, query)).toBe(false)
+  })
+
   it('sorts by price before best-match tie breakers when requested', () => {
     const query: SearchRidesInput = {
       sortBy: 'price',

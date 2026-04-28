@@ -1,7 +1,7 @@
 import { prisma } from "../lib/prisma";
 import type { SearchRidesInput } from "./schemas";
 import { serializeRideList } from "./serialize";
-import { rankSearchRides } from "./matching";
+import { isRelevantSearchRide, rankSearchRides } from "./matching";
 
 type SearchRideRow = any;
 
@@ -126,5 +126,5 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
     query,
   );
 
-  return ranked.map(serializeSearchRide);
+  return ranked.filter((ride) => isRelevantSearchRide(ride, query)).map(serializeSearchRide);
 }
