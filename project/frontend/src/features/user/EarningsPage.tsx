@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 import { CalendarRange, Coins, ReceiptText, TrendingUp } from "lucide-react";
 
 import { api } from "@/api/client";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useMyRides } from "@/features/rides/hooks";
 
 type EarningsRide = {
   bookingId: string;
@@ -46,7 +43,6 @@ function formatRideDate(value: string) {
 }
 
 export function EarningsPage() {
-  const { data: rides = [], isLoading: isLoadingRides } = useMyRides();
   const { data, isLoading, isError, error } = useQuery<EarningsResponse>({
     queryKey: ["driverEarningsPage"],
     queryFn: async () => {
@@ -101,7 +97,6 @@ export function EarningsPage() {
     totals: { thisWeek: "0", thisMonth: "0", currency: "NOK" },
     rides: [],
   };
-  const completedRides = rides.filter((ride) => ride.status === "COMPLETED");
 
   return (
     <div className="space-y-8">
@@ -139,68 +134,6 @@ export function EarningsPage() {
           icon={<TrendingUp className="h-5 w-5" />}
         />
       </div>
-
-      <Card className="rounded-2xl border-slate-200 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-xl">Completed rides</CardTitle>
-            <p className="mt-1 text-sm text-slate-500">
-              Finished driver rides are listed here instead of the My rides
-              page.
-            </p>
-          </div>
-          <CalendarRange className="h-5 w-5 text-slate-400" />
-        </CardHeader>
-        <CardContent>
-          {isLoadingRides ? (
-            <div className="h-32 animate-pulse rounded-xl border bg-muted/40" />
-          ) : completedRides.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-              No completed rides yet.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {completedRides.map((ride) => (
-                <div
-                  key={ride.id}
-                  className="rounded-xl border border-slate-200 bg-white p-4"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-slate-800">
-                        {ride.originAddress} to {ride.destinationAddress}
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        {formatRideDate(ride.departureTime)}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <AmountStat
-                          label="Passengers"
-                          value={`${ride.stats?.completedPassengers ?? 0}`}
-                        />
-                        <AmountStat
-                          label="Ride earnings"
-                          value={formatCurrency(
-                            ride.stats?.completedEarnings ?? "0",
-                            earnings.totals.currency,
-                          )}
-                          emphasize
-                        />
-                      </div>
-                      <Button asChild variant="outline">
-                        <Link to={`/driver/rides/${ride.id}`}>Open details</Link>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       <Card className="rounded-2xl border-slate-200 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0">

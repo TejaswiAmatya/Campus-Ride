@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Car, CirclePlus, TrendingUp } from 'lucide-react'
+import { Car, CirclePlus, History, TrendingUp } from 'lucide-react'
 import { fetchMe } from '@/api/client'
 import { DashboardCard } from '@/components/DashboardCard'
 import { ProfileCompletionCard } from '@/components/ProfileCompletionCard'
@@ -43,11 +43,11 @@ export function DriverDashboardPage() {
           accent="emerald"
         />
         <DashboardCard
-          title="Pending Requests"
-          subtitle="Booking requests awaiting action"
-          icon={<Bell />}
-          href="/bookings"
-          accent="amber"
+          title="Ride History"
+          subtitle="See your completed rides"
+          icon={<History />}
+          href="/driver/rides/history"
+          accent="violet"
         />
         <DashboardCard
           title="Earnings"

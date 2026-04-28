@@ -219,8 +219,8 @@ export function MyRidesPage() {
         <div className="rounded-2xl border border-dashed p-12 text-center">
           <CarFront className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
           <p className="text-muted-foreground">
-            No unfinished rides right now. Completed rides are listed in
-            earnings.
+            No unfinished rides right now. Completed rides are listed in ride
+            history.
           </p>
         </div>
       ) : (
