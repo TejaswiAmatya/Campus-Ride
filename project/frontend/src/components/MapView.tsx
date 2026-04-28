@@ -4,12 +4,36 @@ import type { LatLngBoundsExpression, LatLngExpression } from 'leaflet'
 import L from 'leaflet'
 import { cn } from '@/lib/utils'
 
-// Fix the missing marker icon that occurs when bundlers process Leaflet
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-})
+function createMarkerIcon(type: MapMarker['type'] = 'default') {
+  const color =
+    type === 'origin'
+      ? '#16a34a'
+      : type === 'destination'
+        ? '#ef4444'
+        : type === 'driver'
+          ? '#2563eb'
+          : '#0f172a'
+
+  return L.divIcon({
+    className: 'campus-ride-marker',
+    html: `
+      <span
+        style="
+          display:block;
+          width:18px;
+          height:18px;
+          border-radius:9999px;
+          background:${color};
+          border:3px solid white;
+          box-shadow:0 2px 8px rgba(15, 23, 42, 0.35);
+        "
+      ></span>
+    `,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    popupAnchor: [0, -10],
+  })
+}
 
 export interface MapMarker {
   position: [number, number]
@@ -107,7 +131,7 @@ export function MapView({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {markers.map((marker, i) => (
-        <Marker key={i} position={marker.position as LatLngExpression}>
+        <Marker key={i} position={marker.position as LatLngExpression} icon={createMarkerIcon(marker.type)}>
           {marker.label && <Popup>{marker.label}</Popup>}
         </Marker>
       ))}
