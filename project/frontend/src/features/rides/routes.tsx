@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom'
-import { PostRidePage } from './PostRidePage'
-import { RidesPage } from './RidesPage'
+import { PostRidePage } from './components/PostRidePage'
+import { RidesPage } from './components/RidesPage'
 import type { AppRoute } from '@/routes/types'
 
 export const rideRoutes: AppRoute[] = [

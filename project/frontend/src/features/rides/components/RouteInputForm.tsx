@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { LoaderCircle, MapPin, MapPinned } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { GeocodingSuggestion } from '../geocoding'
-import { searchPlaces } from '../geocoding'
+import type { GeocodingSuggestion } from '../lib/geocoding'
+import { searchPlaces } from '../lib/geocoding'
 
 export interface RouteInputValue {
   address: string

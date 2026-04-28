@@ -1,0 +1,248 @@
+import { useMemo } from "react";
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
+  api,
+  fetchMe,
+  normalizeMeUser,
+  type MeApiResponse,
+  type MeLegacyResponse,
+} from "@/api/client";
+import { useAuthStore } from "@/store/authStore";
+import type {
+  CreateRideReviewInput,
+  DriverRideReviewPassenger,
+  MeResponse,
+  ProfileUser,
+  PublicUserSummary,
+  UpdateProfileInput,
+  UserReview,
+} from "@/features/user/types";
+
+export const meQueryKey = ["me"] as const;
+export const userReviewsQueryKey = (userId?: string) =>
+  ["reviews", userId] as const;
+export const publicUserProfileQueryKey = (userId?: string) =>
+  ["users", "public", userId] as const;
+export const rideDetailQueryKey = (rideId?: string) =>
+  ["rides", "detail", rideId] as const;
+export const myRidesQueryKey = ["rides", "mine"] as const;
+
+export function useProfile() {
+  const token = useAuthStore((state) => state.accessToken);
+
+  return useQuery({
+    queryKey: meQueryKey,
+    queryFn: fetchMe,
+    enabled: !!token,
+  });
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  const setUser = useAuthStore((state) => state.setUser);
+
+  return useMutation({
+    mutationFn: async (payload: UpdateProfileInput) => {
+      const res = await api.patch<MeApiResponse | MeLegacyResponse>(
+        "/api/users/me",
+        payload,
+      );
+      const responsePayload = "data" in res.data ? res.data.data : res.data;
+      return normalizeMeUser(responsePayload);
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(meQueryKey, (current?: ProfileUser) =>
+        current ? { ...current, ...user } : user,
+      );
+
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) {
+        setUser({ ...currentUser, ...user });
+      }
+
+      void queryClient.invalidateQueries({ queryKey: meQueryKey });
+    },
+  });
+}
+
+export function useSubmitAcademicVerification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      role,
+      document,
+    }: {
+      role: "STUDENT" | "STAFF";
+      document: File;
+    }) => {
+      const formData = new FormData();
+      formData.append("role", role);
+      formData.append("document", document);
+
+      const res = await api.post<MeResponse>(
+        "/api/users/me/academic-verification",
+        formData,
+      );
+
+      return res.data.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: meQueryKey });
+    },
+  });
+}
+
+export function useDeleteMyAccount() {
+  const queryClient = useQueryClient();
+  const clearSession = useAuthStore((state) => state.clearSession);
+
+  return useMutation({
+    mutationFn: async ({ confirmation }: { confirmation: "DELETE" }) => {
+      await api.delete("/api/users/me", {
+        data: { confirmation },
+      });
+    },
+    onSuccess: () => {
+      clearSession();
+      queryClient.clear();
+      window.location.href = "/login";
+    },
+  });
+}
+
+export function useUserReviews(userId?: string) {
+  return useQuery({
+    queryKey: userReviewsQueryKey(userId),
+    queryFn: async (): Promise<UserReview[]> => {
+      if (!userId) return [];
+
+      const res = await api.get<{ data: UserReview[] }>(`/api/users/${userId}/reviews`);
+      return res.data.data ?? [];
+    },
+    enabled: !!userId,
+  });
+}
+
+export function usePublicUserProfile(userId?: string) {
+  return useQuery({
+    queryKey: publicUserProfileQueryKey(userId),
+    queryFn: async (): Promise<PublicUserSummary | null> => {
+      if (!userId) return null;
+
+      const res = await api.get<{ data: PublicUserSummary }>(`/api/users/${userId}`);
+      return res.data.data ?? null;
+    },
+    enabled: !!userId,
+  });
+}
+
+export function useCreateRideReview(rideId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: CreateRideReviewInput): Promise<UserReview> => {
+      const res = await api.post<{ data: UserReview }>(
+        `/api/rides/${rideId}/reviews`,
+        payload,
+      );
+      return res.data.data;
+    },
+    onSuccess: async (review) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: rideDetailQueryKey(rideId) }),
+        queryClient.invalidateQueries({ queryKey: myRidesQueryKey }),
+        queryClient.invalidateQueries({
+          queryKey: userReviewsQueryKey(review.revieweeId),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useDriverRideReviewPassengers(
+  rideId?: string,
+  driverId?: string,
+  rideStatus?: string,
+) {
+  const isDriverView = !!rideId && !!driverId;
+
+  const { data: driverRideBookings = [] } = useQuery({
+    queryKey: ["bookings", "driver-ride-review-check", rideId],
+    queryFn: async () => {
+      const res = await api.get<{
+        data: Array<{
+          id: string;
+          status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+          passenger?: { id: string; name: string };
+          ride: { id: string };
+        }>;
+      }>("/api/bookings?asDriver=true");
+      return res.data.data ?? [];
+    },
+    enabled: isDriverView,
+  });
+
+  const confirmedPassengers = useMemo(() => {
+    if (!rideId || !driverId) {
+      return [];
+    }
+
+    const passengerMap = new Map<string, DriverRideReviewPassenger>();
+
+    for (const booking of driverRideBookings) {
+      if (
+        booking.ride.id !== rideId ||
+        !booking.passenger ||
+        (booking.status !== "CONFIRMED" && booking.status !== "COMPLETED")
+      ) {
+        continue;
+      }
+
+      passengerMap.set(booking.passenger.id, booking.passenger);
+    }
+
+    return Array.from(passengerMap.values());
+  }, [driverId, driverRideBookings, rideId]);
+
+  const passengerReviewQueries = useQueries({
+    queries: confirmedPassengers.map((passenger) => ({
+      queryKey: userReviewsQueryKey(passenger.id),
+      queryFn: async () => {
+        const res = await api.get<{ data: UserReview[] }>(
+          `/api/users/${passenger.id}/reviews`,
+        );
+        return res.data.data ?? [];
+      },
+      enabled: rideStatus === "COMPLETED",
+    })),
+  });
+
+  const pendingPassengers = useMemo(() => {
+    if (!rideId || !driverId) {
+      return [];
+    }
+
+    return confirmedPassengers.filter((passenger, index) => {
+      const reviews = passengerReviewQueries[index]?.data ?? [];
+
+      return !reviews.some(
+        (review) =>
+          review.rideId === rideId && review.reviewer.id === driverId,
+      );
+    });
+  }, [confirmedPassengers, driverId, passengerReviewQueries, rideId]);
+
+  return {
+    data: pendingPassengers,
+    isLoading:
+      driverRideBookings.length === 0
+        ? false
+        : passengerReviewQueries.some((query) => query.isLoading),
+  };
+}

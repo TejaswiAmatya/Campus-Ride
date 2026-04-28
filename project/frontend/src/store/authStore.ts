@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AuthUser } from "@/hooks/useAuth";
+import type { AuthUser } from "@/features/auth/types";
 import { applySupabaseSession, clearSupabaseSession } from "@/lib/supabase";
 
 interface SessionTokens {

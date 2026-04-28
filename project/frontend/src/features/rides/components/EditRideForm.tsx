@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { LocateFixed, MapPin, Timer } from 'lucide-react'
-import { MapView } from '@/components/MapView'
+import { MapView } from '@/features/rides/components/MapView'
 import { Button } from '@/components/ui/button'
 import { RidePreferencesInput } from './RidePreferencesInput'
 import { RouteInputForm, type RouteInputValue } from './RouteInputForm'
 import { StopsEditor, type StopFormValue } from './StopsEditor'
-import { reverseGeocode, type GeocodingSuggestion } from '../geocoding'
-import { fetchRoutePreview, formatRouteDistance, formatRouteDuration, serializeRouteGeometry, type RoutePreview } from '../routing'
+import { reverseGeocode, type GeocodingSuggestion } from '../lib/geocoding'
+import { fetchRoutePreview, formatRouteDistance, formatRouteDuration, serializeRouteGeometry, type RoutePreview } from '../lib/routing'
 import type { Ride, UpdateRideDto } from '../types'
 
 function TripMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
