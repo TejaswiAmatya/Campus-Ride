@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, LocateFixed, MapPin, SlidersHorizontal, Star, Users } from 'lucide-react'
 import { MapView } from '@/components/MapView'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/hooks/useAuth'
 import { RideCard } from './components/RideCard'
 import { useSearchRides } from './hooks'
 import { reverseGeocode, type GeocodingSuggestion } from './geocoding'
@@ -9,6 +10,7 @@ import { RidePreferencesInput } from './components/RidePreferencesInput'
 import { RouteInputForm, type RouteInputValue } from './components/RouteInputForm'
 
 export function SearchRidesPage() {
+  const { user } = useAuth()
   const [pickup, setPickup] = useState<RouteInputValue>({ address: '', lat: null, lng: null })
   const [dropoff, setDropoff] = useState<RouteInputValue>({ address: '', lat: null, lng: null })
   const [mapSelectionTarget, setMapSelectionTarget] = useState<'origin' | 'destination' | null>(null)
@@ -58,6 +60,10 @@ export function SearchRidesPage() {
     latestDepartureTime: filters.latestDepartureTime ? new Date(filters.latestDepartureTime).toISOString() : undefined,
     sortBy: filters.sortBy,
   })
+  const visibleRides = useMemo(
+    () => (rides ?? []).filter((ride) => ride.driver.id !== user?.id),
+    [rides, user?.id],
+  )
 
   const markers = useMemo(
     () => [
@@ -67,7 +73,7 @@ export function SearchRidesPage() {
       ...(dropoff.lat !== null && dropoff.lng !== null
         ? [{ position: [dropoff.lat, dropoff.lng] as [number, number], label: `Drop-off: ${dropoff.address}`, type: 'destination' as const }]
         : []),
-      ...((rides ?? []).flatMap((ride) => [
+      ...(visibleRides.flatMap((ride) => [
         {
           position: [ride.originLat, ride.originLng] as [number, number],
           label: `Ride start: ${ride.originAddress}`,
@@ -75,7 +81,7 @@ export function SearchRidesPage() {
         },
       ])),
     ],
-    [dropoff.address, dropoff.lat, dropoff.lng, pickup.address, pickup.lat, pickup.lng, rides],
+    [dropoff.address, dropoff.lat, dropoff.lng, pickup.address, pickup.lat, pickup.lng, visibleRides],
   )
 
   const handleMapClick = async (position: [number, number]) => {
@@ -263,14 +269,14 @@ export function SearchRidesPage() {
             <div key={item} className="h-24 animate-pulse rounded-lg border bg-muted" />
           ))}
         </div>
-      ) : (rides ?? []).length === 0 ? (
+      ) : visibleRides.length === 0 ? (
         <div className="rounded-lg border border-dashed p-12 text-center">
           <MapPin className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
           <p className="text-muted-foreground">No rides found. Try another date or location.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {(rides ?? []).map((ride) => (
+          {visibleRides.map((ride) => (
             <RideCard key={ride.id} ride={ride} />
           ))}
         </div>
