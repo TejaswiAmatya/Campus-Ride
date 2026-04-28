@@ -6,18 +6,20 @@ import {
   type ReactNode,
 } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
+  CheckCircle2,
   Clock,
   MapPin,
   Map,
+  MessageSquareText,
   ShieldCheck,
   Ticket,
   Timer,
   UserCheck,
   UserRoundX,
   Users,
+  Wallet,
 } from "lucide-react";
 
 import { api } from "@/api/client";
@@ -26,11 +28,13 @@ import { MapView } from "@/components/MapView";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RideChatPanel } from "@/features/chat/RideChatPanel";
+import { StatusBadge } from "@/features/bookings/StatusBadge";
 import {
   useBookings,
   useMarkBookingNoShow,
   useMarkBookingPickedUp,
 } from "@/features/bookings/hooks";
+import type { BookingListItem } from "@/features/bookings/types";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useDriverRideReviewPassengers,
@@ -84,20 +88,7 @@ export function RideDetailPage() {
   const cancelRide = useCancelRide();
   const { data: driverReviews = [] } = useUserReviews(ride?.driver.id);
   const { data: driverBookings = [] } = useBookings({ asDriver: true });
-  const { data: myBookings = [] } = useQuery({
-    queryKey: ["bookings", "ride-detail-review-check"],
-    queryFn: async () => {
-      const res = await api.get<{
-        data: Array<{
-          id: string;
-          status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
-          ride: { id: string };
-        }>;
-      }>("/api/bookings");
-      return res.data.data ?? [];
-    },
-    enabled: !!user,
-  });
+  const { data: passengerBookings = [] } = useBookings();
   const { data: pendingDriverReviewPassengers = [] } =
     useDriverRideReviewPassengers(
       ride?.id,
@@ -188,7 +179,21 @@ export function RideDetailPage() {
     !!ride &&
     ride.status === "OPEN" &&
     ride.availableSeats > 0 &&
-    user.id !== ride.driver.id;
+    user.id !== ride.driver.id &&
+    !passengerBookings.some(
+      (booking) =>
+        booking.ride.id === ride.id &&
+        (booking.status === "PENDING" || booking.status === "CONFIRMED"),
+    );
+  const passengerBookingForRide = useMemo<BookingListItem | null>(() => {
+    if (!user || !ride || user.id === ride.driver.id) {
+      return null;
+    }
+
+    return (
+      passengerBookings.find((booking) => booking.ride.id === ride.id) ?? null
+    );
+  }, [passengerBookings, ride, user]);
 
   const reportableMembers = useMemo(() => {
     const participants = ride?.participants ?? [];
@@ -200,21 +205,21 @@ export function RideDetailPage() {
       return false;
     }
 
-    return myBookings.some(
+    return passengerBookings.some(
       (booking) =>
         booking.ride.id === ride.id &&
         (booking.status === "CONFIRMED" || booking.status === "COMPLETED"),
     );
-  }, [myBookings, ride, user]);
+  }, [passengerBookings, ride, user]);
   const isConfirmedPassengerParticipant = useMemo(() => {
     if (!user || !ride || user.id === ride.driver.id) {
       return false;
     }
 
-    return myBookings.some(
+    return passengerBookings.some(
       (booking) => booking.ride.id === ride.id && booking.status === "CONFIRMED",
     );
-  }, [myBookings, ride, user]);
+  }, [passengerBookings, ride, user]);
   const canAccessRideChat =
     !!user &&
     !!ride &&
@@ -316,6 +321,10 @@ export function RideDetailPage() {
     ride.status === "COMPLETED" &&
     user.id === ride.driver.id &&
     pendingDriverReviewPassengers.length > 0;
+  const showCompletedRideMemberActions =
+    !!user &&
+    ride.status === "COMPLETED" &&
+    (isPassengerParticipant || user.id === ride.driver.id);
 
   const handleReportSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -569,6 +578,104 @@ export function RideDetailPage() {
         </div>
       </div>
 
+      {passengerBookingForRide && (
+        <section className="rounded-2xl border bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge status={passengerBookingForRide.status} />
+                <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                  Booking {passengerBookingForRide.id.slice(0, 8)}
+                </span>
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Your booking for this ride
+              </h2>
+              <p className="text-sm text-slate-600">
+                This ride page now includes your booking details, so you do not
+                need a separate booking page.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/profile/${ride.driver.id}`}>View driver profile</Link>
+            </Button>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <RouteMeta
+              icon={<Users className="h-4 w-4" />}
+              label="Seats booked"
+              value={`${passengerBookingForRide.seatsBooked}`}
+            />
+            <RouteMeta
+              icon={<Wallet className="h-4 w-4" />}
+              label="Charged"
+              value={`${passengerBookingForRide.refund.remainingCharged} NOK`}
+            />
+            <RouteMeta
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              label="Payment"
+              value={passengerBookingForRide.payment.status}
+            />
+            <RouteMeta
+              icon={<Ticket className="h-4 w-4" />}
+              label="Refunded"
+              value={`${passengerBookingForRide.refund.amount} NOK`}
+            />
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Pickup
+              </p>
+              <p className="mt-2">
+                {passengerBookingForRide.pickup?.address ?? ride.originAddress}
+              </p>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Dropoff
+              </p>
+              <p className="mt-2">
+                {passengerBookingForRide.dropoff?.address ??
+                  ride.destinationAddress}
+              </p>
+            </div>
+
+            <div className="rounded-xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Refund policy
+              </p>
+              <p className="mt-2 leading-6">
+                Full refund if cancelled more than{" "}
+                {passengerBookingForRide.cancellation.rules.fullRefundBeforeHours}{" "}
+                hours before departure,{" "}
+                {
+                  passengerBookingForRide.cancellation.rules
+                    .partialRefundPercent
+                }
+                % refund within that final window, and{" "}
+                {
+                  passengerBookingForRide.cancellation.rules
+                    .noShowRefundPercent
+                }
+                % refund for no-shows.
+              </p>
+              {passengerBookingForRide.messageToDriver && (
+                <>
+                  <p className="mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    <MessageSquareText className="h-4 w-4 text-sky-600" />
+                    Your message to the driver
+                  </p>
+                  <p className="mt-2 leading-6">
+                    {passengerBookingForRide.messageToDriver}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {canAccessRideChat && user && (
         <RideChatPanel
           rideId={ride.id}
@@ -705,23 +812,6 @@ export function RideDetailPage() {
         </div>
       )}
 
-      {!!user &&
-        ride.status !== "COMPLETED" &&
-        (isPassengerParticipant || user.id === ride.driver.id) && (
-          <section className="rounded-[30px] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.98),rgba(255,255,255,0.96))] p-6 shadow-[0_18px_50px_-42px_rgba(120,53,15,0.35)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
-              Reviews locked
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-950">
-              Ride must be completed before reviews are available.
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              Once this ride reaches completed status, review forms will appear
-              here for eligible riders and the driver.
-            </p>
-          </section>
-        )}
-
       {showDriverReviewSection && (
         <section className="space-y-4 rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
           <div className="space-y-1">
@@ -764,78 +854,80 @@ export function RideDetailPage() {
         </section>
       )}
 
-      <div className="rounded-lg border p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold">Report a ride member</p>
-            <p className="text-xs text-muted-foreground">
-              Share concerns about someone in this ride.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowReportForm((value) => !value)}
-          >
-            {showReportForm ? "Cancel" : "Report"}
-          </Button>
-        </div>
-
-        {showReportForm && (
-          <form className="mt-4 space-y-4" onSubmit={handleReportSubmit}>
-            <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Select member
-              </label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedUserId}
-                onChange={(event) => setSelectedUserId(event.target.value)}
-              >
-                <option value="">Choose a rider...</option>
-                {reportableMembers.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.id === ride.driver.id
-                      ? `Driver: ${member.name}`
-                      : member.name}
-                  </option>
-                ))}
-              </select>
-              {reportableMembers.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No other members available.
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Reason
-              </label>
-              <textarea
-                className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Share what happened and any details that might help us."
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-              />
+      {showCompletedRideMemberActions && (
+        <div className="rounded-lg border p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">Report a ride member</p>
               <p className="text-xs text-muted-foreground">
-                Minimum 10 characters.
+                Share concerns about someone in this completed ride.
               </p>
             </div>
-
-            {submitError && (
-              <p className="text-sm text-destructive">{submitError}</p>
-            )}
-
             <Button
-              type="submit"
-              disabled={!canSubmitReport || reportableMembers.length === 0}
+              type="button"
+              variant="outline"
+              onClick={() => setShowReportForm((value) => !value)}
             >
-              {isSubmitting ? "Submitting..." : "Submit report"}
+              {showReportForm ? "Cancel" : "Report"}
             </Button>
-          </form>
-        )}
-      </div>
+          </div>
+
+          {showReportForm && (
+            <form className="mt-4 space-y-4" onSubmit={handleReportSubmit}>
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Select member
+                </label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={selectedUserId}
+                  onChange={(event) => setSelectedUserId(event.target.value)}
+                >
+                  <option value="">Choose a rider...</option>
+                  {reportableMembers.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.id === ride.driver.id
+                        ? `Driver: ${member.name}`
+                        : member.name}
+                    </option>
+                  ))}
+                </select>
+                {reportableMembers.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No other members available.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Reason
+                </label>
+                <textarea
+                  className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="Share what happened and any details that might help us."
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Minimum 10 characters.
+                </p>
+              </div>
+
+              {submitError && (
+                <p className="text-sm text-destructive">{submitError}</p>
+              )}
+
+              <Button
+                type="submit"
+                disabled={!canSubmitReport || reportableMembers.length === 0}
+              >
+                {isSubmitting ? "Submitting..." : "Submit report"}
+              </Button>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 }

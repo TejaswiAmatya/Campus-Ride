@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   CalendarCheck,
@@ -8,14 +8,12 @@ import {
   UserRound,
   Wallet,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
-import { cn } from "@/lib/utils";
+
 import {
   useBookings,
   useCancelBooking,
-  useConfirmBooking,
-  useDeclineBooking,
   useUpcomingPassengerBookings,
 } from "./hooks";
 import { StatusBadge } from "./StatusBadge";
@@ -23,34 +21,14 @@ import { UpcomingRideCard } from "./UpcomingRideCard";
 import type { BookingListItem } from "./types";
 
 export function BookingsPage() {
-  const { user } = useAuth();
-  const [view, setView] = useState<"passenger" | "driver">(
-    user?.role === "DRIVER" ? "driver" : "passenger",
-  );
-  const asDriver = view === "driver";
-  const { data: bookings, isLoading } = useBookings({ asDriver });
+  const { data: bookings, isLoading } = useBookings();
   const { data: upcomingBookings = [] } = useUpcomingPassengerBookings();
-  const confirmBooking = useConfirmBooking();
-  const declineBooking = useDeclineBooking();
   const cancelBooking = useCancelBooking();
-  const safeUpcomingBookings = asDriver ? [] : upcomingBookings;
-
-  useEffect(() => {
-    if (user?.role === "DRIVER") {
-      setView("driver");
-    }
-  }, [user?.role]);
 
   const passengerActivity = useMemo(() => {
-    if (asDriver) {
-      return [];
-    }
-
-    const upcomingIds = new Set(
-      safeUpcomingBookings.map((booking) => booking.id),
-    );
+    const upcomingIds = new Set(upcomingBookings.map((booking) => booking.id));
     return (bookings ?? []).filter((booking) => !upcomingIds.has(booking.id));
-  }, [asDriver, bookings, safeUpcomingBookings]);
+  }, [bookings, upcomingBookings]);
 
   return (
     <div className="space-y-6">
@@ -61,57 +39,26 @@ export function BookingsPage() {
               Trips
             </p>
             <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-              Bookings and ride requests
+              Your bookings
             </h1>
             <p className="max-w-2xl text-sm text-slate-600">
-              Passengers can follow every update in one place, and drivers can
-              quickly accept the right riders.
+              Track your upcoming rides, pending requests, completed trips, and
+              cancellations in one place.
             </p>
           </div>
-
-          {user?.role === "DRIVER" && (
-            <div className="inline-flex rounded-xl border bg-white/90 p-1 shadow-sm">
-              <button
-                type="button"
-                onClick={() => setView("passenger")}
-                className={cn(
-                  "rounded-lg px-4 py-2 text-sm font-medium transition",
-                  view === "passenger"
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100",
-                )}
-              >
-                My bookings
-              </button>
-              <button
-                type="button"
-                onClick={() => setView("driver")}
-                className={cn(
-                  "rounded-lg px-4 py-2 text-sm font-medium transition",
-                  view === "driver"
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100",
-                )}
-              >
-                Driver requests
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
-      {!asDriver && (
-        <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
-          <p className="flex items-center gap-2 font-medium text-foreground">
-            <Wallet className="h-4 w-4 text-primary" />
-            Cancellation refund policy
-          </p>
-          <p className="mt-2 text-muted-foreground">
-            Cancel more than 2 hours before departure for a full refund, cancel
-            within 2 hours for a 50% refund, and no-shows receive no refund.
-          </p>
-        </div>
-      )}
+      <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
+        <p className="flex items-center gap-2 font-medium text-foreground">
+          <Wallet className="h-4 w-4 text-primary" />
+          Cancellation refund policy
+        </p>
+        <p className="mt-2 text-muted-foreground">
+          Cancel more than 2 hours before departure for a full refund, cancel
+          within 2 hours for a 50% refund, and no-shows receive no refund.
+        </p>
+      </div>
 
       {isLoading ? (
         <div className="space-y-3">
@@ -125,15 +72,11 @@ export function BookingsPage() {
       ) : (bookings ?? []).length === 0 ? (
         <div className="rounded-2xl border border-dashed p-12 text-center">
           <CalendarCheck className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
-          <p className="text-muted-foreground">
-            {view === "passenger"
-              ? "No bookings yet."
-              : "No ride requests waiting right now."}
-          </p>
+          <p className="text-muted-foreground">No bookings yet.</p>
         </div>
       ) : (
         <>
-          {!asDriver && safeUpcomingBookings.length > 0 && (
+          {upcomingBookings.length > 0 && (
             <section className="space-y-4">
               <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
@@ -149,7 +92,7 @@ export function BookingsPage() {
               </div>
 
               <div className="space-y-4">
-                {safeUpcomingBookings.map((booking) => (
+                {upcomingBookings.map((booking) => (
                   <UpcomingRideCard
                     key={booking.id}
                     booking={booking}
@@ -165,56 +108,38 @@ export function BookingsPage() {
           )}
 
           <section className="space-y-4">
-            {!asDriver && (
-              <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-slate-950">
-                  {passengerActivity.length > 0 ||
-                  safeUpcomingBookings.length === 0
-                    ? "All booking activity"
-                    : "Past and pending activity"}
-                </h2>
-                <p className="text-sm text-slate-600">
-                  Requests still waiting on a driver, completed trips, and any
-                  cancellations stay here for reference.
-                </p>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              {(asDriver ? (bookings ?? []) : passengerActivity).map(
-                (booking) => (
-                  <BookingCard
-                    key={booking.id}
-                    booking={booking}
-                    view={view}
-                    onCancel={() => cancelBooking.mutate(booking.id)}
-                    onConfirm={() => confirmBooking.mutate(booking.id)}
-                    onDecline={() => declineBooking.mutate(booking.id)}
-                    cancelPending={
-                      cancelBooking.isPending &&
-                      cancelBooking.variables === booking.id
-                    }
-                    confirmPending={
-                      confirmBooking.isPending &&
-                      confirmBooking.variables === booking.id
-                    }
-                    declinePending={
-                      declineBooking.isPending &&
-                      declineBooking.variables === booking.id
-                    }
-                  />
-                ),
-              )}
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold text-slate-950">
+                {passengerActivity.length > 0 || upcomingBookings.length === 0
+                  ? "All booking activity"
+                  : "Past and pending activity"}
+              </h2>
+              <p className="text-sm text-slate-600">
+                Requests still waiting on a driver, completed trips, and any
+                cancellations stay here for reference.
+              </p>
             </div>
 
-            {!asDriver &&
-              passengerActivity.length === 0 &&
-              safeUpcomingBookings.length > 0 && (
-                <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                  Everything else is clear right now. Your confirmed upcoming
-                  rides are shown above.
-                </div>
-              )}
+            <div className="space-y-4">
+              {passengerActivity.map((booking) => (
+                <BookingCard
+                  key={booking.id}
+                  booking={booking}
+                  onCancel={() => cancelBooking.mutate(booking.id)}
+                  cancelPending={
+                    cancelBooking.isPending &&
+                    cancelBooking.variables === booking.id
+                  }
+                />
+              ))}
+            </div>
+
+            {passengerActivity.length === 0 && upcomingBookings.length > 0 && (
+              <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                Everything else is clear right now. Your confirmed upcoming
+                rides are shown above.
+              </div>
+            )}
           </section>
         </>
       )}
@@ -224,40 +149,21 @@ export function BookingsPage() {
 
 function BookingCard({
   booking,
-  view,
   onCancel,
-  onConfirm,
-  onDecline,
   cancelPending,
-  confirmPending,
-  declinePending,
 }: {
   booking: BookingListItem;
-  view: "passenger" | "driver";
   onCancel: () => void;
-  onConfirm: () => void;
-  onDecline: () => void;
   cancelPending: boolean;
-  confirmPending: boolean;
-  declinePending: boolean;
 }) {
-  const isPassenger = view === "passenger";
   const message =
     booking.status === "CONFIRMED"
-      ? isPassenger
-        ? "Your driver has accepted the ride. You are all set for pickup."
-        : "This passenger is approved and counted into your ride plan."
+      ? "Your driver has accepted the ride. You are all set for pickup."
       : booking.status === "COMPLETED"
-        ? isPassenger
-          ? "Ride completed. You reached your destination."
-          : "Ride completed. Earnings from this passenger are now part of your trip summary."
+        ? "Ride completed. You reached your destination."
         : booking.status === "CANCELLED"
-          ? isPassenger
-            ? "This booking is no longer active."
-            : "This request was closed and is no longer travelling with you."
-          : isPassenger
-            ? "Waiting for the driver to accept your booking request."
-            : "Review this request and choose whether to accept the passenger.";
+          ? "This booking is no longer active."
+          : "Waiting for the driver to accept your booking request.";
 
   return (
     <div className="rounded-2xl border bg-white p-5 shadow-sm">
@@ -300,76 +206,46 @@ function BookingCard({
               {booking.seatsBooked} seat{booking.seatsBooked > 1 ? "s" : ""}
             </MetaItem>
             <MetaItem icon={<Wallet className="h-4 w-4" />}>
-              {isPassenger
-                ? `${booking.totalFare} NOK total`
-                : `${booking.driverEarnings} NOK earned`}
+              {booking.totalFare} NOK total
             </MetaItem>
             <MetaItem icon={<CheckCircle2 className="h-4 w-4" />}>
-              {isPassenger
-                ? `Driver: ${booking.ride.driver.name}`
-                : `Passenger: ${booking.passenger?.name ?? "Unknown"}`}
+              Driver: {booking.ride.driver.name}
             </MetaItem>
           </div>
 
-          {view === "passenger" && (
-            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-              <span>Payment: {booking.payment.status}</span>
-              {booking.status === "CANCELLED" && (
-                <>
-                  <span>Refunded: {booking.refund.amount} NOK</span>
-                  <span>
-                    Policy:{" "}
-                    {booking.cancellation.policyApplied
-                      ? booking.cancellation.policyApplied.replace("_", " ")
-                      : "N/A"}
-                  </span>
-                </>
-              )}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span>Payment: {booking.payment.status}</span>
+            {booking.status === "CANCELLED" && (
+              <>
+                <span>Refunded: {booking.refund.amount} NOK</span>
+                <span>
+                  Policy:{" "}
+                  {booking.cancellation.policyApplied
+                    ? booking.cancellation.policyApplied.replace("_", " ")
+                    : "N/A"}
+                </span>
+              </>
+            )}
+          </div>
 
-          {view === "passenger" && (
-            <p className="text-xs text-muted-foreground">
-              Driver: {booking.ride.driver.name}
-            </p>
-          )}
-          {view === "driver" && booking.passenger && (
-            <p className="text-xs text-muted-foreground">
-              Passenger: {booking.passenger.name}
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            Driver: {booking.ride.driver.name}
+          </p>
         </div>
 
         <div className="flex shrink-0 flex-col gap-2 lg:items-end">
           <Button asChild variant="outline">
-            <Link to={`/bookings/${booking.id}`}>Open details</Link>
+            <Link to={`/rides/${booking.ride.id}`}>Open details</Link>
           </Button>
 
-          {isPassenger &&
-            (booking.status === "PENDING" ||
-              booking.status === "CONFIRMED") && (
-              <Button
-                variant="destructive"
-                disabled={cancelPending}
-                onClick={onCancel}
-              >
-                {cancelPending ? "Cancelling..." : "Cancel booking"}
-              </Button>
-            )}
-
-          {!isPassenger && booking.status === "PENDING" && (
-            <div className="flex gap-2">
-              <Button disabled={confirmPending} onClick={onConfirm}>
-                {confirmPending ? "Accepting..." : "Accept"}
-              </Button>
-              <Button
-                variant="outline"
-                disabled={declinePending}
-                onClick={onDecline}
-              >
-                {declinePending ? "Declining..." : "Decline"}
-              </Button>
-            </div>
+          {(booking.status === "PENDING" || booking.status === "CONFIRMED") && (
+            <Button
+              variant="destructive"
+              disabled={cancelPending}
+              onClick={onCancel}
+            >
+              {cancelPending ? "Cancelling..." : "Cancel booking"}
+            </Button>
           )}
         </div>
       </div>

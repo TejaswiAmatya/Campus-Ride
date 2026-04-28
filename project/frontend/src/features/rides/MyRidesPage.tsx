@@ -117,6 +117,10 @@ export function MyRidesPage() {
   const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<
     string[]
   >([]);
+  const visibleRides = useMemo(
+    () => (rides ?? []).filter((ride) => ride.status !== "COMPLETED"),
+    [rides],
+  );
 
   if (!user || user.role !== "DRIVER") {
     return (
@@ -126,11 +130,11 @@ export function MyRidesPage() {
     );
   }
 
-  const totals = (rides ?? []).reduce(
+  const totals = visibleRides.reduce(
     (acc, ride) => {
       acc.rides += 1;
-      acc.earned += Number(ride.stats?.completedEarnings ?? 0);
-      acc.passengers += ride.stats?.completedPassengers ?? 0;
+      acc.earned += Number(ride.stats?.totalEarnings ?? 0);
+      acc.passengers += ride.stats?.totalPassengers ?? 0;
       acc.pending += ride.stats?.pendingRequests ?? 0;
       return acc;
     },
@@ -181,14 +185,14 @@ export function MyRidesPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <DriverMetric
-          title="Completed earnings"
+          title="Visible ride earnings"
           value={`${totals.earned.toFixed(2)} NOK`}
-          helper="Across completed rides"
+          helper="Projected across visible rides"
         />
         <DriverMetric
-          title="Passengers travelled"
+          title="Passengers booked"
           value={`${totals.passengers}`}
-          helper="Completed seats moved"
+          helper="Across not completed rides"
         />
         <DriverMetric
           title="Open requests"
@@ -196,9 +200,9 @@ export function MyRidesPage() {
           helper="Need driver action"
         />
         <DriverMetric
-          title="Total rides"
+          title="Current rides"
           value={`${totals.rides}`}
-          helper="Scheduled and past rides"
+          helper="Not completed yet"
         />
       </div>
 
@@ -211,16 +215,17 @@ export function MyRidesPage() {
             />
           ))}
         </div>
-      ) : (rides ?? []).length === 0 ? (
+      ) : visibleRides.length === 0 ? (
         <div className="rounded-2xl border border-dashed p-12 text-center">
           <CarFront className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
           <p className="text-muted-foreground">
-            You have not posted any rides yet.
+            No unfinished rides right now. Completed rides are listed in
+            earnings.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {(rides ?? []).map((ride) => (
+          {visibleRides.map((ride) => (
             <RideCard
               key={ride.id}
               ride={ride}
@@ -436,6 +441,9 @@ function RideCard({
         </div>
 
         <div className="flex flex-wrap gap-2 xl:justify-end">
+          <Button asChild variant="outline">
+            <Link to={`/driver/rides/${ride.id}`}>Open details</Link>
+          </Button>
           {showRequestsToggle && (
             <Button variant="outline" onClick={onToggleExpanded}>
               {isExpanded ? (

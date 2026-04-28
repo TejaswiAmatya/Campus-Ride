@@ -293,7 +293,11 @@ export function useUpcomingPassengerBookings() {
           return false;
         }
 
-        return new Date(booking.ride.departureTime).getTime() > Date.now();
+        return (
+          booking.ride.status === "OPEN" ||
+          booking.ride.status === "FULL" ||
+          booking.ride.status === "IN_PROGRESS"
+        );
       })
       .sort(
         (left, right) =>
@@ -338,7 +342,7 @@ export function useBookRide() {
     onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: ["bookings"] });
       void queryClient.invalidateQueries({ queryKey: ["rides"] });
-      navigate(`/bookings/${data.id}`);
+      navigate(`/rides/${data.ride.id}`);
     },
   });
 }
