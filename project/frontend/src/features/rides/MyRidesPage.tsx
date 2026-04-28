@@ -32,7 +32,6 @@ import {
   useMyRides,
   useStartRide,
   useUpdateRide,
-  useUpdateRideStatus,
 } from "./hooks";
 import type { Ride, RideBooking, RideStatusUpdate } from "./types";
 const rideStatusLabels: Record<Ride["status"], string> = {
@@ -107,9 +106,17 @@ export function MyRidesPage() {
   const confirmBooking = useConfirmBooking();
   const declineBooking = useDeclineBooking();
   const createReview = useCreateReview();
+  const markBookingPickedUp = useMarkBookingPickedUp();
+  const markBookingNoShow = useMarkBookingNoShow();
   const [expandedRideId, setExpandedRideId] = useState<string | null>(null);
   const [rideToCancel, setRideToCancel] = useState<Ride | null>(null);
   const [rideToEdit, setRideToEdit] = useState<Ride | null>(null);
+  const [locallyPickedUpBookingIds, setLocallyPickedUpBookingIds] = useState<
+    string[]
+  >([]);
+  const [locallyNoShowBookingIds, setLocallyNoShowBookingIds] = useState<
+    string[]
+  >([]);
 
   if (!user || user.role !== "DRIVER") {
     return (
@@ -129,6 +136,20 @@ export function MyRidesPage() {
     },
     { rides: 0, earned: 0, passengers: 0, pending: 0 },
   );
+  const pickedUpSet = useMemo(
+    () => new Set(locallyPickedUpBookingIds),
+    [locallyPickedUpBookingIds],
+  );
+  const noShowSet = useMemo(
+    () => new Set(locallyNoShowBookingIds),
+    [locallyNoShowBookingIds],
+  );
+  const pickupPendingBookingId = markBookingPickedUp.isPending
+    ? (markBookingPickedUp.variables ?? null)
+    : null;
+  const noShowPendingBookingId = markBookingNoShow.isPending
+    ? (markBookingNoShow.variables ?? null)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -211,6 +232,10 @@ export function MyRidesPage() {
               isConfirming={confirmBooking.isPending}
               isDeclining={declineBooking.isPending}
               isReviewing={createReview.isPending}
+              locallyPickedUpBookingIds={pickedUpSet}
+              locallyNoShowBookingIds={noShowSet}
+              pickupPendingBookingId={pickupPendingBookingId}
+              noShowPendingBookingId={noShowPendingBookingId}
               onToggleExpanded={() =>
                 setExpandedRideId((current) =>
                   current === ride.id ? null : ride.id,
@@ -234,7 +259,7 @@ export function MyRidesPage() {
                 createReview.mutate({ bookingId, rating })
               }
               onMarkPickedUp={(bookingId) =>
-                useMarkBookingPickedUp().mutate(bookingId, {
+                markBookingPickedUp.mutate(bookingId, {
                   onSuccess: () =>
                     setLocallyPickedUpBookingIds((current) =>
                       current.includes(bookingId)
@@ -244,7 +269,7 @@ export function MyRidesPage() {
                 })
               }
               onMarkNoShow={(bookingId) =>
-                useMarkBookingNoShow().mutate(bookingId, {
+                markBookingNoShow.mutate(bookingId, {
                   onSuccess: () =>
                     setLocallyNoShowBookingIds((current) =>
                       current.includes(bookingId)
