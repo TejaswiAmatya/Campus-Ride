@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Car } from "lucide-react";
+import { AuthPageLayout } from "@/features/auth/components/AuthPageLayout";
 import { useAuth, useLogin } from "@/features/auth/hooks/useAuth";
 import { getDefaultRoute } from "@/features/auth/lib/routing";
 import { useAuthStore } from "@/store/authStore";
@@ -69,16 +70,16 @@ export function LoginPage() {
   };
 
   return (
-    <div className="mx-auto max-w-sm mt-16 px-4">
-      <div className="mb-8 text-center">
-        <Car className="mx-auto h-10 w-10 text-primary mb-3" />
+    <AuthPageLayout>
+      <div className="mb-8 flex flex-col items-center gap-6 text-center">
+        <Car className="h-10 w-10 text-primary" />
         <h1 className="text-2xl font-bold">Welcome back</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground">
           Sign in to Campus Ride
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="mx-auto w-[95%] space-y-4">
         {confirmed && (
           <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
             Your email is confirmed. You can sign in now.
@@ -148,6 +149,6 @@ export function LoginPage() {
           Create one
         </Link>
       </p>
-    </div>
+    </AuthPageLayout>
   );
 }
