@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Car } from 'lucide-react'
+import { AuthPageLayout } from '@/features/auth/components/AuthPageLayout'
 import { useRegister } from '@/features/auth/hooks/useAuth'
 
 export function RegisterPage() {
@@ -16,16 +17,16 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="mx-auto max-w-sm mt-12 px-4">
-      <div className="mb-8 text-center">
-        <Car className="mx-auto h-10 w-10 text-primary mb-3" />
+    <AuthPageLayout>
+      <div className="mb-8 flex flex-col items-center gap-6 text-center">
+        <Car className="h-10 w-10 text-primary" />
         <h1 className="text-2xl font-bold">Create your account</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground">
           A university email address is required
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="mx-auto w-[95%] space-y-4">
         <div>
           <label htmlFor="name" className="block text-sm font-medium mb-1">
             Full name
@@ -114,6 +115,6 @@ export function RegisterPage() {
           Sign in
         </Link>
       </p>
-    </div>
+    </AuthPageLayout>
   )
 }
