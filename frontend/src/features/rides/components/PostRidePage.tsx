@@ -286,8 +286,8 @@ export function PostRidePage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center gap-2">
-        <Car className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Post a Ride</h1>
+        <Car className="h-6 w-6 text-foreground" />
+        <h1 className="font-display text-display-lg">Post a Ride</h1>
       </div>
 
       <div className="space-y-3">
@@ -307,7 +307,7 @@ export function PostRidePage() {
           </span>
         </div>
         {(isLoadingRoute || routePreview || routeError) && (
-          <div className="grid gap-3 rounded-2xl border bg-slate-50 p-4 sm:grid-cols-3">
+          <div className="grid gap-3 rounded-xl bg-soft p-4 sm:grid-cols-3">
             <RouteStat
               icon={<Map className="h-4 w-4" />}
               label="Distance"
@@ -318,7 +318,7 @@ export function PostRidePage() {
               label="Drive time"
               value={routePreview ? formatRouteDuration(routePreview.durationSeconds) : isLoadingRoute ? 'Loading...' : 'Unavailable'}
             />
-            <div className="rounded-xl border bg-white px-3 py-3 text-sm text-slate-600">
+            <div className="rounded-xl bg-background px-3 py-3 text-sm text-muted-foreground">
               {routeError
                 ? routeError
                 : routePreview
@@ -330,14 +330,14 @@ export function PostRidePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="rounded-lg border p-4">
+        <div className="rounded-xl bg-soft p-4">
           <div className="flex flex-wrap gap-2">
             {(['ONE_TIME', 'RECURRING'] as const).map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => setForm((prev) => ({ ...prev, offerType: option }))}
-                className={`rounded-full border px-3 py-1.5 text-sm transition ${form.offerType === option ? 'border-slate-900 bg-slate-900 text-white' : 'hover:bg-muted'}`}
+                className={`rounded-pill px-3 py-1.5 text-sm font-medium transition ${form.offerType === option ? 'bg-primary text-foreground-foreground' : 'bg-background hover:bg-border'}`}
               >
                 {option === 'ONE_TIME' ? 'One-time ride' : 'Recurring ride'}
               </button>
@@ -369,7 +369,7 @@ export function PostRidePage() {
               value={form.departureTime}
               onChange={setField('departureTime')}
               required
-              className="w-full rounded-md border border-input px-3 py-2 text-sm"
+              className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
             />
           </div>
           <SeatSelector value={form.totalSeats} onChange={(value) => setForm((prev) => ({ ...prev, totalSeats: value }))} />
@@ -383,7 +383,7 @@ export function PostRidePage() {
               onChange={setField('pricePerSeat')}
               placeholder="50"
               required
-              className="w-full rounded-md border border-input px-3 py-2 text-sm"
+              className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
             />
           </div>
         </div>
@@ -398,12 +398,12 @@ export function PostRidePage() {
               step="1"
               value={form.detourFlexibilityKm}
               onChange={setField('detourFlexibilityKm')}
-              className="w-full rounded-md border border-input px-3 py-2 text-sm"
+              className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
             />
           </div>
 
           {form.offerType === 'RECURRING' && (
-            <div className="rounded-lg border p-4">
+            <div className="rounded-xl bg-soft p-4">
               <div className="mb-3 flex items-center gap-2 text-sm font-medium">
                 <Repeat className="h-4 w-4" />
                 Recurrence
@@ -416,7 +416,7 @@ export function PostRidePage() {
                     recurrencePattern: event.target.value as RideRecurrencePattern,
                   }))
                 }
-                className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
               >
                 <option value="DAILY">Daily</option>
                 <option value="WEEKLY">Weekly</option>
@@ -436,7 +436,7 @@ export function PostRidePage() {
                             : [...prev.recurrenceDays, day.value].sort((a, b) => a - b),
                         }))
                       }
-                      className={`rounded-full border px-3 py-1 text-sm ${form.recurrenceDays.includes(day.value) ? 'border-slate-900 bg-slate-900 text-white' : 'hover:bg-muted'}`}
+                      className={`rounded-pill px-3 py-1 text-sm font-medium ${form.recurrenceDays.includes(day.value) ? 'bg-primary text-foreground-foreground' : 'bg-background hover:bg-border'}`}
                     >
                       {day.label}
                     </button>
@@ -449,7 +449,7 @@ export function PostRidePage() {
                   type="date"
                   value={form.recurrenceEndDate}
                   onChange={(event) => setForm((prev) => ({ ...prev, recurrenceEndDate: event.target.value }))}
-                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                  className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
                 />
               </div>
             </div>
@@ -471,7 +471,7 @@ export function PostRidePage() {
         <button
           type="submit"
           disabled={postRide.isPending}
-          className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="w-full rounded-pill bg-primary px-4 py-3 text-base font-medium text-foreground-foreground transition-colors hover:bg-elevated disabled:opacity-50"
         >
           {postRide.isPending ? 'Posting…' : form.offerType === 'RECURRING' ? 'Create recurring ride offer' : 'Post ride'}
         </button>
@@ -482,12 +482,12 @@ export function PostRidePage() {
 
 function RouteStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-xl border bg-white px-3 py-3">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+    <div className="rounded-xl bg-background px-3 py-3">
+      <div className="flex items-center gap-2 text-xs font-medium text-mute">
         {icon}
         <span>{label}</span>
       </div>
-      <p className="mt-2 text-sm font-medium text-slate-900">{value}</p>
+      <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
     </div>
   )
 }

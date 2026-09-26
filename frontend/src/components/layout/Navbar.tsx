@@ -1,19 +1,6 @@
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import {
-  Car,
-  MapPin,
-  CalendarCheck,
-  User,
-  LayoutDashboard,
-  CheckCircle,
-  FileWarning,
-  PlusCircle,
-  Wallet,
-  Bell,
-  Settings,
-  ShieldAlert,
-  Megaphone,
-} from "lucide-react";
+import { Car, User, Bell, LogOut } from "lucide-react";
 import { useAuth, useLogout } from "@/features/auth/hooks/useAuth";
 import {
   canAccessDriverRoutes,
@@ -29,164 +16,83 @@ export function Navbar() {
   const pendingDriver = !!user && isDriverPending(user);
 
   const passengerNav = [
-    {
-      to: "/dashboard",
-      icon: <LayoutDashboard className="h-4 w-4" />,
-      label: "Dashboard",
-    },
-    { to: "/rides", icon: <MapPin className="h-4 w-4" />, label: "Rides" },
-    {
-      to: "/bookings",
-      icon: <CalendarCheck className="h-4 w-4" />,
-      label: "Bookings",
-    },
-    { to: "/profile", icon: <User className="h-4 w-4" />, label: "Profile" },
+    { to: "/dashboard", label: "Dashboard" },
+    { to: "/rides", label: "Rides" },
+    { to: "/bookings", label: "Bookings" },
   ];
 
   const driverNav = [
-    {
-      to: "/driver/dashboard",
-      icon: <LayoutDashboard className="h-4 w-4" />,
-      label: "Driver Dashboard",
-    },
-    {
-      to: "/driver/rides",
-      icon: <Car className="h-4 w-4" />,
-      label: "My Rides",
-    },
-    {
-      to: "/driver/rides/new",
-      icon: <PlusCircle className="h-4 w-4" />,
-      label: "Post Ride",
-    },
-    {
-      to: "/driver/earnings",
-      icon: <Wallet className="h-4 w-4" />,
-      label: "Earnings",
-    },
-    { to: "/profile", icon: <User className="h-4 w-4" />, label: "Profile" },
+    { to: "/driver/dashboard", label: "Driver Dashboard" },
+    { to: "/driver/rides", label: "My Rides" },
+    { to: "/driver/rides/new", label: "Post Ride" },
+    { to: "/driver/earnings", label: "Earnings" },
   ];
 
   const adminNav = [
-    {
-      to: "/admin",
-      icon: <LayoutDashboard className="h-4 w-4" />,
-      label: "Admin",
-    },
-    { to: "/profile", icon: <User className="h-4 w-4" />, label: "Profile" },
+    { to: "/admin", label: "Admin" },
+    { to: "/admin/approvals", label: "Approvals" },
+    { to: "/admin/reports", label: "Reports" },
+    { to: "/admin/health", label: "Health" },
+    { to: "/admin/announcements", label: "Send Announcement" },
+    { to: "/admin/settings", label: "Settings" },
   ];
 
   const navItems = !user
     ? []
-    : isApprovedDriver
-      ? driverNav
-      : user.role === "ADMIN"
-        ? adminNav
+    : isAdmin
+      ? adminNav
+      : isApprovedDriver
+        ? driverNav
         : passengerNav;
 
   return (
-    <nav className="sticky top-0 z-50 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-      <div className="container mx-auto flex h-14 items-center justify-between px-4">
-        {/* Brand */}
+    <nav className="sticky top-0 z-50 border-b border-border bg-background">
+      <div className="flex h-16 w-full items-center gap-4 pl-[5%] pr-3 sm:pr-4 lg:pr-5">
         <Link
           to="/dashboard"
-          className="flex items-center gap-2 font-bold text-primary"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-primary text-primary-foreground transition-colors hover:bg-elevated"
+          aria-label="Campus Ride home"
         >
-          <Car className="h-5 w-5" />
-          <span>Campus Ride</span>
+          <Car className="h-4 w-4" />
         </Link>
 
-        {/* Nav links */}
         {isAuthenticated ? (
-          <div className="flex items-center gap-2">
-            {isAdmin ? (
-              <div className="hidden items-center gap-1 lg:flex">
-                <RouteNavLink
-                  to="/admin"
-                  icon={<LayoutDashboard className="h-4 w-4" />}
-                  label="Admin"
-                />
-                <RouteNavLink
-                  to="/admin/approvals"
-                  icon={<CheckCircle className="h-4 w-4" />}
-                  label="Approvals"
-                />
-                <RouteNavLink
-                  to="/admin/reports"
-                  icon={<FileWarning className="h-4 w-4" />}
-                  label="Reports"
-                />
-                <RouteNavLink
-                  to="/admin/health"
-                  icon={<ShieldAlert className="h-4 w-4" />}
-                  label="Health"
-                />
-                <RouteNavLink
-                  to="/admin/announcements"
-                  icon={<Megaphone className="h-4 w-4" />}
-                  label="Send Announcement"
-                />
-                <RouteNavLink
-                  to="/admin/settings"
-                  icon={<Settings className="h-4 w-4" />}
-                  label="Settings"
-                />
-              </div>
-            ) : (
-              <>
-                <div className="hidden items-center gap-1 lg:flex">
-                  {navItems.map((item) => (
-                    <RouteNavLink
-                      key={item.to}
-                      to={item.to}
-                      icon={item.icon}
-                      label={item.label}
-                    />
-                  ))}
-                </div>
+          <>
+            <div className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">
+              {navItems.map((item) => (
+                <RouteNavLink key={item.to} to={item.to} label={item.label} />
+              ))}
+            </div>
 
-                {pendingDriver ? (
-                  <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
-                    Driver Pending
-                  </span>
-                ) : null}
+            <div className="ml-auto flex items-center gap-2">
+              {pendingDriver ? (
+                <span className="rounded-pill bg-warning px-3 py-1 text-xs font-medium text-warning-foreground">
+                  Driver Pending
+                </span>
+              ) : null}
 
-                <Link
-                  to="/profile"
-                  className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
-                  aria-label="Profile"
-                >
-                  <User className="h-4 w-4" />
-                </Link>
+              <ProfileMenu onLogout={logout} />
 
-                <button
-                  type="button"
-                  className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
-                  aria-label="Notifications"
-                >
-                  <Bell className="h-4 w-4" />
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={logout}
-              className="rounded-md px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-            >
-              Logout
-            </button>
-          </div>
+              <button
+                type="button"
+                className="flex h-10 w-10 items-center justify-center rounded-pill bg-soft text-foreground transition-colors hover:bg-border"
+                aria-label="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+              </button>
+            </div>
+          </>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             <Link
               to="/auth/login"
-              className="rounded-md px-3 py-1.5 text-sm hover:bg-secondary transition-colors"
+              className="rounded-pill px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-soft"
             >
               Sign in
             </Link>
             <Link
               to="/auth/register"
-              className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="rounded-pill bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-elevated"
             >
               Register
             </Link>
@@ -197,29 +103,91 @@ export function Navbar() {
   );
 }
 
-function RouteNavLink({
-  to,
-  icon,
-  label,
-}: {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
-}) {
+function RouteNavLink({ to, label }: { to: string; label: string }) {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
-          isActive
-            ? "bg-primary/10 text-primary"
-            : "hover:bg-secondary hover:text-secondary-foreground",
+          "rounded-pill px-3 py-2 text-sm font-medium text-foreground transition-colors",
+          isActive ? "bg-soft" : "hover:bg-soft",
         )
       }
     >
-      {icon}
-      <span className="hidden sm:inline">{label}</span>
+      {label}
     </NavLink>
+  );
+}
+
+function ProfileMenu({ onLogout }: { onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const menuId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        className="flex h-10 w-10 items-center justify-center rounded-pill bg-soft text-foreground transition-colors hover:bg-border"
+        aria-label="Profile menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <User className="h-4 w-4" />
+      </button>
+
+      {open ? (
+        <div
+          id={menuId}
+          role="menu"
+          className="absolute right-0 top-full z-50 mt-2 min-w-[10rem] overflow-hidden rounded-xl bg-card py-1 shadow-elev-2"
+        >
+          <Link
+            to="/profile"
+            role="menuitem"
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-soft"
+            onClick={() => setOpen(false)}
+          >
+            <User className="h-4 w-4" />
+            Profile
+          </Link>
+          <button
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, LocateFixed, MapPin, SlidersHorizontal, Star, Users } from 'lucide-react'
 import { MapView } from '@/features/rides/components/MapView'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { reverseGeocode, type GeocodingSuggestion } from '../lib/geocoding'
 import { useSearchRides } from '../hooks/useRides'
@@ -93,20 +94,15 @@ export function SearchRidesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl border bg-gradient-to-r from-sky-50 via-white to-emerald-50">
-        <div className="flex flex-col gap-4 p-6 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">Ride search</p>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Find the best ride for your route</h1>
-            <p className="max-w-2xl text-sm text-slate-600">
-              Match by pickup, drop-off, timing, seats, route fit, and ride preferences instead of plain distance alone.
-            </p>
-          </div>
-        </div>
+      <div className="space-y-2">
+        <h1 className="font-display text-display-lg text-foreground">Find the best ride for your route</h1>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Match by pickup, drop-off, timing, seats, route fit, and ride preferences instead of plain distance alone.
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="space-y-4 rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="space-y-4 rounded-xl bg-background p-4 shadow-elev-2">
           <RouteInputForm
             origin={pickup}
             destination={dropoff}
@@ -119,24 +115,23 @@ export function SearchRidesPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium">Travel date</label>
-              <input
+              <Input
                 type="date"
                 value={filters.date}
                 onChange={(event) => setFilters((prev) => ({ ...prev, date: event.target.value }))}
-                className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Seats needed</label>
               <div className="relative">
-                <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
+                <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
+                <Input
                   type="number"
                   min="1"
                   max="8"
                   value={seats}
                   onChange={(event) => setSeats(event.target.value)}
-                  className="w-full rounded-md border border-input py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="pl-9"
                 />
               </div>
             </div>
@@ -147,7 +142,7 @@ export function SearchRidesPage() {
 
         <div className="space-y-3">
           <MapView markers={markers} height="h-80" onMapClick={handleMapClick} />
-          <div className="flex items-center gap-2 rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <div className="flex items-center gap-2 rounded-xl bg-soft px-4 py-3 text-sm text-muted-foreground">
             <LocateFixed className="h-4 w-4" />
             {mapSelectionTarget
               ? `Click the map to place the ${mapSelectionTarget === 'origin' ? 'pickup' : 'drop-off'}.`
@@ -156,7 +151,7 @@ export function SearchRidesPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border">
+      <div className="rounded-xl bg-soft">
         <button
           type="button"
           onClick={() => setShowAdvancedFilters((value) => !value)}
@@ -174,25 +169,25 @@ export function SearchRidesPage() {
         </button>
 
         {showAdvancedFilters && (
-          <div className="grid grid-cols-1 gap-4 border-t px-4 py-4 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 border-t border-border px-4 py-4 md:grid-cols-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Price range (NOK)</label>
               <div className="grid grid-cols-2 gap-2">
-                <input
+                <Input
                   type="number"
                   min="0"
                   placeholder="Min"
                   value={filters.minPrice}
                   onChange={(event) => setFilters((prev) => ({ ...prev, minPrice: event.target.value }))}
-                  className="rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="bg-softer"
                 />
-                <input
+                <Input
                   type="number"
                   min="0"
                   placeholder="Max"
                   value={filters.maxPrice}
                   onChange={(event) => setFilters((prev) => ({ ...prev, maxPrice: event.target.value }))}
-                  className="rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="bg-softer"
                 />
               </div>
             </div>
@@ -200,17 +195,17 @@ export function SearchRidesPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Departure window</label>
               <div className="grid grid-cols-1 gap-2">
-                <input
+                <Input
                   type="datetime-local"
                   value={filters.earliestDepartureTime}
                   onChange={(event) => setFilters((prev) => ({ ...prev, earliestDepartureTime: event.target.value }))}
-                  className="rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="bg-softer"
                 />
-                <input
+                <Input
                   type="datetime-local"
                   value={filters.latestDepartureTime}
                   onChange={(event) => setFilters((prev) => ({ ...prev, latestDepartureTime: event.target.value }))}
-                  className="rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="bg-softer"
                 />
               </div>
             </div>
@@ -251,7 +246,7 @@ export function SearchRidesPage() {
                     sortBy: event.target.value as 'bestMatch' | 'departureTime' | 'price' | 'rating',
                   }))
                 }
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex h-12 w-full rounded-md border-0 bg-softer px-4 py-4 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <option value="bestMatch">Best match</option>
                 <option value="departureTime">Departure time</option>
@@ -266,12 +261,12 @@ export function SearchRidesPage() {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((item) => (
-            <div key={item} className="h-24 animate-pulse rounded-lg border bg-muted" />
+            <div key={item} className="h-24 animate-pulse rounded-xl bg-soft" />
           ))}
         </div>
       ) : visibleRides.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center">
-          <MapPin className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+        <div className="rounded-xl border border-dashed border-border p-12 text-center">
+          <MapPin className="mx-auto mb-3 h-10 w-10 text-mute" />
           <p className="text-muted-foreground">No rides found. Try another date or location.</p>
         </div>
       ) : (

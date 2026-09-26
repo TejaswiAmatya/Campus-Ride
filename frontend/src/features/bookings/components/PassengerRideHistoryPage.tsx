@@ -17,7 +17,7 @@ export function PassengerRideHistoryPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Ride history</h1>
+        <h1 className="font-display text-display-lg text-foreground">Ride history</h1>
         <p className="text-sm text-muted-foreground">
           Review your completed and cancelled rides.
         </p>
@@ -28,13 +28,13 @@ export function PassengerRideHistoryPage() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-28 animate-pulse rounded-lg border bg-muted"
+              className="h-28 animate-pulse rounded-xl bg-soft"
             />
           ))}
         </div>
       ) : historyBookings.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center">
-          <CalendarCheck className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+        <div className="rounded-xl border border-dashed border-border p-12 text-center">
+          <CalendarCheck className="mx-auto mb-3 h-10 w-10 text-mute" />
           <p className="text-muted-foreground">
             No completed or cancelled rides yet.
           </p>
@@ -42,11 +42,11 @@ export function PassengerRideHistoryPage() {
       ) : (
         <div className="space-y-3">
           {historyBookings.map((booking) => (
-            <div key={booking.id} className="rounded-lg border p-4">
+            <div key={booking.id} className="rounded-xl bg-background p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center gap-2 truncate">
-                    <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                    <MapPin className="h-4 w-4 shrink-0 text-foreground" />
                     <p className="truncate font-medium">
                       {booking.ride.originAddress} to{" "}
                       {booking.ride.destinationAddress}
@@ -81,7 +81,7 @@ export function PassengerRideHistoryPage() {
                   <StatusBadge status={booking.status} />
                   <Link
                     to={`/rides/${booking.ride.id}`}
-                    className="text-xs font-medium text-primary hover:underline"
+                    className="text-xs font-medium text-foreground underline-offset-4 hover:underline"
                   >
                     Open details
                   </Link>

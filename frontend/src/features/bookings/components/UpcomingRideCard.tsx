@@ -4,6 +4,7 @@ import { CalendarClock, MapPin, MessageSquareText, PhoneCall, Timer, Wallet } fr
 
 import { MapView } from '@/features/rides/components/MapView'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 import { StatusBadge } from './StatusBadge'
 import type { BookingListItem } from '../types'
@@ -74,25 +75,23 @@ export function UpcomingRideCard({
   )
 
   return (
-    <article className="overflow-hidden rounded-3xl border bg-white shadow-sm">
+    <article className="overflow-hidden rounded-xl bg-background">
       <div className="grid gap-0 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-5 p-6">
           <div className="flex flex-wrap items-center gap-3">
-            <StatusBadge status={booking.status} className="rounded-full px-3 py-1" />
-            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
-              Upcoming ride
-            </span>
-            <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+            <StatusBadge status={booking.status} />
+            <Badge variant="secondary">Upcoming ride</Badge>
+            <span className="text-xs font-medium text-mute">
               Ref {booking.id.slice(0, 8)}
             </span>
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+            <h2 className="font-display text-display-md text-foreground">
               {booking.pickup?.address ?? booking.ride.originAddress} to{' '}
               {booking.dropoff?.address ?? booking.ride.destinationAddress}
             </h2>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted-foreground">
               Your driver has confirmed this ride. Keep an eye on the pickup point and departure countdown.
             </p>
           </div>
@@ -127,31 +126,31 @@ export function UpcomingRideCard({
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            <div className="rounded-xl bg-soft p-4">
+              <p className="text-xs font-medium text-mute">
                 Pickup
               </p>
-              <p className="mt-2 flex items-start gap-2 text-sm text-slate-700">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <p className="mt-2 flex items-start gap-2 text-sm text-foreground">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
               {pickup?.address ?? booking.ride.originAddress}
               </p>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              <p className="mt-4 text-xs font-medium text-mute">
                 Dropoff
               </p>
-              <p className="mt-2 flex items-start gap-2 text-sm text-slate-700">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+              <p className="mt-2 flex items-start gap-2 text-sm text-foreground">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 {dropoff?.address ?? booking.ride.destinationAddress}
               </p>
             </div>
 
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            <div className="rounded-xl bg-soft p-4">
+              <p className="text-xs font-medium text-mute">
                 Driver contact
               </p>
-              <p className="mt-2 text-sm font-medium text-slate-900">
+              <p className="mt-2 text-sm font-medium text-foreground">
                 {booking.ride.driver.name}
               </p>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Open the driver profile before departure if you need the latest trip details.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -163,9 +162,9 @@ export function UpcomingRideCard({
                 </Button>
               </div>
               {booking.messageToDriver && (
-                <div className="mt-4 rounded-xl border bg-white px-3 py-3 text-sm text-slate-600">
-                  <p className="flex items-center gap-2 font-medium text-slate-800">
-                    <MessageSquareText className="h-4 w-4 text-sky-600" />
+                <div className="mt-4 rounded-xl bg-background px-3 py-3 text-sm text-muted-foreground">
+                  <p className="flex items-center gap-2 font-medium text-foreground">
+                    <MessageSquareText className="h-4 w-4 text-foreground" />
                     Your message to the driver
                   </p>
                   <p className="mt-2">{booking.messageToDriver}</p>
@@ -188,7 +187,7 @@ export function UpcomingRideCard({
           </div>
         </div>
 
-        <div className="border-t bg-slate-50/70 p-4 xl:border-l xl:border-t-0">
+        <div className="border-t border-border bg-soft p-4 xl:border-l xl:border-t-0">
           <MapView height="h-full min-h-[320px]" markers={markers} />
         </div>
       </div>
@@ -206,12 +205,12 @@ function InfoPill({
   value: string
 }) {
   return (
-    <div className="rounded-2xl border bg-slate-50 px-4 py-3">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+    <div className="rounded-xl bg-soft px-4 py-3">
+      <div className="flex items-center gap-2 text-xs font-medium text-mute">
         {icon}
         <span>{label}</span>
       </div>
-      <p className="mt-2 text-sm font-medium text-slate-900">{value}</p>
+      <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
     </div>
   )
 }

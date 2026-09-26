@@ -2,8 +2,10 @@ import { useEffect, useId, useState } from "react";
 import { Loader2, Upload, User } from "lucide-react";
 
 import { api } from "@/api/client";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useUpdateProfile } from "@/features/user/hooks/useProfile";
+
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 interface AvatarUploadProps {
@@ -112,18 +114,18 @@ export function AvatarUpload({ onSaved }: AvatarUploadProps) {
             className="h-20 w-20 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-            <User className="h-10 w-10 text-primary" />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-soft">
+            <User className="h-10 w-10 text-foreground" />
           </div>
         )}
 
         <div className="space-y-2">
           <label
             htmlFor={inputId}
-            className={`inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors ${
+            className={`inline-flex items-center gap-2 rounded-pill bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors ${
               isBusy || !user
                 ? "cursor-not-allowed opacity-50"
-                : "cursor-pointer hover:bg-primary/90"
+                : "cursor-pointer hover:bg-elevated"
             }`}
           >
             <Upload className="h-4 w-4" />
@@ -142,11 +144,11 @@ export function AvatarUpload({ onSaved }: AvatarUploadProps) {
           </p>
           {hasPendingAvatar ? (
             <div className="flex items-center gap-2">
-              <button
+              <Button
                 type="button"
                 onClick={handleUpload}
                 disabled={isBusy || !user}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                size="sm"
               >
                 {isBusy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -154,15 +156,16 @@ export function AvatarUpload({ onSaved }: AvatarUploadProps) {
                   <Upload className="h-4 w-4" />
                 )}
                 {isBusy ? "Saving..." : "Save avatar"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={handleCancel}
                 disabled={isBusy}
-                className="rounded-md border border-input px-4 py-2 text-sm text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           ) : null}
           {hasPendingAvatar ? (

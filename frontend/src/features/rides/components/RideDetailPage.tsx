@@ -296,7 +296,7 @@ export function RideDetailPage() {
 
   if (isError || !ride) {
     return (
-      <div className="space-y-4 rounded-lg border border-dashed p-8 text-center">
+      <div className="space-y-4 rounded-xl border border-dashed border-border p-8 text-center">
         <p className="text-muted-foreground">
           Ride details could not be loaded.
         </p>
@@ -356,7 +356,7 @@ export function RideDetailPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">
+        <h1 className="font-display text-display-lg text-foreground">
           {ride.originAddress} to {ride.destinationAddress}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -369,7 +369,7 @@ export function RideDetailPage() {
           {isSharingLocation && (
             <Badge variant="secondary" className="gap-1.5">
               <span
-                className="h-2 w-2 rounded-full bg-emerald-500"
+                className="h-2 w-2 rounded-full bg-success"
                 aria-hidden="true"
               />
               Sharing location
@@ -397,7 +397,7 @@ export function RideDetailPage() {
         >
           <DriverLocationLayer location={driverLocation} />
         </MapView>
-        <div className="grid gap-3 rounded-2xl border bg-slate-50 p-4 sm:grid-cols-3">
+        <div className="grid gap-3 rounded-xl bg-soft p-4 sm:grid-cols-3">
           <RouteMeta
             icon={<Map className="h-4 w-4" />}
             label="Distance"
@@ -420,7 +420,7 @@ export function RideDetailPage() {
                   : "Unavailable"
             }
           />
-          <div className="rounded-xl border bg-white px-3 py-3 text-sm text-slate-600">
+          <div className="rounded-xl bg-background px-3 py-3 text-sm text-muted-foreground">
             {routeError
               ? routeError
               : routePreview
@@ -430,7 +430,7 @@ export function RideDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-4">
+      <div className="grid gap-4 rounded-xl bg-soft p-5 sm:grid-cols-4">
         <div className="space-y-1">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Departure
@@ -466,7 +466,7 @@ export function RideDetailPage() {
       </div>
 
       {canBook && (
-        <div className="overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-background">
+        <div className="overflow-hidden rounded-xl bg-soft">
           <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-primary">
@@ -485,7 +485,7 @@ export function RideDetailPage() {
               </div>
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-success" />
                   Driver-reviewed flow
                 </span>
                 <span className="flex items-center gap-1">
@@ -509,10 +509,10 @@ export function RideDetailPage() {
       )}
 
       {(isDriverViewingOwnScheduledRide || isDriverViewingOwnActiveRide) && (
-        <section className="rounded-3xl border bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 text-white shadow-sm">
+        <section className="rounded-xl bg-primary p-5 text-primary-foreground">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">
+              <p className="text-xs font-medium text-mute">
                 Driver controls
               </p>
               <h2 className="text-xl font-semibold">
@@ -520,7 +520,7 @@ export function RideDetailPage() {
                   ? "Finish this ride when everyone reaches the destination"
                   : "Start when pickup is underway, or cancel if the trip cannot happen"}
               </h2>
-              <p className="max-w-2xl text-sm text-slate-200">
+              <p className="max-w-2xl text-sm text-mute">
                 These actions update rider history and booking status in real
                 time.
               </p>
@@ -531,7 +531,7 @@ export function RideDetailPage() {
                   <Button
                     onClick={() => startRide.mutate(ride.id)}
                     disabled={startRide.isPending || cancelRide.isPending}
-                    className="bg-white text-slate-900 hover:bg-slate-100"
+                    variant="secondary"
                   >
                     {startRide.isPending ? "Starting..." : "Start ride"}
                   </Button>
@@ -548,7 +548,7 @@ export function RideDetailPage() {
                 <Button
                   onClick={() => finishRide.mutate(ride.id)}
                   disabled={finishRide.isPending}
-                  className="bg-white text-slate-900 hover:bg-slate-100"
+                  variant="secondary"
                 >
                   {finishRide.isPending ? "Finishing..." : "Finish ride"}
                 </Button>
@@ -558,13 +558,13 @@ export function RideDetailPage() {
         </section>
       )}
 
-      <div className="grid gap-4 rounded-lg border p-5 sm:grid-cols-2">
+      <div className="grid gap-4 rounded-xl bg-soft p-5 sm:grid-cols-2">
         <div>
           <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
             Pickup
           </p>
           <p className="flex items-start gap-2 text-sm">
-            <MapPin className="mt-0.5 h-4 w-4 text-green-600" />
+            <MapPin className="mt-0.5 h-4 w-4 text-foreground" />
             {ride.originAddress}
           </p>
         </div>
@@ -573,26 +573,26 @@ export function RideDetailPage() {
             Dropoff
           </p>
           <p className="flex items-start gap-2 text-sm">
-            <MapPin className="mt-0.5 h-4 w-4 text-red-500" />
+            <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
             {ride.destinationAddress}
           </p>
         </div>
       </div>
 
       {passengerBookingForRide && (
-        <section className="rounded-2xl border bg-white p-5 shadow-sm">
+        <section className="rounded-xl bg-background p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={passengerBookingForRide.status} />
-                <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                <span className="text-xs font-medium text-mute">
                   Booking {passengerBookingForRide.id.slice(0, 8)}
                 </span>
               </div>
-              <h2 className="text-lg font-semibold text-slate-900">
+              <h2 className="font-display text-display-sm text-foreground">
                 Your booking for this ride
               </h2>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 This ride page now includes your booking details, so you do not
                 need a separate booking page.
               </p>
@@ -626,14 +626,14 @@ export function RideDetailPage() {
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            <div className="rounded-xl bg-soft px-4 py-4 text-sm text-foreground">
+              <p className="text-xs font-medium text-mute">
                 Pickup
               </p>
               <p className="mt-2">
                 {passengerBookingForRide.pickup?.address ?? ride.originAddress}
               </p>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              <p className="mt-4 text-xs font-medium text-mute">
                 Dropoff
               </p>
               <p className="mt-2">
@@ -642,8 +642,8 @@ export function RideDetailPage() {
               </p>
             </div>
 
-            <div className="rounded-xl border bg-slate-50 px-4 py-4 text-sm text-slate-700">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            <div className="rounded-xl bg-soft px-4 py-4 text-sm text-foreground">
+              <p className="text-xs font-medium text-mute">
                 Refund policy
               </p>
               <p className="mt-2 leading-6">
@@ -663,8 +663,8 @@ export function RideDetailPage() {
               </p>
               {passengerBookingForRide.messageToDriver && (
                 <>
-                  <p className="mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    <MessageSquareText className="h-4 w-4 text-sky-600" />
+                  <p className="mt-4 flex items-center gap-2 text-xs font-medium text-mute">
+                    <MessageSquareText className="h-4 w-4 text-foreground" />
                     Your message to the driver
                   </p>
                   <p className="mt-2 leading-6">
@@ -686,7 +686,7 @@ export function RideDetailPage() {
       )}
 
       {isDriverViewingOwnActiveRide && (
-        <section className="rounded-lg border p-5">
+        <section className="rounded-xl bg-background p-5">
           <div className="space-y-1">
             <p className="text-sm font-semibold">Passengers</p>
             <p className="text-xs text-muted-foreground">
@@ -710,7 +710,7 @@ export function RideDetailPage() {
                 return (
                   <div
                     key={booking.id}
-                    className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4 md:flex-row md:items-center md:justify-between"
+                    className="flex flex-col gap-3 rounded-xl bg-soft p-4 md:flex-row md:items-center md:justify-between"
                   >
                     <div className="space-y-1">
                       <p className="text-sm font-medium">
@@ -720,7 +720,7 @@ export function RideDetailPage() {
                         <span>{booking.seatsBooked} seat(s)</span>
                         <span>Status: {booking.status}</span>
                         {pickedUpLocally && (
-                          <span className="text-emerald-700">Picked up</span>
+                          <span className="text-success">Picked up</span>
                         )}
                         {noShowLocally && (
                           <span className="text-destructive">
@@ -801,7 +801,7 @@ export function RideDetailPage() {
       )}
 
       {showLeaveReviewSection && (
-        <div className="rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(255,255,255,0.98))] p-2 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
+        <div className="rounded-xl bg-soft p-2">
           <LeaveReviewSection
             rideId={ride.id}
             revieweeId={ride.driver.id}
@@ -814,15 +814,15 @@ export function RideDetailPage() {
       )}
 
       {showDriverReviewSection && (
-        <section className="space-y-4 rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.45)]">
+        <section className="space-y-4 rounded-xl bg-background p-6">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <p className="text-xs font-medium text-mute">
               Completed ride follow-up
             </p>
-            <h2 className="text-2xl font-semibold text-slate-950">
+            <h2 className="font-display text-display-md text-foreground">
               Review your passengers
             </h2>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted-foreground">
               Leave one short review for each confirmed passenger from this
               completed ride.
             </p>
@@ -831,11 +831,11 @@ export function RideDetailPage() {
           <div className="space-y-5">
             {pendingDriverReviewPassengers.map((passenger) => (
               <div key={passenger.id} className="space-y-3">
-                <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-600">
+                <div className="rounded-xl bg-soft px-4 py-3 text-sm text-muted-foreground">
                   Passenger:{" "}
                   <Link
                     to={`/profile/${passenger.id}`}
-                    className="font-medium text-slate-900 underline decoration-sky-300 underline-offset-4 transition hover:text-sky-700"
+                    className="font-medium text-foreground underline underline-offset-4 transition hover:text-hairline-mid"
                   >
                     {passenger.name}
                   </Link>
@@ -856,7 +856,7 @@ export function RideDetailPage() {
       )}
 
       {showCompletedRideMemberActions && (
-        <div className="rounded-lg border p-5">
+        <div className="rounded-xl bg-background p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold">Report a ride member</p>
@@ -880,7 +880,7 @@ export function RideDetailPage() {
                   Select member
                 </label>
                 <select
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
                   value={selectedUserId}
                   onChange={(event) => setSelectedUserId(event.target.value)}
                 >
@@ -905,7 +905,7 @@ export function RideDetailPage() {
                   Reason
                 </label>
                 <textarea
-                  className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="min-h-[120px] flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
                   placeholder="Share what happened and any details that might help us."
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
@@ -943,12 +943,12 @@ function RouteMeta({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border bg-white px-3 py-3">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+    <div className="rounded-xl bg-background px-3 py-3">
+      <div className="flex items-center gap-2 text-xs font-medium text-mute">
         {icon}
         <span>{label}</span>
       </div>
-      <p className="mt-2 text-sm font-medium text-slate-900">{value}</p>
+      <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
     </div>
   );
 }

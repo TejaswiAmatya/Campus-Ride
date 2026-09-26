@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -20,25 +21,29 @@ import {
 import { usePlatformHealth } from "../hooks/usePlatformHealth";
 import type { PlatformHealthReason, PlatformHealthUser } from "../types";
 
-const reasonBadgeClasses: Record<PlatformHealthReason, string> = {
-  "High Cancellation Rate":
-    "border-orange-200 bg-orange-50 text-orange-700",
-  "Multiple Reports Received": "border-red-200 bg-red-50 text-red-700",
-  "Low Average Rating": "border-yellow-200 bg-yellow-50 text-yellow-700",
-  "No-Show Pattern": "border-purple-200 bg-purple-50 text-purple-700",
-  "New Account Activity Spike": "border-blue-200 bg-blue-50 text-blue-700",
+const reasonBadgeVariant: Record<
+  PlatformHealthReason,
+  "destructive" | "warning" | "secondary" | "outline"
+> = {
+  "High Cancellation Rate": "warning",
+  "Multiple Reports Received": "destructive",
+  "Low Average Rating": "warning",
+  "No-Show Pattern": "secondary",
+  "New Account Activity Spike": "outline",
 };
 
-function getRiskScoreClassName(score: number) {
+function getRiskScoreVariant(
+  score: number,
+): "destructive" | "warning" | "success" {
   if (score > 60) {
-    return "border-red-200 bg-red-50 text-red-700";
+    return "destructive";
   }
 
   if (score >= 30) {
-    return "border-amber-200 bg-amber-50 text-amber-700";
+    return "warning";
   }
 
-  return "border-green-200 bg-green-50 text-green-700";
+  return "success";
 }
 
 function formatJoinedDate(value: string) {
@@ -121,7 +126,9 @@ export function PlatformHealthPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold">Platform Health</h1>
+        <h1 className="font-display text-display-md text-foreground">
+          Platform Health
+        </h1>
         <p className="text-sm text-muted-foreground">
           Monitor suspicious account behavior across bookings, reviews, reports,
           and ride activity.
@@ -153,22 +160,23 @@ export function PlatformHealthPage() {
               </TableBody>
             </Table>
           ) : isError ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-5 text-sm">
+            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-5 text-sm">
               <p className="font-medium text-destructive">
                 Failed to load platform health.
               </p>
               <p className="mt-1 text-destructive/80">{errorMessage}</p>
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => void refetch()}
                 disabled={isFetching}
-                className="mt-4 rounded-md border border-destructive/30 px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-4"
               >
                 {isFetching ? "Retrying..." : "Retry"}
-              </button>
+              </Button>
             </div>
           ) : suspiciousUsers.length === 0 ? (
-            <div className="rounded-lg border border-dashed bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-xl border border-dashed border-border bg-soft px-4 py-8 text-center text-sm text-muted-foreground">
               No suspicious users were found. All users are behaving normally.
             </div>
           ) : (
@@ -199,10 +207,7 @@ export function PlatformHealthPage() {
                         <Badge variant="outline">{entry.user.role}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={getRiskScoreClassName(entry.score)}
-                        >
+                        <Badge variant={getRiskScoreVariant(entry.score)}>
                           {entry.score}
                         </Badge>
                       </TableCell>
@@ -212,8 +217,7 @@ export function PlatformHealthPage() {
                             {entry.reasons.map((reason) => (
                               <Badge
                                 key={reason}
-                                variant="outline"
-                                className={reasonBadgeClasses[reason]}
+                                variant={reasonBadgeVariant[reason]}
                               >
                                 {reason}
                               </Badge>

@@ -1,4 +1,5 @@
 import type { AppRole } from '@/features/auth/lib/routing'
+import { Badge } from '@/components/ui/badge'
 
 type ProfileSummaryCardProps = {
   name: string
@@ -7,19 +8,10 @@ type ProfileSummaryCardProps = {
   role: AppRole
 }
 
-const roleMeta: Record<AppRole, { label: string; className: string }> = {
-  PASSENGER: {
-    label: 'Passenger',
-    className: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
-  },
-  DRIVER: {
-    label: 'Driver',
-    className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
-  },
-  ADMIN: {
-    label: 'Admin',
-    className: 'bg-violet-50 text-violet-700 ring-1 ring-violet-200',
-  },
+const roleLabels: Record<AppRole, string> = {
+  PASSENGER: 'Passenger',
+  DRIVER: 'Driver',
+  ADMIN: 'Admin',
 }
 
 export function ProfileSummaryCard({
@@ -29,30 +21,29 @@ export function ProfileSummaryCard({
   role,
 }: ProfileSummaryCardProps) {
   const initial = (name.trim().charAt(0) || '?').toUpperCase()
-  const { label, className } = roleMeta[role]
 
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white px-6 py-5 shadow-sm">
+    <div className="flex items-center gap-4 rounded-xl bg-card px-6 py-5">
       {avatarUrl ? (
         <img
           src={avatarUrl}
           alt={`${name} avatar`}
-          className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-slate-100"
+          className="h-12 w-12 shrink-0 rounded-full object-cover"
         />
       ) : (
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-base font-semibold text-white shadow-sm">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-soft font-display text-base font-semibold text-foreground">
           {initial}
         </div>
       )}
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-slate-800">{name}</p>
-        <p className="truncate text-xs text-slate-500">{email}</p>
+        <p className="truncate text-sm font-medium text-foreground">{name}</p>
+        <p className="truncate text-xs text-muted-foreground">{email}</p>
       </div>
 
-      <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${className}`}>
-        {label}
-      </span>
+      <Badge variant="secondary" className="shrink-0">
+        {roleLabels[role]}
+      </Badge>
     </div>
   )
 }

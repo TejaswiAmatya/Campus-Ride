@@ -1,59 +1,44 @@
-import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, Clock3, Search, User } from 'lucide-react'
-import { fetchMe } from '@/api/client'
 import { DashboardCard } from '@/features/user/components/DashboardCard'
-import { ProfileCompletionCard } from '@/features/user/components/ProfileCompletionCard'
-import { ProfileSummaryCard } from '@/features/user/components/ProfileSummaryCard'
 
 export function PassengerDashboardPage() {
-  const { data: user } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
-  const firstName = user?.name?.split(' ')[0] ?? 'there'
-
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-widest text-slate-400">Dashboard</p>
-        <h1 className="mt-1 text-2xl font-bold text-slate-800">Welcome back, {firstName}</h1>
-      </div>
-
-      <ProfileSummaryCard
-        name={user?.name ?? 'Guest User'}
-        email={user?.email ?? 'guest@example.com'}
-        avatarUrl={user?.avatarPath ?? null}
-        role={user?.role ?? 'PASSENGER'}
-      />
-
-      {user ? <ProfileCompletionCard user={user} /> : null}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <DashboardCard
-          title="Find a Ride"
-          subtitle="Search available rides near you"
-          icon={<Search />}
-          href="/rides"
-          accent="blue"
-        />
-        <DashboardCard
-          title="Upcoming Bookings"
-          subtitle="Your confirmed trips"
-          icon={<CalendarDays />}
-          href="/bookings"
-          accent="blue"
-        />
-        <DashboardCard
-          title="Ride History"
-          subtitle="Your completed rides"
-          icon={<Clock3 />}
-          href="/bookings/history"
-          accent="violet"
-        />
-        <DashboardCard
-          title="Your Profile"
-          subtitle="Manage account settings"
-          icon={<User />}
-          href="/profile"
-          accent="violet"
-        />
+    <div className="-mx-4 -my-8 min-h-[calc(100vh-4rem)] bg-background lg:-mx-8 lg:-my-8">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-content flex-col px-4 py-6 lg:px-8 lg:py-8">
+        <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+          <DashboardCard
+            size="hero"
+            tone="dark"
+            title="Find a ride"
+            subtitle="Search available rides near you"
+            icon={<Search />}
+            href="/rides"
+          />
+          <DashboardCard
+            size="hero"
+            tone="soft"
+            title="Upcoming bookings"
+            subtitle="Your confirmed trips"
+            icon={<CalendarDays />}
+            href="/bookings"
+          />
+          <DashboardCard
+            size="hero"
+            tone="soft"
+            title="Ride history"
+            subtitle="Your completed rides"
+            icon={<Clock3 />}
+            href="/bookings/history"
+          />
+          <DashboardCard
+            size="hero"
+            tone="light"
+            title="Your profile"
+            subtitle="Manage account settings"
+            icon={<User />}
+            href="/profile"
+          />
+        </div>
       </div>
     </div>
   )

@@ -23,8 +23,8 @@ export function FeeEditor({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <Percent className="h-5 w-5 text-primary" />
+        <CardTitle className="flex items-center gap-2 text-display-sm">
+          <Percent className="h-5 w-5 text-foreground" />
           Platform Fee
         </CardTitle>
         <CardDescription>
@@ -34,9 +34,9 @@ export function FeeEditor({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <div className="rounded-lg border bg-muted/30 p-4">
+        <div className="rounded-xl bg-soft p-4">
           <p className="text-sm text-muted-foreground">Current fee</p>
-          <p className="mt-1 text-3xl font-semibold">{currentValue}%</p>
+          <p className="mt-1 font-display text-display-md">{currentValue}%</p>
         </div>
 
         <label className="block space-y-2">
@@ -53,7 +53,7 @@ export function FeeEditor({
         </label>
 
         {errorMessage ? (
-          <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {errorMessage}
           </p>
         ) : null}

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { Car } from 'lucide-react'
 import { AuthPageLayout } from '@/features/auth/components/AuthPageLayout'
 import { useRegister } from '@/features/auth/hooks/useAuth'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 export function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' })
@@ -18,20 +20,22 @@ export function RegisterPage() {
 
   return (
     <AuthPageLayout>
-      <div className="mb-8 flex flex-col items-center gap-6 text-center">
-        <Car className="h-10 w-10 text-primary" />
-        <h1 className="text-2xl font-bold">Create your account</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="mb-8 flex flex-col items-center gap-4 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-background">
+          <Car className="h-6 w-6 text-foreground" />
+        </span>
+        <h1 className="font-display text-display-md text-foreground">Create your account</h1>
+        <p className="text-sm text-mute">
           A university email address is required
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="mx-auto w-[95%] space-y-4">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium mb-1">
+          <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-foreground">
             Full name
           </label>
-          <input
+          <Input
             id="name"
             type="text"
             value={form.name}
@@ -39,44 +43,44 @@ export function RegisterPage() {
             placeholder="Alice Andersen"
             required
             minLength={2}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="bg-softer"
           />
         </div>
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium mb-1">
+          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground">
             University email
           </label>
-          <input
+          <Input
             id="email"
             type="email"
             value={form.email}
             onChange={set('email')}
             placeholder="you@university.edu"
             required
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="bg-softer"
           />
         </div>
 
         <div>
-          <label htmlFor="phone" className="block text-sm font-medium mb-1">
-            Phone number <span className="text-muted-foreground">(optional)</span>
+          <label htmlFor="phone" className="mb-1.5 block text-sm font-medium text-foreground">
+            Phone number <span className="text-mute">(optional)</span>
           </label>
-          <input
+          <Input
             id="phone"
             type="tel"
             value={form.phone}
             onChange={set('phone')}
             placeholder="+47 900 00 000"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="bg-softer"
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium mb-1">
+          <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-foreground">
             Password
           </label>
-          <input
+          <Input
             id="password"
             type="password"
             value={form.password}
@@ -84,34 +88,30 @@ export function RegisterPage() {
             placeholder="At least 8 characters"
             required
             minLength={8}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="bg-softer"
           />
         </div>
 
         {registerMutation.isError && (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
             Registration failed. Check your email and try again.
           </p>
         )}
 
         {registerMutation.isSuccess && (
-          <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+          <p className="rounded-xl bg-success/10 px-3 py-2 text-sm text-success">
             Check your email to confirm your account before signing in.
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={registerMutation.isPending}
-          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-        >
+        <Button type="submit" disabled={registerMutation.isPending} className="w-full">
           {registerMutation.isPending ? 'Creating account…' : 'Create account'}
-        </button>
+        </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 text-center text-sm text-mute">
         Already have an account?{' '}
-        <Link to="/auth/login" className="font-medium text-primary hover:underline">
+        <Link to="/auth/login" className="font-medium text-foreground hover:underline">
           Sign in
         </Link>
       </p>

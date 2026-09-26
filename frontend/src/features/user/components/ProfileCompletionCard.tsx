@@ -35,24 +35,24 @@ export function ProfileCompletionCard({ user }: { user: ProfileUser }) {
   const nextSteps = profileChecks.filter((check) => !check.isComplete(user));
 
   return (
-    <section className="rounded-3xl border bg-white p-6 shadow-sm">
+    <section className="rounded-xl bg-card p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+          <p className="text-xs font-medium text-muted-foreground">
             Profile completion
           </p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-950">
+          <h2 className="mt-2 font-display text-display-sm text-foreground">
             {completionPercent}% complete
           </h2>
         </div>
         <div className="min-w-40">
-          <div className="h-2 rounded-full bg-slate-100">
+          <div className="h-2 rounded-pill bg-soft">
             <div
-              className="h-2 rounded-full bg-slate-900 transition-all"
+              className="h-2 rounded-pill bg-primary transition-all"
               style={{ width: `${completionPercent}%` }}
             />
           </div>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             {completedCount} of {totalCount} profile steps done
           </p>
         </div>
@@ -63,14 +63,14 @@ export function ProfileCompletionCard({ user }: { user: ProfileUser }) {
           {nextSteps.map((step) => (
             <span
               key={step.key}
-              className="rounded-full border border-dashed border-slate-300 px-3 py-1 text-xs font-medium text-slate-600"
+              className="rounded-pill border border-dashed border-border px-3 py-1 text-xs font-medium text-muted-foreground"
             >
               {step.label}
             </span>
           ))}
         </div>
       ) : (
-        <p className="mt-5 text-sm text-emerald-700">
+        <p className="mt-5 text-sm text-success">
           Your profile is ready for rides.
         </p>
       )}

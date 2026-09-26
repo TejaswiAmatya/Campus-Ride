@@ -99,11 +99,11 @@ export function UserGrowthTrendsCard() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {[1, 2, 3].map((item) => (
-              <div key={item} className="h-20 animate-pulse rounded-md border bg-muted" />
+              <div key={item} className="h-20 animate-pulse rounded-xl bg-soft" />
             ))}
           </div>
-          <div className="h-64 animate-pulse rounded-md border bg-muted" />
-          <div className="h-64 animate-pulse rounded-md border bg-muted" />
+          <div className="h-64 animate-pulse rounded-xl bg-soft" />
+          <div className="h-64 animate-pulse rounded-xl bg-soft" />
         </CardContent>
       </Card>
     );
@@ -153,16 +153,16 @@ export function UserGrowthTrendsCard() {
       {
         label: "Drivers",
         data: selectedSeries.map((item) => item.driverCount),
-        borderColor: "#0d9488",
-        backgroundColor: "rgba(13, 148, 136, 0.20)",
+        borderColor: "#000000",
+        backgroundColor: "rgba(0, 0, 0, 0.08)",
         tension: 0.3,
         fill: false,
       },
       {
         label: "Passengers",
         data: selectedSeries.map((item) => item.passengerCount),
-        borderColor: "#2563eb",
-        backgroundColor: "rgba(37, 99, 235, 0.20)",
+        borderColor: "#5e5e5e",
+        backgroundColor: "rgba(94, 94, 94, 0.12)",
         tension: 0.3,
         fill: false,
       },
@@ -208,19 +208,19 @@ export function UserGrowthTrendsCard() {
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div className="rounded-md border p-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="rounded-xl bg-soft p-3">
+            <p className="text-xs text-muted-foreground">
               Total Users This Month
             </p>
-            <p className="mt-2 text-2xl font-semibold">{totalUsersThisMonth}</p>
+            <p className="mt-2 font-display text-display-md">{totalUsersThisMonth}</p>
           </div>
-          <div className="rounded-md border p-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="rounded-xl bg-soft p-3">
+            <p className="text-xs text-muted-foreground">
               Change vs Last Month
             </p>
             <div
-              className={`mt-2 flex items-center gap-1 text-2xl font-semibold ${
-                isMonthGrowthPositive ? "text-green-600" : "text-destructive"
+              className={`mt-2 flex items-center gap-1 font-display text-display-md ${
+                isMonthGrowthPositive ? "text-success" : "text-destructive"
               }`}
             >
               {isMonthGrowthPositive ? (
@@ -231,13 +231,13 @@ export function UserGrowthTrendsCard() {
               {Math.abs(monthChangePct).toFixed(1)}%
             </div>
           </div>
-          <div className="rounded-md border p-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="rounded-xl bg-soft p-3">
+            <p className="text-xs text-muted-foreground">
               Drivers to Passengers
             </p>
             <div className="mt-2 flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <p className="text-2xl font-semibold">
+              <Users className="h-5 w-5 text-foreground" />
+              <p className="font-display text-display-md">
                 {formatRatio(data.totals.drivers, data.totals.passengers)}
               </p>
             </div>

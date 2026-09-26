@@ -1,6 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, LayoutDashboard, XCircle } from "lucide-react";
 import { api } from "@/api/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { AdminDecisionInline } from "@/features/admin/components/AdminDecisionInline";
 import {
   pendingAcademicVerificationsQueryKey,
@@ -57,8 +67,10 @@ export function DriverApprovalsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <LayoutDashboard className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Driver Approvals</h1>
+        <LayoutDashboard className="h-6 w-6 text-foreground" />
+        <h1 className="font-display text-display-md text-foreground">
+          Driver Approvals
+        </h1>
       </div>
 
       {(pendingDrivers ?? []).length === 0 ? (
@@ -66,35 +78,32 @@ export function DriverApprovalsPage() {
           No pending applications.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Applicant</th>
-                <th className="px-4 py-3 text-left font-medium">Email</th>
-                <th className="px-4 py-3 text-left font-medium">Vehicle</th>
-                <th className="px-4 py-3 text-left font-medium">Licence</th>
-                <th className="px-4 py-3 text-left font-medium">Insurance</th>
-                <th className="px-4 py-3 text-left font-medium">Applied</th>
-                <th className="px-4 py-3 text-left font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+        <div className="overflow-hidden rounded-xl bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Applicant</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Vehicle</TableHead>
+                <TableHead>Licence</TableHead>
+                <TableHead>Insurance</TableHead>
+                <TableHead>Applied</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {(pendingDrivers ?? []).map((driver) => (
-                <tr
-                  key={driver.id}
-                  className="hover:bg-muted/30 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">{driver.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {driver.email}
-                  </td>
-                  <td className="px-4 py-3">
+                <TableRow key={driver.id}>
+                  <TableCell className="font-medium text-foreground">
+                    {driver.name}
+                  </TableCell>
+                  <TableCell>{driver.email}</TableCell>
+                  <TableCell>
                     {driver.vehicle
                       ? `${driver.vehicle.year} ${driver.vehicle.make} ${driver.vehicle.model} (${driver.vehicle.plateNumber})`
                       : "—"}
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell>
                     {driver.licenceUrl ? (
                       <a
                         href={driver.licenceUrl}
@@ -105,12 +114,10 @@ export function DriverApprovalsPage() {
                         View
                       </a>
                     ) : (
-                      <span className="text-muted-foreground">
-                        Not uploaded
-                      </span>
+                      <span>Not uploaded</span>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell>
                     {driver.insuranceUrl ? (
                       <a
                         href={driver.insuranceUrl}
@@ -121,17 +128,16 @@ export function DriverApprovalsPage() {
                         View
                       </a>
                     ) : (
-                      <span className="text-muted-foreground">
-                        Not uploaded
-                      </span>
+                      <span>Not uploaded</span>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell>
                     {new Date(driver.createdAt).toLocaleDateString("en-GB")}
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell>
                     <div className="flex gap-2">
-                      <button
+                      <Button
+                        size="sm"
                         onClick={() =>
                           driverDecisionMutation.mutate({
                             id: driver.id,
@@ -139,12 +145,13 @@ export function DriverApprovalsPage() {
                           })
                         }
                         disabled={driverDecisionMutation.isPending}
-                        className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1 text-xs text-white hover:bg-green-700 disabled:opacity-50"
                       >
                         <CheckCircle className="h-3.5 w-3.5" />
                         Approve
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() =>
                           driverDecisionMutation.mutate({
                             id: driver.id,
@@ -152,23 +159,24 @@ export function DriverApprovalsPage() {
                           })
                         }
                         disabled={driverDecisionMutation.isPending}
-                        className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-muted disabled:opacity-50"
                       >
-                        <XCircle className="h-3.5 w-3.5 text-destructive" />
+                        <XCircle className="h-3.5 w-3.5" />
                         Reject
-                      </button>
+                      </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold">Academic Badge Verifications</h2>
+          <h2 className="font-display text-display-sm text-foreground">
+            Academic Badge Verifications
+          </h2>
         </div>
 
         {(pendingAcademicVerifications ?? []).length === 0 ? (
@@ -181,60 +189,64 @@ export function DriverApprovalsPage() {
               const userId = verification.userId;
 
               return (
-                <div key={userId} className="rounded-lg border p-4">
-                  <div className="space-y-2">
-                    <p className="font-medium">{verification.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {verification.academicRole === "STAFF"
-                        ? "Staff"
-                        : verification.academicRole === "STUDENT"
-                          ? "Student"
-                          : "—"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(verification.createdAt).toLocaleDateString(
-                        "en-GB",
-                      )}
-                    </p>
-                    {verification.academicIdSignedUrl ? (
-                      <a
-                        href={verification.academicIdSignedUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline"
-                      >
-                        View ID Document
-                      </a>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        ID document unavailable
+                <Card key={userId} className="rounded-xl">
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <p className="font-medium text-foreground">
+                        {verification.name}
                       </p>
-                    )}
-                  </div>
+                      <p className="text-sm text-muted-foreground">
+                        {verification.academicRole === "STAFF"
+                          ? "Staff"
+                          : verification.academicRole === "STUDENT"
+                            ? "Student"
+                            : "—"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(verification.createdAt).toLocaleDateString(
+                          "en-GB",
+                        )}
+                      </p>
+                      {verification.academicIdSignedUrl ? (
+                        <a
+                          href={verification.academicIdSignedUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline"
+                        >
+                          View ID Document
+                        </a>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          ID document unavailable
+                        </p>
+                      )}
+                    </div>
 
-                  <div className="mt-4">
-                    <AdminDecisionInline
-                      isPending={academicDecisionMutation.isPending}
-                      onApprove={() =>
-                        userId
-                          ? academicDecisionMutation.mutate({
-                              userId,
-                              approved: true,
-                            })
-                          : undefined
-                      }
-                      onReject={(reason) =>
-                        userId
-                          ? academicDecisionMutation.mutate({
-                              userId,
-                              approved: false,
-                              reason,
-                            })
-                          : undefined
-                      }
-                    />
-                  </div>
-                </div>
+                    <div className="mt-4">
+                      <AdminDecisionInline
+                        isPending={academicDecisionMutation.isPending}
+                        onApprove={() =>
+                          userId
+                            ? academicDecisionMutation.mutate({
+                                userId,
+                                approved: true,
+                              })
+                            : undefined
+                        }
+                        onReject={(reason) =>
+                          userId
+                            ? academicDecisionMutation.mutate({
+                                userId,
+                                approved: false,
+                                reason,
+                              })
+                            : undefined
+                        }
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>

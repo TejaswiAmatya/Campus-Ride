@@ -11,8 +11,8 @@ export function DriverLocationLayer({ location }: { location: DriverLocation | n
       center={[location.lat, location.lng]}
       radius={10}
       pathOptions={{
-        color: '#1d4ed8',
-        fillColor: '#60a5fa',
+        color: '#000000',
+        fillColor: '#282828',
         fillOpacity: 0.85,
         weight: 2,
       }}

@@ -14,8 +14,10 @@ export function DriverDashboardPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
       <div>
-        <p className="text-xs font-medium uppercase tracking-widest text-slate-400">Dashboard</p>
-        <h1 className="mt-1 text-2xl font-bold text-slate-800">Welcome back, {firstName}</h1>
+        <p className="text-xs font-medium text-mute">Dashboard</p>
+        <h1 className="mt-1 font-display text-display-md text-foreground">
+          Welcome back, {firstName}
+        </h1>
       </div>
 
       <ProfileSummaryCard
@@ -33,28 +35,24 @@ export function DriverDashboardPage() {
           subtitle="Create a new ride for passengers"
           icon={<CirclePlus />}
           href="/driver/rides/new"
-          accent="emerald"
         />
         <DashboardCard
           title="My Rides"
           subtitle="Manage your scheduled rides"
           icon={<Car />}
           href="/driver/rides"
-          accent="emerald"
         />
         <DashboardCard
           title="Ride History"
           subtitle="See your completed rides"
           icon={<History />}
           href="/driver/rides/history"
-          accent="violet"
         />
         <DashboardCard
           title="Earnings"
           subtitle="View your earnings summary"
           icon={<TrendingUp />}
           href="/driver/earnings"
-          accent="success"
         />
       </div>
     </div>

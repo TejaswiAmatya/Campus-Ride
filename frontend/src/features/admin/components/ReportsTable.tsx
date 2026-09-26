@@ -24,14 +24,14 @@ interface ReportsTableProps {
 
 function getStatusVariant(status: AdminReport["status"]) {
   if (status === "OPEN") {
-    return "destructive";
+    return "destructive" as const;
   }
 
   if (status === "RESOLVED") {
-    return "default";
+    return "success" as const;
   }
 
-  return "secondary";
+  return "secondary" as const;
 }
 
 export function ReportsTable({
@@ -53,14 +53,14 @@ export function ReportsTable({
 
   if (reports.length === 0) {
     return (
-      <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground shadow-sm">
+      <div className="rounded-xl bg-card p-6 text-sm text-muted-foreground">
         No reports found.
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border bg-card shadow-sm">
+    <div className="rounded-xl bg-card">
       <Table data-testid="reports-table">
         <TableHeader>
           <TableRow>
@@ -131,7 +131,7 @@ export function ReportsTable({
                       }
                       disabled={isSaving}
                       aria-label={`Action for report ${report.id}`}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-full rounded-md border-0 bg-soft px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <option value="">Select action</option>
                       <option value="WARNING">Warning</option>
