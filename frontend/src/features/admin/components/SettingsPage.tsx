@@ -71,10 +71,12 @@ export function SettingsPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-2">
-          <Settings className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Admin Settings</h1>
+          <Settings className="h-6 w-6 text-foreground" />
+          <h1 className="font-display text-display-md text-foreground">
+            Admin Settings
+          </h1>
         </div>
-        <div className="h-64 animate-pulse rounded-xl border bg-muted/40" />
+        <div className="h-64 animate-pulse rounded-xl bg-soft" />
       </div>
     );
   }
@@ -88,10 +90,12 @@ export function SettingsPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-2">
-          <Settings className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Admin Settings</h1>
+          <Settings className="h-6 w-6 text-foreground" />
+          <h1 className="font-display text-display-md text-foreground">
+            Admin Settings
+          </h1>
         </div>
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 h-5 w-5" />
             <div>
@@ -112,9 +116,11 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Settings className="h-6 w-6 text-primary" />
+        <Settings className="h-6 w-6 text-foreground" />
         <div>
-          <h1 className="text-2xl font-bold">Admin Settings</h1>
+          <h1 className="font-display text-display-md text-foreground">
+            Admin Settings
+          </h1>
           <p className="text-sm text-muted-foreground">
             Manage platform-wide financial settings used across the app.
           </p>
@@ -134,9 +140,9 @@ export function SettingsPage() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed right-4 top-20 z-50 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-lg"
+          className="fixed right-4 top-20 z-50 flex items-center gap-3 rounded-xl border-0 bg-success px-4 py-3 text-sm text-success-foreground shadow-elev-2"
         >
-          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          <CheckCircle2 className="h-5 w-5" />
           <span>Platform fee saved successfully.</span>
         </div>
       ) : null}

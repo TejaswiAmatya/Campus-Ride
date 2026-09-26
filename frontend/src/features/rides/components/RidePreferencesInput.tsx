@@ -25,7 +25,7 @@ export function RidePreferencesInput({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div className="space-y-3 rounded-xl bg-soft p-4">
       <div>
         <p className="text-sm font-medium">Ride preferences</p>
         <p className="text-xs text-muted-foreground">Help passengers know the vibe and expectations before they book.</p>
@@ -38,10 +38,10 @@ export function RidePreferencesInput({
             type="button"
             onClick={() => toggle(option)}
             className={cn(
-              'rounded-full border px-3 py-1.5 text-sm transition',
+              'rounded-pill px-3 py-1.5 text-sm font-medium transition',
               value.includes(option)
-                ? 'border-slate-900 bg-slate-900 text-white'
-                : 'hover:bg-muted',
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-background text-foreground hover:bg-border',
             )}
           >
             {option}

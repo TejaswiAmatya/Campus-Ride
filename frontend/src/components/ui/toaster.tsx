@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 import { useToastStore, type ToastItem } from "@/store/toastStore";
 
 const toneClasses = {
-  default: "border-slate-200 bg-white text-slate-900",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-950",
-  error: "border-rose-200 bg-rose-50 text-rose-950",
+  default: "bg-card text-foreground shadow-elev-2",
+  success: "bg-card text-foreground shadow-elev-2 ring-1 ring-success/30",
+  error: "bg-card text-foreground shadow-elev-2 ring-1 ring-destructive/30",
 } as const;
 
 function ToastCard({ toast }: { toast: ToastItem }) {
@@ -34,20 +34,20 @@ function ToastCard({ toast }: { toast: ToastItem }) {
   return (
     <div
       className={cn(
-        "pointer-events-auto w-full rounded-2xl border p-4 shadow-lg",
+        "pointer-events-auto w-full rounded-xl p-4",
         toneClasses[toast.tone ?? "default"],
       )}
     >
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">{toast.title}</p>
+          <p className="text-sm font-medium">{toast.title}</p>
           {toast.description ? (
-            <p className="mt-1 text-sm text-current/80">{toast.description}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{toast.description}</p>
           ) : null}
         </div>
         <button
           type="button"
-          className="rounded-md p-1 text-current/60 transition hover:bg-black/5 hover:text-current"
+          className="rounded-pill p-1 text-mute transition hover:bg-soft hover:text-foreground"
           onClick={() => dismissToast(toast.id)}
           aria-label="Dismiss notification"
         >

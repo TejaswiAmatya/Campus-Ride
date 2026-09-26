@@ -20,7 +20,7 @@ export function BookingStatusPage() {
 
   if (isError || !booking) {
     return (
-      <div className="mx-auto max-w-lg space-y-4 rounded-lg border border-dashed p-8 text-center">
+        <div className="mx-auto max-w-lg space-y-4 rounded-xl border border-dashed border-border p-8 text-center">
         <p className="text-muted-foreground">
           Booking not found or you do not have access.
         </p>

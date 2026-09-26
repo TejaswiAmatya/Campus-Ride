@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { KeyRound } from "lucide-react";
 import { api } from "@/api/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/authStore";
 
 type ChangePasswordResponse = {
@@ -60,8 +62,10 @@ export function ChangePasswordPage() {
   return (
     <div className="mx-auto mt-16 max-w-sm px-4">
       <div className="mb-8 text-center">
-        <KeyRound className="mx-auto mb-3 h-10 w-10 text-primary" />
-        <h1 className="text-2xl font-bold">Change password</h1>
+        <KeyRound className="mx-auto mb-3 h-10 w-10 text-foreground" />
+        <h1 className="font-display text-display-md text-foreground">
+          Change password
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           You must set a new password before accessing admin pages.
         </p>
@@ -72,7 +76,7 @@ export function ChangePasswordPage() {
           <label htmlFor="new-password" className="mb-1 block text-sm font-medium">
             New password
           </label>
-          <input
+          <Input
             id="new-password"
             type="password"
             autoComplete="new-password"
@@ -81,7 +85,6 @@ export function ChangePasswordPage() {
             placeholder="At least 8 characters"
             minLength={8}
             required
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
@@ -92,38 +95,37 @@ export function ChangePasswordPage() {
           >
             Confirm password
           </label>
-          <input
+          <Input
             id="confirm-password"
             type="password"
             autoComplete="new-password"
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
             required
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
         {formError ? (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {formError}
           </p>
         ) : null}
 
         {changePasswordMutation.isError ? (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {mutationErrorMessage}
           </p>
         ) : null}
 
-        <button
+        <Button
           type="submit"
           disabled={changePasswordMutation.isPending}
-          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="w-full"
         >
           {changePasswordMutation.isPending
             ? "Updating password..."
             : "Update password"}
-        </button>
+        </Button>
       </form>
     </div>
   );

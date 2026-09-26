@@ -11,12 +11,12 @@ import type { Ride, UpdateRideDto } from '../types'
 
 function TripMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-2xl border bg-white p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+    <div className="rounded-xl bg-background p-4">
+      <div className="flex items-center gap-2 text-xs font-medium text-mute">
         {icon}
         {label}
       </div>
-      <p className="mt-3 text-sm font-medium text-slate-900">{value}</p>
+      <p className="mt-3 text-sm font-medium text-foreground">{value}</p>
     </div>
   )
 }
@@ -220,13 +220,13 @@ export function EditRideForm({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 px-4 py-8" role="dialog" aria-modal="true" aria-labelledby="edit-ride-title">
-      <div className="mx-auto max-w-4xl rounded-3xl border bg-background p-6 shadow-2xl">
+      <div className="mx-auto max-w-4xl rounded-xl bg-background p-6 shadow-elev-2">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 id="edit-ride-title" className="text-xl font-semibold text-slate-900">
+            <h2 id="edit-ride-title" className="font-display text-display-sm text-foreground">
               Edit ride
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted-foreground">
               Update timing, route, stops, pricing, and rider preferences before the trip starts.
             </p>
           </div>
@@ -252,10 +252,10 @@ export function EditRideForm({
             </span>
           </div>
           {(isLoadingRoute || routePreview || routeError) && (
-            <div className="grid gap-3 rounded-2xl border bg-slate-50 p-4 sm:grid-cols-3">
+            <div className="grid gap-3 rounded-xl bg-soft p-4 sm:grid-cols-3">
               <TripMetric icon={<MapPin className="h-4 w-4" />} label="Distance" value={routePreview ? formatRouteDistance(routePreview.distanceMeters) : isLoadingRoute ? 'Loading...' : 'Unavailable'} />
               <TripMetric icon={<Timer className="h-4 w-4" />} label="Drive time" value={routePreview ? formatRouteDuration(routePreview.durationSeconds) : isLoadingRoute ? 'Loading...' : 'Unavailable'} />
-              <div className="rounded-2xl border bg-white px-4 py-3 text-sm text-slate-600">
+              <div className="rounded-xl bg-background px-4 py-3 text-sm text-muted-foreground">
                 {routeError
                   ? routeError
                   : routePreview
@@ -328,7 +328,7 @@ export function EditRideForm({
                 value={departureTime}
                 onChange={(event) => setDepartureTime(event.target.value)}
                 required
-                className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
               />
             </div>
             <div>
@@ -341,7 +341,7 @@ export function EditRideForm({
                 value={totalSeats}
                 onChange={(event) => setTotalSeats(event.target.value)}
                 required
-                className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
               />
             </div>
             <div>
@@ -353,7 +353,7 @@ export function EditRideForm({
                 value={pricePerSeat}
                 onChange={(event) => setPricePerSeat(event.target.value)}
                 required
-                className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
               />
             </div>
             <div>
@@ -365,7 +365,7 @@ export function EditRideForm({
                 step="1"
                 value={detourFlexibilityKm}
                 onChange={(event) => setDetourFlexibilityKm(event.target.value)}
-                className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base"
               />
             </div>
           </div>
@@ -373,11 +373,11 @@ export function EditRideForm({
           <RidePreferencesInput value={preferences} onChange={setPreferences} />
 
           {confirmedPassengers > 0 && (
-            <div className="rounded-2xl border bg-amber-50 px-4 py-4 text-sm text-amber-950">
+            <div className="rounded-xl bg-soft px-4 py-4 text-sm text-foreground">
               <p className="font-medium">
                 {confirmedPassengers} confirmed passenger{confirmedPassengers === 1 ? '' : 's'} on this ride.
               </p>
-              <p className="mt-1 text-amber-900/80">
+              <p className="mt-1 text-muted-foreground">
                 We only notify passengers when a confirmed ride actually changes. Add a short note if you want to explain what changed.
               </p>
               <textarea
@@ -385,9 +385,9 @@ export function EditRideForm({
                 onChange={(event) => setUpdateMessage(event.target.value)}
                 rows={3}
                 placeholder="Optional note to passengers about the update"
-                className="mt-3 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm"
+                className="mt-3 flex h-12 w-full rounded-md border-0 bg-softer px-4 py-4 text-base"
               />
-              <p className="mt-2 text-xs text-amber-900/70">
+              <p className="mt-2 text-xs text-muted-foreground">
                 {notificationWillBeRequired
                   ? 'This edit changes a confirmed ride, so passengers will be notified.'
                   : 'No passenger notification will be sent unless the route, timing, seats, or pricing changes.'}

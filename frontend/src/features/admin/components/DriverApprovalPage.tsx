@@ -71,8 +71,10 @@ export function DriverApprovalPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">Driver Approvals</h1>
+            <ShieldCheck className="h-6 w-6 text-foreground" />
+            <h1 className="font-display text-display-md text-foreground">
+              Driver Approvals
+            </h1>
           </div>
           <p className="text-sm text-muted-foreground">
             Review pending driver applications and approve or reject each applicant.
@@ -85,21 +87,21 @@ export function DriverApprovalPage() {
       </div>
 
       {driverDecisionMutation.isError ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {decisionErrorMessage}
         </div>
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
+        <div className="rounded-xl bg-card p-6">
           <div className="space-y-3">
             {[1, 2, 3].map((item) => (
-              <div key={item} className="h-16 animate-pulse rounded-md bg-muted" />
+              <div key={item} className="h-16 animate-pulse rounded-xl bg-soft" />
             ))}
           </div>
         </div>
       ) : isError ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
             <div className="space-y-3">

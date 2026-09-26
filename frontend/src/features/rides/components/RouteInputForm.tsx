@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { LoaderCircle, MapPin, MapPinned } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import type { GeocodingSuggestion } from '../lib/geocoding'
 import { searchPlaces } from '../lib/geocoding'
 
@@ -22,7 +23,6 @@ interface RouteInputFormProps {
 function LocationFieldset({
   legend,
   segment,
-  tone,
   value,
   mapSelectionTarget,
   onAddressInput,
@@ -31,7 +31,6 @@ function LocationFieldset({
 }: {
   legend: string
   segment: 'origin' | 'destination'
-  tone: string
   value: RouteInputValue
   mapSelectionTarget: 'origin' | 'destination' | null
   onAddressInput: (segment: 'origin' | 'destination', value: string) => void
@@ -92,32 +91,32 @@ function LocationFieldset({
   }
 
   return (
-    <fieldset ref={rootRef} className="space-y-3 rounded-lg border p-4">
+    <fieldset ref={rootRef} className="space-y-3 rounded-xl bg-soft p-4">
       <legend className="flex items-center gap-1 px-1 text-sm font-medium">
-        <MapPin className={`h-4 w-4 ${tone}`} />
+        <MapPin className="h-4 w-4 text-foreground" />
         {legend}
       </legend>
 
       <div className="relative">
-        <input
+        <Input
           placeholder={`Search ${legend.toLowerCase()} address`}
           value={value.address}
           onChange={handleInputChange}
           onFocus={() => setIsFocused(true)}
           required
-          className="w-full rounded-md border border-input px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="pr-10 bg-softer"
         />
         {isLoading && (
           <LoaderCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
         )}
 
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute z-20 mt-2 w-full rounded-md border bg-background shadow-lg">
+          <div className="absolute z-20 mt-2 w-full rounded-xl bg-background shadow-elev-2">
             {suggestions.map((suggestion) => (
               <button
                 key={suggestion.id}
                 type="button"
-                className="block w-full border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-secondary"
+                className="block w-full border-b border-border px-3 py-2 text-left text-sm last:border-b-0 hover:bg-soft"
                 onClick={() => {
                   onSelectSuggestion(segment, suggestion)
                   setIsFocused(false)
@@ -131,13 +130,13 @@ function LocationFieldset({
         )}
 
         {showSuggestions && !isLoading && suggestions.length === 0 && value.address.trim().length >= 2 && (
-          <div className="absolute z-20 mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground shadow-lg">
+          <div className="absolute z-20 mt-2 w-full rounded-xl bg-background px-3 py-2 text-sm text-muted-foreground shadow-elev-2">
             No matching places found.
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/30 px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-background px-3 py-2 text-sm">
         <div className="space-y-1">
           <p className="font-medium text-foreground">
             {hasResolvedCoordinates ? 'Location selected' : 'No location selected yet'}
@@ -170,7 +169,6 @@ export function RouteInputForm({
       <LocationFieldset
         legend="Origin"
         segment="origin"
-        tone="text-green-600"
         value={origin}
         mapSelectionTarget={mapSelectionTarget}
         onAddressInput={onAddressInput}
@@ -180,7 +178,6 @@ export function RouteInputForm({
       <LocationFieldset
         legend="Destination"
         segment="destination"
-        tone="text-red-500"
         value={destination}
         mapSelectionTarget={mapSelectionTarget}
         onAddressInput={onAddressInput}

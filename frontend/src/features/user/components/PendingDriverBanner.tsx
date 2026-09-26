@@ -1,24 +1,28 @@
 import { useState } from 'react'
 
+import { Button } from '@/components/ui/button'
+
 export function PendingDriverBanner() {
   const [isDismissed, setIsDismissed] = useState(false)
 
   if (isDismissed) return null
 
   return (
-    <div role="status" className="w-full border-b border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+    <div role="status" className="w-full border-b border-warning/30 bg-warning/10 px-4 py-3 text-foreground">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
-        <span>
+        <span className="text-sm">
           Your driver application is under review. You can still use the app as a passenger in the meantime.
         </span>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           aria-label="Dismiss banner"
           onClick={() => setIsDismissed(true)}
-          className="rounded px-2 text-xl leading-none text-amber-900 transition-colors hover:bg-amber-200"
+          className="h-8 w-8 px-0 text-lg leading-none"
         >
           ×
-        </button>
+        </Button>
       </div>
     </div>
   )

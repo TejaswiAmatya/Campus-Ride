@@ -26,14 +26,14 @@ export function DriverApprovalTable({
 }: DriverApprovalTableProps) {
   if (drivers.length === 0) {
     return (
-      <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground shadow-sm">
+      <div className="rounded-xl bg-card p-6 text-sm text-muted-foreground">
         No pending driver applications.
       </div>
     )
   }
 
   return (
-    <div className="rounded-lg border bg-card shadow-sm">
+    <div className="rounded-xl bg-card">
       <Table data-testid="driver-approval-table">
         <TableHeader>
           <TableRow>

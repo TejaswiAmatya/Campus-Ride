@@ -44,12 +44,12 @@ const rideStatusLabels: Record<Ride["status"], string> = {
 
 const rideStatusVariants: Record<
   Ride["status"],
-  "default" | "secondary" | "destructive" | "outline"
+  "success" | "warning" | "destructive" | "secondary"
 > = {
   OPEN: "secondary",
-  FULL: "secondary",
-  IN_PROGRESS: "default",
-  COMPLETED: "outline",
+  FULL: "warning",
+  IN_PROGRESS: "success",
+  COMPLETED: "secondary",
   CANCELLED: "destructive",
 };
 
@@ -62,12 +62,12 @@ const bookingStatusLabels: Record<RideBooking["status"], string> = {
 
 const bookingStatusVariants: Record<
   RideBooking["status"],
-  "default" | "secondary" | "destructive" | "outline"
+  "success" | "warning" | "destructive" | "secondary"
 > = {
-  PENDING: "secondary",
-  CONFIRMED: "default",
+  PENDING: "warning",
+  CONFIRMED: "success",
   CANCELLED: "destructive",
-  COMPLETED: "outline",
+  COMPLETED: "secondary",
 };
 
 function availableActions(status: Ride["status"]) {
@@ -124,7 +124,7 @@ export function MyRidesPage() {
 
   if (!user || user.role !== "DRIVER") {
     return (
-      <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground">
+      <div className="rounded-xl border border-dashed border-border p-12 text-center text-muted-foreground">
         This page is only available to drivers.
       </div>
     );
@@ -157,23 +157,23 @@ export function MyRidesPage() {
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-3xl border bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-800 text-white">
+      <section className="overflow-hidden rounded-xl bg-primary text-primary-foreground">
         <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200/80">
+            <p className="text-xs font-medium text-mute">
               Driver hub
             </p>
-            <h1 className="text-3xl font-semibold tracking-tight">
+            <h1 className="font-display text-display-lg">
               Manage rides, riders, and earnings
             </h1>
-            <p className="max-w-2xl text-sm text-slate-200">
+            <p className="max-w-2xl text-sm text-mute">
               Accept the right passengers, keep trips moving, and review what
               each completed ride earned.
             </p>
           </div>
           <Button
             asChild
-            className="bg-white text-slate-900 hover:bg-slate-100"
+            variant="secondary"
           >
             <Link to="/driver/rides/new">
               <Plus className="mr-2 h-4 w-4" />
@@ -211,13 +211,13 @@ export function MyRidesPage() {
           {[1, 2, 3].map((item) => (
             <div
               key={item}
-              className="h-40 animate-pulse rounded-2xl border bg-muted"
+              className="h-40 animate-pulse rounded-xl bg-soft"
             />
           ))}
         </div>
       ) : visibleRides.length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-12 text-center">
-          <CarFront className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+        <div className="rounded-xl border border-dashed border-border p-12 text-center">
+          <CarFront className="mx-auto mb-3 h-10 w-10 text-mute" />
           <p className="text-muted-foreground">
             No unfinished rides right now. Completed rides are listed in ride
             history.
@@ -382,7 +382,7 @@ function RideCard({
   );
 
   return (
-    <div className="rounded-3xl border bg-white p-5 shadow-sm">
+    <div className="rounded-xl bg-background p-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0 flex-1 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -392,13 +392,13 @@ function RideCard({
             {isSharingLocation && (
               <Badge variant="secondary" className="gap-1.5">
                 <span
-                  className="h-2 w-2 rounded-full bg-emerald-500"
+                  className="h-2 w-2 rounded-full bg-success"
                   aria-hidden="true"
                 />
                 Sharing location
               </Badge>
             )}
-            <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+            <span className="text-xs font-medium text-mute">
               Ride {ride.id.slice(0, 8)}
             </span>
           </div>
@@ -482,7 +482,7 @@ function RideCard({
       </div>
 
       {showExpandedSection && (
-        <div className="mt-4 rounded-lg border bg-muted/20">
+        <div className="mt-4 rounded-xl bg-soft">
           <div className="border-b px-4 py-3">
             <h2 className="text-sm font-semibold">
               {canManagePassengers ? "Passengers" : "Booking Requests"}
@@ -582,44 +582,44 @@ function PassengerRow({
     canManagePassengers && !pickedUpLocally && !noShowLocally;
 
   return (
-    <div className="rounded-2xl border bg-white p-4 shadow-sm">
+    <div className="rounded-xl bg-background p-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium text-slate-900">
+            <p className="font-medium text-foreground">
               {booking.passenger.name}
             </p>
             <Badge variant={bookingStatusVariants[booking.status]}>
               {bookingStatusLabels[booking.status]}
             </Badge>
             {pickedUpLocally && (
-              <span className="text-xs text-emerald-700">Picked up</span>
+              <span className="text-xs text-success">Picked up</span>
             )}
             {noShowLocally && (
               <span className="text-xs text-destructive">Marked no-show</span>
             )}
           </div>
-          <p className="text-sm text-slate-500">{helper}</p>
-          <div className="flex flex-wrap gap-2 text-sm text-slate-600">
-            <span className="rounded-full bg-slate-100 px-3 py-1">
+          <p className="text-sm text-muted-foreground">{helper}</p>
+          <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+            <span className="rounded-pill bg-soft px-3 py-1">
               {booking.seatsBooked} seat{booking.seatsBooked > 1 ? "s" : ""}
             </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1">
+            <span className="rounded-pill bg-soft px-3 py-1">
               {booking.driverEarnings} NOK earned
             </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1">
+            <span className="rounded-pill bg-soft px-3 py-1">
               {booking.totalFare} NOK fare
             </span>
           </div>
           {booking.review && (
-            <div className="flex items-center gap-1 text-amber-500">
+            <div className="flex items-center gap-1 text-foreground">
               {Array.from({ length: 5 }).map((_, index) => (
                 <Star
                   key={index}
                   className={
                     index < booking.review!.rating
-                      ? "h-4 w-4 fill-amber-400 text-amber-400"
-                      : "h-4 w-4 text-slate-300"
+                      ? "h-4 w-4 fill-foreground text-foreground"
+                      : "h-4 w-4 text-mute"
                   }
                 />
               ))}
@@ -679,7 +679,7 @@ function PassengerRow({
           )}
 
           {booking.status === "COMPLETED" && !booking.review && (
-            <div className="flex items-center gap-2 rounded-2xl border bg-slate-50 px-3 py-2">
+            <div className="flex items-center gap-2 rounded-xl bg-soft px-3 py-2">
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map((value) => (
                   <button
@@ -690,8 +690,8 @@ function PassengerRow({
                     <Star
                       className={
                         value <= rating
-                          ? "h-4 w-4 fill-amber-400 text-amber-400"
-                          : "h-4 w-4 text-slate-300"
+                          ? "h-4 w-4 fill-foreground text-foreground"
+                          : "h-4 w-4 text-mute"
                       }
                     />
                   </button>
@@ -722,10 +722,10 @@ function DriverMetric({
   helper: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-white p-5 shadow-sm">
-      <p className="text-sm font-medium text-slate-500">{title}</p>
-      <p className="mt-3 text-2xl font-semibold text-slate-900">{value}</p>
-      <p className="mt-1 text-sm text-slate-500">{helper}</p>
+    <div className="rounded-xl bg-background p-5">
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      <p className="mt-3 font-display text-display-md text-foreground">{value}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{helper}</p>
     </div>
   );
 }
@@ -740,12 +740,12 @@ function TripMetric({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-white p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+    <div className="rounded-xl bg-soft p-4">
+      <div className="flex items-center gap-2 text-xs font-medium text-mute">
         {icon}
         {label}
       </div>
-      <p className="mt-3 text-sm font-medium text-slate-900">{value}</p>
+      <p className="mt-3 text-sm font-medium text-foreground">{value}</p>
     </div>
   );
 }
@@ -774,7 +774,7 @@ function CancelRideDialog({
       aria-modal="true"
       aria-labelledby="cancel-ride-title"
     >
-      <div className="w-full max-w-md rounded-2xl border bg-background p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-xl bg-background p-6 shadow-elev-2">
         <div className="space-y-2">
           <h2 id="cancel-ride-title" className="text-lg font-semibold">
             Cancel this ride?

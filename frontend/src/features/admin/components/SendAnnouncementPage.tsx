@@ -70,9 +70,11 @@ export function SendAnnouncementPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center gap-3">
-        <Megaphone className="h-6 w-6 text-primary" />
+        <Megaphone className="h-6 w-6 text-foreground" />
         <div>
-          <h1 className="text-2xl font-bold">Send Announcement</h1>
+          <h1 className="font-display text-display-md text-foreground">
+            Send Announcement
+          </h1>
           <p className="text-sm text-muted-foreground">
             Broadcast a message to connected users now and queue it for anyone
             who logs in later.
@@ -113,18 +115,18 @@ export function SendAnnouncementPage() {
                 onChange={(event) => setMessage(event.target.value)}
                 placeholder="Enter the announcement message all users should see."
                 disabled={sendAnnouncementMutation.isPending}
-                className="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex min-h-24 w-full rounded-md border-0 bg-soft px-4 py-3 text-sm text-foreground ring-offset-background placeholder:text-mute focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
 
             {successMessage ? (
-              <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              <p className="rounded-xl bg-success/10 px-3 py-2 text-sm text-success">
                 {successMessage}
               </p>
             ) : null}
 
             {formError ? (
-              <p className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {formError}
               </p>
             ) : null}

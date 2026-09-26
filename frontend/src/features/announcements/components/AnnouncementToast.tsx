@@ -64,18 +64,18 @@ export function AnnouncementToast({
     <div className="pointer-events-none fixed bottom-4 right-4 z-[100] w-[calc(100vw-2rem)] max-w-sm">
       <div
         className={cn(
-          "pointer-events-auto rounded-xl border bg-background p-4 shadow-2xl transition-all duration-300",
+          "pointer-events-auto rounded-xl bg-background p-4 shadow-elev-2 transition-all duration-300",
           isVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
         )}
         role="status"
         aria-live="polite"
       >
         <div className="mb-3 flex items-start gap-3">
-          <div className="rounded-full bg-primary/10 p-2 text-primary">
+          <div className="rounded-full bg-soft p-2 text-foreground">
             <BellRing className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">{announcement.subject}</p>
+            <p className="text-sm font-medium">{announcement.subject}</p>
             <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
               {announcement.message}
             </p>

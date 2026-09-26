@@ -7,12 +7,12 @@ import { cn } from '@/lib/utils'
 function createMarkerIcon(type: MapMarker['type'] = 'default') {
   const color =
     type === 'origin'
-      ? '#16a34a'
+      ? '#000000'
       : type === 'destination'
-        ? '#ef4444'
+        ? '#5e5e5e'
         : type === 'driver'
-          ? '#2563eb'
-          : '#0f172a'
+          ? '#282828'
+          : '#4b4b4b'
 
   return L.divIcon({
     className: 'campus-ride-marker',
@@ -25,7 +25,7 @@ function createMarkerIcon(type: MapMarker['type'] = 'default') {
           border-radius:9999px;
           background:${color};
           border:3px solid white;
-          box-shadow:0 2px 8px rgba(15, 23, 42, 0.35);
+          box-shadow:0 2px 8px rgba(0, 0, 0, 0.16);
         "
       ></span>
     `,
@@ -38,7 +38,7 @@ function createMarkerIcon(type: MapMarker['type'] = 'default') {
 export interface MapMarker {
   position: [number, number]
   label?: string
-  /** 'origin' renders a green marker, 'destination' renders a red one (future enhancement) */
+  /** 'origin' renders a dark marker, 'destination' a mid-gray one */
   type?: 'origin' | 'destination' | 'driver' | 'default'
 }
 
@@ -123,7 +123,7 @@ export function MapView({
     <MapContainer
       center={center as LatLngExpression}
       zoom={zoom}
-      className={cn('w-full rounded-lg border', height, className)}
+      className={cn('w-full overflow-hidden rounded-xl', height, className)}
       style={{ minHeight: '200px' }}
     >
       <TileLayer
@@ -139,7 +139,7 @@ export function MapView({
         <Polyline
           positions={routePath as LatLngExpression[]}
           pathOptions={{
-            color: '#0f766e',
+            color: '#000000',
             weight: 5,
             opacity: 0.8,
           }}

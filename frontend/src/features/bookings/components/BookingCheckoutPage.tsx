@@ -109,7 +109,7 @@ function LocationFieldset({
   };
 
   return (
-    <fieldset ref={rootRef} className="space-y-3 rounded-lg border p-4">
+    <fieldset ref={rootRef} className="space-y-3 rounded-xl bg-soft p-4">
       <legend className="flex items-center gap-1 px-1 text-sm font-medium">
         <MapPin className={`h-4 w-4 ${tone}`} />
         {legend}
@@ -127,12 +127,12 @@ function LocationFieldset({
         )}
 
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute z-20 mt-2 w-full rounded-md border bg-background shadow-lg">
+          <div className="absolute z-20 mt-2 w-full rounded-xl bg-background shadow-elev-2">
             {suggestions.map((suggestion) => (
               <button
                 key={suggestion.id}
                 type="button"
-                className="block w-full border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-secondary"
+                className="block w-full border-b border-border px-3 py-2 text-left text-sm last:border-b-0 hover:bg-soft"
                 onClick={() => {
                   onSelectSuggestion(suggestion);
                   setIsFocused(false);
@@ -151,13 +151,13 @@ function LocationFieldset({
           !isLoading &&
           suggestions.length === 0 &&
           value.address.trim().length >= 2 && (
-            <div className="absolute z-20 mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground shadow-lg">
+            <div className="absolute z-20 mt-2 w-full rounded-xl bg-background px-3 py-2 text-sm text-muted-foreground shadow-elev-2">
               No matching places found.
             </div>
           )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/30 px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-background px-3 py-2 text-sm">
         <div className="space-y-1">
           <p className="font-medium text-foreground">
             {hasResolvedCoordinates
@@ -237,7 +237,7 @@ export function BookingCheckoutPage() {
 
   if (isError || !ride) {
     return (
-      <div className="mx-auto max-w-lg space-y-4 rounded-lg border border-dashed p-8 text-center">
+      <div className="mx-auto max-w-lg space-y-4 rounded-xl border border-dashed border-border p-8 text-center">
         <p className="text-muted-foreground">This ride could not be loaded.</p>
         <Button asChild variant="outline">
           <Link to="/rides">Back to rides</Link>
@@ -398,11 +398,11 @@ export function BookingCheckoutPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="space-y-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+        <div className="inline-flex items-center gap-2 rounded-pill bg-soft px-3 py-1 text-xs font-medium text-foreground">
           <CheckCircle2 className="h-3.5 w-3.5" />
           Ride checkout
         </div>
-        <h1 className="text-2xl font-bold">Reserve your seat</h1>
+        <h1 className="font-display text-display-lg text-foreground">Reserve your seat</h1>
         <p className="text-sm text-muted-foreground">
           Confirm your seats, fine-tune your pickup and drop-off points, and
           leave the driver a quick note if needed.
@@ -410,10 +410,10 @@ export function BookingCheckoutPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
-        <Card className="overflow-hidden border-primary/15 shadow-md">
-          <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-background">
+        <Card className="overflow-hidden">
+          <CardHeader className="bg-soft">
             <CardTitle className="flex items-start gap-2 text-lg">
-              <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-foreground" />
               <span>
                 {ride.originAddress} to {ride.destinationAddress}
               </span>
@@ -439,7 +439,7 @@ export function BookingCheckoutPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/20 p-3">
+            <div className="grid grid-cols-2 gap-3 rounded-xl bg-soft p-3">
               <div className="space-y-1">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
                   Price per seat
@@ -454,14 +454,14 @@ export function BookingCheckoutPage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-sm">
+            <div className="rounded-xl bg-soft p-3 text-sm">
               <div className="flex items-start gap-2">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
                 <div>
-                  <p className="font-medium text-emerald-900">
+                  <p className="font-medium text-foreground">
                     Before you book
                   </p>
-                  <p className="text-emerald-800/80">
+                  <p className="text-muted-foreground">
                     Make sure your selected points are realistic for the driver
                     to reach and mention anything useful like landmark details
                     or building entrances.
@@ -470,7 +470,7 @@ export function BookingCheckoutPage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+            <div className="rounded-xl bg-soft p-3 text-sm">
               <p className="font-medium text-foreground">
                 Simulated payment capture
               </p>
@@ -484,7 +484,7 @@ export function BookingCheckoutPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-primary/10">
+        <Card>
           <CardHeader>
             <CardTitle>Passenger details</CardTitle>
             <CardDescription>
@@ -527,7 +527,7 @@ export function BookingCheckoutPage() {
 
             <LocationFieldset
               legend="Pickup point"
-              tone="text-green-600"
+              tone="text-foreground"
               value={pickup}
               isSelectingFromMap={mapSelectionTarget === "pickup"}
               onAddressInput={(value) => handleLocationInput("pickup", value)}
@@ -543,7 +543,7 @@ export function BookingCheckoutPage() {
 
             <LocationFieldset
               legend="Drop-off point"
-              tone="text-red-500"
+              tone="text-muted-foreground"
               value={dropoff}
               isSelectingFromMap={mapSelectionTarget === "dropoff"}
               onAddressInput={(value) => handleLocationInput("dropoff", value)}
@@ -575,7 +575,7 @@ export function BookingCheckoutPage() {
                 maxLength={1000}
                 rows={4}
                 placeholder="Example: I'll be waiting outside the library entrance in a blue jacket."
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex h-12 w-full rounded-md border-0 bg-soft px-4 py-4 text-base focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <p className="text-right text-xs text-muted-foreground">
                 {messageToDriver.length}/1000
@@ -583,14 +583,14 @@ export function BookingCheckoutPage() {
             </div>
 
             {(bookMutation.isError || mapError) && (
-              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              <div className="flex items-start gap-2 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{bookingErrorMessage}</span>
               </div>
             )}
 
             {!isAuthenticated && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-900">
+              <div className="flex items-start gap-2 rounded-xl bg-soft p-3 text-sm text-foreground">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
                   Your session is not active. Log in before confirming this

@@ -5,6 +5,8 @@ import { AuthPageLayout } from "@/features/auth/components/AuthPageLayout";
 import { useAuth, useLogin } from "@/features/auth/hooks/useAuth";
 import { getDefaultRoute } from "@/features/auth/lib/routing";
 import { useAuthStore } from "@/store/authStore";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 function getModerationMessage(
   authError: {
@@ -71,81 +73,74 @@ export function LoginPage() {
 
   return (
     <AuthPageLayout>
-      <div className="mb-8 flex flex-col items-center gap-6 text-center">
-        <Car className="h-10 w-10 text-primary" />
-        <h1 className="text-2xl font-bold">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">
-          Sign in to Campus Ride
-        </p>
+      <div className="mb-8 flex flex-col items-center gap-4 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-background">
+          <Car className="h-6 w-6 text-foreground" />
+        </span>
+        <h1 className="font-display text-display-md text-foreground">Welcome back</h1>
+        <p className="text-sm text-mute">Sign in to Campus Ride</p>
       </div>
 
       <form onSubmit={handleSubmit} className="mx-auto w-[95%] space-y-4">
         {confirmed && (
-          <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+          <p className="rounded-xl bg-success/10 px-3 py-2 text-sm text-success">
             Your email is confirmed. You can sign in now.
           </p>
         )}
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium mb-1">
+          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground">
             University email
           </label>
-          <input
+          <Input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@university.edu"
             required
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="bg-softer"
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium mb-1">
+          <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-foreground">
             Password
           </label>
-          <input
+          <Input
             id="password"
             type="password"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="bg-softer"
           />
         </div>
 
         {authError && (
           <p
             role="alert"
-            className={`rounded-md px-3 py-2 text-sm ${
+            className={`rounded-xl px-3 py-2 text-sm ${
               authError.code === "ACCOUNT_BANNED" ||
               authError.code === "ACCOUNT_SUSPENDED" ||
               authError.code === "ACCOUNT_DEACTIVATED"
-                ? "bg-orange-50 text-orange-600"
-                : "bg-red-50 text-red-600"
+                ? "bg-warning/15 text-warning-foreground"
+                : "bg-destructive/10 text-destructive"
             }`}
           >
             {getModerationMessage(authError)}
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={loginMutation.isPending}
-          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-        >
+        <Button type="submit" disabled={loginMutation.isPending} className="w-full">
           {loginMutation.isPending ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 text-center text-sm text-mute">
         Don't have an account?{" "}
-        <Link
-          to="/auth/register"
-          className="font-medium text-primary hover:underline"
-        >
+        <Link to="/auth/register" className="font-medium text-foreground hover:underline">
           Create one
         </Link>
       </p>

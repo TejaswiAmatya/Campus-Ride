@@ -2,11 +2,11 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { BookingStatus } from '../types'
 
-const VARIANT: Record<BookingStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  PENDING: 'secondary',
-  CONFIRMED: 'default',
-  CANCELLED: 'outline',
-  COMPLETED: 'default',
+const VARIANT: Record<BookingStatus, 'success' | 'warning' | 'destructive' | 'secondary'> = {
+  PENDING: 'warning',
+  CONFIRMED: 'success',
+  CANCELLED: 'destructive',
+  COMPLETED: 'secondary',
 }
 
 const LABELS: Record<BookingStatus, string> = {
@@ -24,7 +24,7 @@ export function StatusBadge({
   className?: string
 }) {
   return (
-    <Badge variant={VARIANT[status]} className={cn('font-medium', className)}>
+    <Badge variant={VARIANT[status]} className={cn(className)}>
       {LABELS[status]}
     </Badge>
   )

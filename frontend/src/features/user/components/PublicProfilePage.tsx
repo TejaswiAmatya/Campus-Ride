@@ -4,6 +4,7 @@ import Rating from "@mui/material/Rating";
 import { Link, useParams } from "react-router-dom";
 import { Star, UserRound } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { VerificationBadge } from "@/features/user/components/VerificationBadge";
 import { usePublicUserProfile, useUserReviews } from "@/features/user/hooks/useProfile";
@@ -40,7 +41,7 @@ export function PublicProfilePage() {
 
   if (!id) {
     return (
-      <div className="mx-auto max-w-4xl rounded-3xl border border-dashed p-8 text-center">
+      <div className="mx-auto max-w-4xl rounded-xl border border-dashed border-border p-8 text-center">
         <p className="text-sm text-muted-foreground">Profile not found.</p>
         <Link
           to="/rides"
@@ -67,7 +68,7 @@ export function PublicProfilePage() {
       combinedError.response?.data?.error?.code === "ACCOUNT_DEACTIVATED"
     ) {
       return (
-        <div className="mx-auto max-w-4xl rounded-3xl border border-dashed p-8 text-center">
+        <div className="mx-auto max-w-4xl rounded-xl border border-dashed border-border p-8 text-center">
           <p className="text-sm text-muted-foreground">
             This profile is no longer available.
           </p>
@@ -76,7 +77,7 @@ export function PublicProfilePage() {
     }
 
     return (
-      <div className="mx-auto max-w-4xl rounded-3xl border border-dashed p-8 text-center">
+      <div className="mx-auto max-w-4xl rounded-xl border border-dashed border-border p-8 text-center">
         <p className="text-sm text-muted-foreground">
           This profile could not be loaded.
         </p>
@@ -96,7 +97,7 @@ export function PublicProfilePage() {
 
   if (!profile) {
     return (
-      <div className="mx-auto max-w-4xl rounded-3xl border border-dashed p-8 text-center">
+      <div className="mx-auto max-w-4xl rounded-xl border border-dashed border-border p-8 text-center">
         <p className="text-sm text-muted-foreground">Profile not found.</p>
       </div>
     );
@@ -112,9 +113,9 @@ export function PublicProfilePage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <section className="overflow-hidden rounded-3xl border bg-gradient-to-r from-sky-50 via-white to-emerald-50">
-        <div className="border-b border-slate-200/80 px-6 py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
+      <section className="overflow-hidden rounded-xl bg-card">
+        <div className="border-b border-border bg-soft px-6 py-3">
+          <p className="text-xs font-medium text-muted-foreground">
             Public profile
           </p>
         </div>
@@ -125,17 +126,17 @@ export function PublicProfilePage() {
               <img
                 src={profile.avatarPath}
                 alt={`${profile.name} avatar`}
-                className="h-24 w-24 rounded-3xl object-cover ring-1 ring-slate-200"
+                className="h-24 w-24 rounded-xl object-cover"
               />
             ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-slate-900 text-4xl font-semibold text-white">
+              <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-primary font-display text-4xl font-semibold text-primary-foreground">
                 {profileInitial}
               </div>
             )}
 
             <div className="min-w-0 flex-1 space-y-3">
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+                <h1 className="font-display text-display-lg text-foreground">
                   {profile.name}
                 </h1>
                 <VerificationBadge
@@ -144,32 +145,28 @@ export function PublicProfilePage() {
                     profile.academicVerificationStatus
                   }
                 />
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-muted-foreground">
                   Public ride feedback and reputation summary.
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-                <span className="rounded-full border bg-white px-3 py-1">
-                  {roleLabel}
-                </span>
-                <span className="rounded-full border bg-white px-3 py-1">
-                  ID {formatShortId(id)}
-                </span>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">{roleLabel}</Badge>
+                <Badge variant="outline">ID {formatShortId(id)}</Badge>
               </div>
             </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="rounded-2xl border bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <div className="rounded-xl bg-soft p-5">
+              <p className="text-xs font-medium text-muted-foreground">
                 Reputation
               </p>
               <div className="mt-4 flex items-end gap-3">
-                <span className="text-5xl font-semibold leading-none text-slate-950">
+                <span className="font-display text-display-xl leading-none text-foreground">
                   {reviews.length === 0 ? "0.0" : averageRating.toFixed(1)}
                 </span>
-                <span className="pb-1 text-sm text-slate-500">out of 5</span>
+                <span className="pb-1 text-sm text-muted-foreground">out of 5</span>
               </div>
 
               <div className="mt-4 flex items-center gap-3">
@@ -179,33 +176,33 @@ export function PublicProfilePage() {
                   value={averageRating}
                   readOnly
                   sx={{
-                    color: "#0f172a",
+                    color: "#000000",
                     "& .MuiRating-iconEmpty": {
-                      color: "rgba(148, 163, 184, 0.35)",
+                      color: "rgba(175, 175, 175, 0.5)",
                     },
                   }}
                 />
-                <span className="text-sm text-slate-600">
+                <span className="text-sm text-muted-foreground">
                   {reviews.length} review{reviews.length === 1 ? "" : "s"}
                 </span>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <div className="rounded-xl bg-soft p-5">
+                <p className="text-xs font-medium text-muted-foreground">
                   Average rating
                 </p>
-                <p className="mt-4 text-3xl font-semibold text-slate-950">
+                <p className="mt-4 font-display text-display-md text-foreground">
                   {reviews.length === 0 ? "No ratings" : averageRating.toFixed(1)}
                 </p>
               </div>
 
-              <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <div className="rounded-xl bg-soft p-5">
+                <p className="text-xs font-medium text-muted-foreground">
                   Feedback count
                 </p>
-                <p className="mt-4 text-3xl font-semibold text-slate-950">
+                <p className="mt-4 font-display text-display-md text-foreground">
                   {reviews.length}
                 </p>
               </div>
@@ -216,28 +213,28 @@ export function PublicProfilePage() {
 
       <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-white">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-soft text-foreground">
             <Star className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+            <h2 className="font-display text-display-md text-foreground">
               Received reviews
             </h2>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted-foreground">
               Comments left by other riders and drivers.
             </p>
           </div>
         </div>
 
         {reviews.length === 0 ? (
-          <div className="rounded-2xl border border-dashed bg-slate-50/70 p-10 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-500 shadow-sm">
+          <div className="rounded-xl border border-dashed border-border bg-soft p-10 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-card text-mute">
               <UserRound className="h-6 w-6" />
             </div>
-            <p className="mt-4 text-base font-medium text-slate-900">
+            <p className="mt-4 text-base font-medium text-foreground">
               No reviews yet
             </p>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-muted-foreground">
               This profile has not received any public ride feedback yet.
             </p>
           </div>
@@ -246,7 +243,7 @@ export function PublicProfilePage() {
             {reviews.map((review) => (
               <article
                 key={review.id}
-                className="rounded-2xl border bg-white p-6 shadow-sm"
+                className="rounded-xl bg-card p-6"
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-3">
@@ -255,19 +252,19 @@ export function PublicProfilePage() {
                         <img
                           src={review.reviewer.avatarPath}
                           alt={`${review.reviewer.name} avatar`}
-                          className="h-11 w-11 rounded-2xl object-cover"
+                          className="h-11 w-11 rounded-xl object-cover"
                         />
                       ) : (
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-sm font-semibold text-slate-700">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-soft text-sm font-semibold text-foreground">
                           {(review.reviewer.name.trim().charAt(0) || "R").toUpperCase()}
                         </div>
                       )}
 
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">
+                        <p className="text-sm font-medium text-foreground">
                           {review.reviewer.name}
                         </p>
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                        <p className="text-xs text-mute">
                           Ride {formatShortId(review.rideId)}
                         </p>
                       </div>
@@ -280,25 +277,25 @@ export function PublicProfilePage() {
                         value={review.rating}
                         readOnly
                         sx={{
-                          color: "#f59e0b",
+                          color: "#000000",
                           "& .MuiRating-iconEmpty": {
-                            color: "rgba(148, 163, 184, 0.35)",
+                            color: "rgba(175, 175, 175, 0.5)",
                           },
                         }}
                       />
-                      <span className="text-sm font-medium text-slate-700">
+                      <span className="text-sm font-medium text-foreground">
                         {review.rating.toFixed(1).replace(".0", "")}/5
                       </span>
                     </div>
                   </div>
 
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                  <p className="text-xs text-mute">
                     {new Date(review.createdAt).toLocaleDateString("en-GB")}
                   </p>
                 </div>
 
                 {review.comment && (
-                  <p className="mt-4 text-sm leading-7 text-slate-600">
+                  <p className="mt-4 text-sm leading-7 text-muted-foreground">
                     {review.comment}
                   </p>
                 )}

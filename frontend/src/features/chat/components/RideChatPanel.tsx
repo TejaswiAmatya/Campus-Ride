@@ -9,6 +9,7 @@ import {
 import { MessageCircleMore, SendHorizonal, Wifi, WifiOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -92,52 +93,40 @@ export function RideChatPanel({
   }
 
   return (
-    <Card
-      className={cn(
-        "overflow-hidden rounded-[28px] border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] shadow-[0_24px_80px_-52px_rgba(15,23,42,0.4)]",
-        className,
-      )}
-    >
-      <CardHeader className="border-b border-slate-200/80 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_40%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(241,245,249,0.92))] pb-5">
+    <Card className={cn("overflow-hidden", className)}>
+      <CardHeader className="border-b border-border bg-soft pb-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sky-700">
+            <div className="flex items-center gap-2 text-foreground">
               <MessageCircleMore className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-[0.24em]">
+              <span className="text-xs font-medium text-mute">
                 Ride chat
               </span>
             </div>
-            <CardTitle className="text-xl text-slate-950">
+            <CardTitle className="text-display-sm">
               Coordinate pickup and timing
             </CardTitle>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted-foreground">
               Messages stay tied to this ride so drivers and confirmed riders
               can sort out practical details quickly.
             </p>
           </div>
 
-          <div
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium",
-              isConnected
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-amber-100 text-amber-700",
-            )}
-          >
+          <Badge variant={isConnected ? "success" : "warning"} className="gap-2">
             {isConnected ? (
               <Wifi className="h-3.5 w-3.5" />
             ) : (
               <WifiOff className="h-3.5 w-3.5" />
             )}
             {isConnected ? "Live updates on" : "Reconnecting"}
-          </div>
+          </Badge>
         </div>
       </CardHeader>
 
       <CardContent className="p-0">
         <div
           ref={scrollViewportRef}
-          className="max-h-[26rem] min-h-[18rem] space-y-4 overflow-y-auto bg-[linear-gradient(180deg,rgba(248,250,252,0.58),rgba(255,255,255,0.96))] px-4 py-4 sm:px-6"
+          className="max-h-[26rem] min-h-[18rem] space-y-4 overflow-y-auto bg-background px-4 py-4 sm:px-6"
         >
           {isLoading ? (
             <div className="space-y-3">
@@ -149,30 +138,30 @@ export function RideChatPanel({
                     index % 2 === 0 ? "justify-start" : "justify-end",
                   )}
                 >
-                  <div className="h-20 w-full max-w-xs animate-pulse rounded-3xl bg-slate-200/70" />
+                  <div className="h-20 w-full max-w-xs animate-pulse rounded-xl bg-soft" />
                 </div>
               ))}
             </div>
           ) : isError ? (
-            <div className="flex min-h-[14rem] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-white/70 px-6 text-center">
-              <MessageCircleMore className="h-8 w-8 text-slate-400" />
+            <div className="flex min-h-[14rem] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-soft px-6 text-center">
+              <MessageCircleMore className="h-8 w-8 text-mute" />
               <div className="space-y-1">
-                <p className="font-medium text-slate-900">
+                <p className="font-medium text-foreground">
                   Chat history could not be loaded.
                 </p>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Refresh the page and try again.
                 </p>
               </div>
             </div>
           ) : sortedMessages.length === 0 ? (
-            <div className="flex min-h-[14rem] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-white/70 px-6 text-center">
-              <MessageCircleMore className="h-8 w-8 text-slate-400" />
+            <div className="flex min-h-[14rem] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-soft px-6 text-center">
+              <MessageCircleMore className="h-8 w-8 text-mute" />
               <div className="space-y-1">
-                <p className="font-medium text-slate-900">
+                <p className="font-medium text-foreground">
                   No messages yet.
                 </p>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Start with pickup details, arrival timing, or a simple heads-up.
                 </p>
               </div>
@@ -203,17 +192,17 @@ export function RideChatPanel({
                     )}
                   >
                     {!isOwnMessage && (
-                      <p className="pl-1 text-xs font-medium text-slate-500">
+                      <p className="pl-1 text-xs font-medium text-muted-foreground">
                         {message.senderName}
                       </p>
                     )}
 
                     <div
                       className={cn(
-                        "rounded-[22px] px-4 py-3 shadow-sm",
+                        "rounded-xl px-4 py-3",
                         isOwnMessage
-                          ? "rounded-br-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white"
-                          : "rounded-bl-lg border border-slate-200 bg-white text-slate-900",
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-soft text-foreground",
                       )}
                     >
                       <p className="whitespace-pre-wrap break-words text-sm leading-6">
@@ -223,8 +212,8 @@ export function RideChatPanel({
 
                     <div
                       className={cn(
-                        "px-1 text-[11px]",
-                        isOwnMessage ? "text-right text-slate-400" : "text-slate-400",
+                        "px-1 text-xs text-mute",
+                        isOwnMessage ? "text-right" : "",
                       )}
                     >
                       {formatMessageTime(message.createdAt)}
@@ -245,9 +234,9 @@ export function RideChatPanel({
 
         <form
           onSubmit={handleSubmit}
-          className="border-t border-slate-200/80 bg-white/95 px-4 py-3 sm:px-6"
+          className="border-t border-border bg-background px-4 py-3 sm:px-6"
         >
-          <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-1.5 shadow-inner shadow-slate-100">
+          <div className="rounded-xl bg-soft p-1.5">
             <textarea
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
@@ -255,14 +244,14 @@ export function RideChatPanel({
               rows={2}
               maxLength={1000}
               placeholder="Write a quick update for this ride..."
-              className="w-full resize-none border-0 bg-transparent px-3 pb-10 pt-2.5 text-sm leading-5 text-slate-900 outline-none placeholder:text-slate-400"
+              className="w-full resize-none border-0 bg-transparent px-3 pb-10 pt-2.5 text-sm leading-5 text-foreground outline-none placeholder:text-mute"
             />
-            <div className="flex items-center justify-between gap-3 border-t border-slate-200/80 px-3 pb-1 pt-1.5">
-              <p className="text-xs text-slate-500">
+            <div className="flex items-center justify-between gap-3 border-t border-border px-3 pb-1 pt-1.5">
+              <p className="text-xs text-muted-foreground">
                 Press Enter to send
               </p>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-mute">
                   {draft.length}/1000
                 </span>
                 <Button
@@ -270,7 +259,6 @@ export function RideChatPanel({
                   disabled={!canSend}
                   size="icon"
                   aria-label="Send message"
-                  className="h-8 w-8 rounded-full bg-blue-500 text-white shadow-sm hover:bg-blue-600"
                 >
                   <SendHorizonal className="h-4 w-4" />
                 </Button>
@@ -295,13 +283,13 @@ function MessageAvatar({
       <img
         src={avatarPath}
         alt={name}
-        className="h-9 w-9 rounded-full border border-slate-200 object-cover shadow-sm"
+        className="h-9 w-9 rounded-full object-cover"
       />
     );
   }
 
   return (
-    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-xs font-semibold text-slate-600 shadow-sm">
+    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-soft text-xs font-medium text-muted-foreground">
       {getInitials(name)}
     </div>
   );

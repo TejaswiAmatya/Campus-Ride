@@ -32,26 +32,19 @@ export function BookingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-2xl border bg-gradient-to-r from-sky-50 via-white to-emerald-50">
-        <div className="flex flex-col gap-4 p-6 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
-              Trips
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-              Your bookings
-            </h1>
-            <p className="max-w-2xl text-sm text-slate-600">
-              Track your upcoming rides, pending requests, completed trips, and
-              cancellations in one place.
-            </p>
-          </div>
-        </div>
+      <div className="space-y-2">
+        <h1 className="font-display text-display-lg text-foreground">
+          Your bookings
+        </h1>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Track your upcoming rides, pending requests, completed trips, and
+          cancellations in one place.
+        </p>
       </div>
 
-      <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
+      <div className="rounded-xl bg-soft p-4 text-sm">
         <p className="flex items-center gap-2 font-medium text-foreground">
-          <Wallet className="h-4 w-4 text-primary" />
+          <Wallet className="h-4 w-4 text-foreground" />
           Cancellation refund policy
         </p>
         <p className="mt-2 text-muted-foreground">
@@ -65,13 +58,13 @@ export function BookingsPage() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-36 animate-pulse rounded-2xl border bg-muted"
+              className="h-36 animate-pulse rounded-xl bg-soft"
             />
           ))}
         </div>
       ) : (bookings ?? []).length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-12 text-center">
-          <CalendarCheck className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+        <div className="rounded-xl border border-dashed border-border p-12 text-center">
+          <CalendarCheck className="mx-auto mb-3 h-10 w-10 text-mute" />
           <p className="text-muted-foreground">No bookings yet.</p>
         </div>
       ) : (
@@ -79,13 +72,10 @@ export function BookingsPage() {
           {upcomingBookings.length > 0 && (
             <section className="space-y-4">
               <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
-                  Coming up
-                </p>
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+                <h2 className="font-display text-display-md text-foreground">
                   Your next confirmed rides
                 </h2>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-muted-foreground">
                   Track departure time, verify the pickup point, and cancel
                   quickly if your plans change.
                 </p>
@@ -109,12 +99,12 @@ export function BookingsPage() {
 
           <section className="space-y-4">
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-slate-950">
+              <h2 className="font-display text-display-sm text-foreground">
                 {passengerActivity.length > 0 || upcomingBookings.length === 0
                   ? "All booking activity"
                   : "Past and pending activity"}
               </h2>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 Requests still waiting on a driver, completed trips, and any
                 cancellations stay here for reference.
               </p>
@@ -135,7 +125,7 @@ export function BookingsPage() {
             </div>
 
             {passengerActivity.length === 0 && upcomingBookings.length > 0 && (
-              <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
                 Everything else is clear right now. Your confirmed upcoming
                 rides are shown above.
               </div>
@@ -166,33 +156,30 @@ function BookingCard({
           : "Waiting for the driver to accept your booking request.";
 
   return (
-    <div className="rounded-2xl border bg-white p-5 shadow-sm">
+    <div className="rounded-xl bg-background p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge
-              status={booking.status}
-              className="rounded-full px-3 py-1"
-            />
-            <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+            <StatusBadge status={booking.status} />
+            <span className="text-xs font-medium text-mute">
               Ref {booking.id.slice(0, 8)}
             </span>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-start gap-2">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
-              <p className="text-base font-semibold text-slate-900">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
+              <p className="text-base font-medium text-foreground">
                 {booking.ride.originAddress} to{" "}
                 {booking.ride.destinationAddress}
               </p>
             </div>
-            <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            <p className="rounded-xl bg-soft px-3 py-2 text-sm text-muted-foreground">
               {message}
             </p>
           </div>
 
-          <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
             <MetaItem icon={<Clock3 className="h-4 w-4" />}>
               {new Date(booking.ride.departureTime).toLocaleString("en-GB", {
                 weekday: "short",
@@ -261,8 +248,8 @@ function MetaItem({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl border bg-slate-50 px-3 py-2">
-      <span className="text-slate-400">{icon}</span>
+    <div className="flex items-center gap-2 rounded-xl bg-soft px-3 py-2">
+      <span className="text-mute">{icon}</span>
       <span>{children}</span>
     </div>
   );

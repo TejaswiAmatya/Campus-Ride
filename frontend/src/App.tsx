@@ -117,7 +117,7 @@ export function App() {
       <BrowserRouter>
         <div className="min-h-screen bg-background">
           <Navbar />
-          <main className="container mx-auto px-4 py-6">
+          <main className="container mx-auto max-w-content px-4 py-8 lg:px-8">
             <Routes>
               {/* Public */}
               <Route path="/auth/login" element={<LoginPage />} />

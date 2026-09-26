@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { AvatarUpload } from "@/features/user/components/AvatarUpload";
 import { EditUserDetailForm } from "@/features/user/components/EditUserDetailForm";
 import { VerificationBadge } from "@/features/user/components/VerificationBadge";
@@ -19,39 +21,40 @@ export function UserProfileCard({
   const [isEditingDetails, setIsEditingDetails] = useState(false);
 
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-border/70 bg-gradient-to-br from-white via-white to-secondary/20 p-6 shadow-[0_18px_55px_-30px_rgba(15,23,42,0.45)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(148,163,184,0.16),transparent_38%),linear-gradient(135deg,transparent_0%,rgba(226,232,240,0.55)_100%)]" />
-      <div className="relative flex flex-col gap-5">
+    <div className="rounded-xl bg-card p-6">
+      <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <AvatarUpload onSaved={onAvatarSaved} />
+          <AvatarUpload onSaved={onAvatarSaved} />
 
-        <div className="min-w-0 flex-1 rounded-2xl border border-white/70 bg-white/80 p-4 backdrop-blur-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate text-lg font-semibold">{user.name}</p>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingDetails(true)}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Edit
-                </button>
+          <div className="min-w-0 flex-1 rounded-xl bg-soft p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate font-display text-display-sm text-foreground">
+                    {user.name}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => setIsEditingDetails(true)}
+                    className="h-auto p-0 text-xs"
+                  >
+                    Edit
+                  </Button>
+                </div>
+
+                <VerificationBadge
+                  academicRole={user.academicRole}
+                  academicVerificationStatus={user.academicVerificationStatus}
+                />
+                <p className="text-sm text-muted-foreground">{user.email}</p>
               </div>
 
-              <VerificationBadge
-                academicRole={user.academicRole}
-                academicVerificationStatus={user.academicVerificationStatus}
-              />
-              <p className="text-sm text-muted-foreground">{user.email}</p>
+              <Badge variant="secondary">{user.role}</Badge>
             </div>
-
-            <span className="inline-flex rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
-              {user.role}
-            </span>
           </div>
         </div>
-      </div>
 
         {isEditingDetails ? (
           <EditUserDetailForm

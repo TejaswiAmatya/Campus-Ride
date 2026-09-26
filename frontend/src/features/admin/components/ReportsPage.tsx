@@ -32,8 +32,10 @@ export function ReportsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <FileWarning className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">Reports</h1>
+            <FileWarning className="h-6 w-6 text-foreground" />
+            <h1 className="font-display text-display-md text-foreground">
+              Reports
+            </h1>
           </div>
           <p className="text-sm text-muted-foreground">
             Review all filed reports from riders and drivers.
@@ -46,24 +48,24 @@ export function ReportsPage() {
       </div>
 
       {updateReportActionMutation.isError ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {updateErrorMessage}
         </div>
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
+        <div className="rounded-xl bg-card p-6">
           <div className="space-y-3">
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
-                className="h-16 animate-pulse rounded-md bg-muted"
+                className="h-16 animate-pulse rounded-xl bg-soft"
               />
             ))}
           </div>
         </div>
       ) : isError ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
             <div className="space-y-3">
