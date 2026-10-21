@@ -25,7 +25,7 @@ export function RidePreferencesInput({
   }
 
   return (
-    <div className="space-y-3 rounded-xl bg-soft p-4">
+    <div className="space-y-3">
       <div>
         <p className="text-sm font-medium">Ride preferences</p>
         <p className="text-xs text-muted-foreground">Help passengers know the vibe and expectations before they book.</p>
@@ -41,7 +41,7 @@ export function RidePreferencesInput({
               'rounded-pill px-3 py-1.5 text-sm font-medium transition',
               value.includes(option)
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-background text-foreground hover:bg-border',
+                : 'bg-background text-foreground hover:bg-soft',
             )}
           >
             {option}

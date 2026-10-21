@@ -177,7 +177,7 @@ export function EditRideForm({
 
   const mapCenter = useMemo<[number, number]>(() => {
     if (markers.length === 0) {
-      return [58.9, 5.71]
+      return [39.835814661475204, -77.23454471268786]
     }
 
     const lat = markers.reduce((sum, marker) => sum + marker.position[0], 0) / markers.length

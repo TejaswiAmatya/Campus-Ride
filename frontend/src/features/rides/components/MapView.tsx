@@ -43,7 +43,7 @@ export interface MapMarker {
 }
 
 interface MapViewProps {
-  /** Map centre [lat, lng]. Defaults to University of Stavanger. */
+  /** Map centre [lat, lng]. Defaults to Gettysburg, PA. */
   center?: [number, number]
   zoom?: number
   markers?: MapMarker[]
@@ -110,7 +110,7 @@ function MapViewport({
  *    animates the driver marker in real time
  */
 export function MapView({
-  center = [58.9, 5.71], // University of Stavanger
+  center = [39.835814661475204, -77.23454471268786], // Gettysburg, PA
   zoom = 13,
   markers = [],
   className,
