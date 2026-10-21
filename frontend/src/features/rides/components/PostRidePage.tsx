@@ -170,7 +170,7 @@ export function PostRidePage() {
       return [lat, lng]
     }
 
-    return [58.9, 5.71]
+    return [39.835814661475204, -77.23454471268786]
   }, [markers])
 
   useEffect(() => {

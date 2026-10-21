@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { LoaderCircle, MapPin, MapPinned } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { LoaderCircle, LocateFixed, MapPin } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import type { GeocodingSuggestion } from '../lib/geocoding'
 import { searchPlaces } from '../lib/geocoding'
 
@@ -83,7 +83,6 @@ function LocationFieldset({
 
   const showSuggestions = isFocused && value.address.trim().length >= 2
   const isUsingMapPicker = mapSelectionTarget === segment
-  const hasResolvedCoordinates = value.lat !== null && value.lng !== null
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     onAddressInput(segment, event.target.value)
@@ -91,11 +90,12 @@ function LocationFieldset({
   }
 
   return (
-    <fieldset ref={rootRef} className="space-y-3 rounded-xl bg-soft p-4">
-      <legend className="flex items-center gap-1 px-1 text-sm font-medium">
-        <MapPin className="h-4 w-4 text-foreground" />
-        {legend}
-      </legend>
+    <fieldset ref={rootRef} className="space-y-2">
+      {/* Use a div instead of legend — native legend sits on the fieldset border */}
+      <div className="flex items-center gap-1 text-sm font-medium text-foreground">
+        <MapPin className="h-4 w-4 text-foreground" aria-hidden />
+        <span>{legend}</span>
+      </div>
 
       <div className="relative">
         <Input
@@ -104,11 +104,28 @@ function LocationFieldset({
           onChange={handleInputChange}
           onFocus={() => setIsFocused(true)}
           required
-          className="pr-10 bg-softer"
+          aria-label={legend}
+          className="bg-background pr-20 text-foreground placeholder:text-mute"
         />
-        {isLoading && (
-          <LoaderCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-        )}
+        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+          {isLoading ? (
+            <LoaderCircle className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : null}
+          <button
+            type="button"
+            onClick={() => onPickFromMap(segment)}
+            aria-label={isUsingMapPicker ? 'Cancel map pick' : `Pick ${legend.toLowerCase()} on map`}
+            aria-pressed={isUsingMapPicker}
+            className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-pill transition-colors',
+              isUsingMapPicker
+                ? 'bg-primary text-primary-foreground'
+                : 'text-mute hover:bg-soft hover:text-foreground',
+            )}
+          >
+            <LocateFixed className="h-4 w-4" />
+          </button>
+        </div>
 
         {showSuggestions && suggestions.length > 0 && (
           <div className="absolute z-20 mt-2 w-full rounded-xl bg-background shadow-elev-2">
@@ -134,23 +151,6 @@ function LocationFieldset({
             No matching places found.
           </div>
         )}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-background px-3 py-2 text-sm">
-        <div className="space-y-1">
-          <p className="font-medium text-foreground">
-            {hasResolvedCoordinates ? 'Location selected' : 'No location selected yet'}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {hasResolvedCoordinates
-              ? `${value.lat?.toFixed(5)}, ${value.lng?.toFixed(5)}`
-              : 'Pick from autocomplete or use the map.'}
-          </p>
-        </div>
-        <Button variant={isUsingMapPicker ? 'default' : 'outline'} size="sm" onClick={() => onPickFromMap(segment)}>
-          <MapPinned className="mr-2 h-4 w-4" />
-          {isUsingMapPicker ? 'Click the map…' : 'Pick on map'}
-        </Button>
       </div>
     </fieldset>
   )

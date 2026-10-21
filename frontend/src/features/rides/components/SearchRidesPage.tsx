@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, LocateFixed, MapPin, SlidersHorizontal, Star, Users } from 'lucide-react'
+import { ChevronDown, ChevronUp, MapPin, SlidersHorizontal, Star, Users } from 'lucide-react'
 import { MapView } from '@/features/rides/components/MapView'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -96,13 +96,10 @@ export function SearchRidesPage() {
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="font-display text-display-lg text-foreground">Find the best ride for your route</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Match by pickup, drop-off, timing, seats, route fit, and ride preferences instead of plain distance alone.
-        </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="space-y-4 rounded-xl bg-background p-4 shadow-elev-2">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
+        <div className="space-y-4 rounded-xl bg-soft p-4 shadow-elev-2">
           <RouteInputForm
             origin={pickup}
             destination={dropoff}
@@ -119,6 +116,7 @@ export function SearchRidesPage() {
                 type="date"
                 value={filters.date}
                 onChange={(event) => setFilters((prev) => ({ ...prev, date: event.target.value }))}
+                className="bg-background"
               />
             </div>
             <div>
@@ -131,7 +129,7 @@ export function SearchRidesPage() {
                   max="8"
                   value={seats}
                   onChange={(event) => setSeats(event.target.value)}
-                  className="pl-9"
+                  className="bg-background pl-9"
                 />
               </div>
             </div>
@@ -140,14 +138,8 @@ export function SearchRidesPage() {
           <RidePreferencesInput value={preferences} onChange={setPreferences} />
         </div>
 
-        <div className="space-y-3">
-          <MapView markers={markers} height="h-80" onMapClick={handleMapClick} />
-          <div className="flex items-center gap-2 rounded-xl bg-soft px-4 py-3 text-sm text-muted-foreground">
-            <LocateFixed className="h-4 w-4" />
-            {mapSelectionTarget
-              ? `Click the map to place the ${mapSelectionTarget === 'origin' ? 'pickup' : 'drop-off'}.`
-              : 'Use autocomplete or map clicks to help the matcher understand your route.'}
-          </div>
+        <div className="min-h-80 lg:min-h-0">
+          <MapView markers={markers} height="h-full min-h-80" className="h-full" onMapClick={handleMapClick} />
         </div>
       </div>
 

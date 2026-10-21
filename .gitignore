@@ -1,3 +1,4 @@
+
 # Environment — never commit secrets
 .env
 .env.local
@@ -51,6 +52,8 @@ progress.md
 # Project docs not for public repo
 campus_ride.md
 plan.md
+.impeccable
+DESIGN.md
 .claude/
 CLAUDE.md
 
