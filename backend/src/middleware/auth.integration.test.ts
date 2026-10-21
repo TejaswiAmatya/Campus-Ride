@@ -78,7 +78,7 @@ describe("auth middleware integration", () => {
     mocks.findUnique.mockResolvedValue({
       role: "PASSENGER",
       accountStatus: "SUSPENDED",
-      suspendedUntil: new Date("2026-06-01T12:00:00.000Z"),
+      suspendedUntil: new Date("2027-06-01T12:00:00.000Z"),
     });
 
     const res = await request(createApp())
@@ -88,7 +88,7 @@ describe("auth middleware integration", () => {
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe("ACCOUNT_SUSPENDED");
     expect(res.body.error.details).toEqual({
-      suspendedUntil: "2026-06-01T12:00:00.000Z",
+      suspendedUntil: "2027-06-01T12:00:00.000Z",
     });
   });
 
