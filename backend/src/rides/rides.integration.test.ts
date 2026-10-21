@@ -48,7 +48,9 @@ async function listAuthUserIdsByEmailPrefix(prefix: string): Promise<string[]> {
   }
 
   return (data.users ?? [])
-    .filter((user) => user.email?.toLowerCase().startsWith(prefix.toLowerCase()))
+    .filter((user) =>
+      user.email?.toLowerCase().startsWith(prefix.toLowerCase()),
+    )
     .map((user) => user.id);
 }
 
@@ -234,272 +236,299 @@ async function cleanupByEmailPrefix(prefix: string) {
   }
 }
 
-describeAuthIntegration("Rides integration (requires full Supabase auth stack)", () => {
-  const prefix = `rides-flow-${Date.now()}-`;
+describeAuthIntegration(
+  "Rides integration (requires full Supabase auth stack)",
+  () => {
+    const prefix = `rides-flow-${Date.now()}-`;
 
-  afterEach(async () => {
-    await cleanupByEmailPrefix(prefix);
-  });
-
-  it("returns the driver's rides with booking request details", async () => {
-    const driverEmail = `${prefix}driver1@university.edu`;
-    const passengerEmail = `${prefix}passenger1@university.edu`;
-    const driver = await registerAndLoginUser(driverEmail, "Driver One");
-    const passenger = await registerAndLoginUser(passengerEmail, "Passenger One");
-
-    await promoteToApprovedDriver(driver.userId);
-    const { rideId } = await createRide(driver.token);
-    await createBooking(rideId, passenger.token, 2);
-
-    const response = await request(app)
-      .get("/api/rides/mine")
-      .set("Authorization", `Bearer ${driver.token}`);
-
-    expect(response.status).toBe(200);
-    expect((response.body as ApiEnvelope<any[]>).data).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: rideId,
-          _count: { bookings: 1 },
-          bookings: expect.arrayContaining([
-            expect.objectContaining({
-              seatsBooked: 2,
-              status: "PENDING",
-              passenger: expect.objectContaining({
-                name: "Passenger One",
-              }),
-            }),
-          ]),
-        }),
-      ]),
-    );
-  });
-
-  it("creates a ride and returns it from search with the correct seat count", async () => {
-    const driverEmail = `${prefix}driver2@university.edu`;
-    const driver = await registerAndLoginUser(driverEmail, "Driver Two");
-
-    await promoteToApprovedDriver(driver.userId);
-    const payload = buildRidePayload();
-    const { rideId, response: createResponse } = await createRide(
-      driver.token,
-      payload,
-    );
-
-    expect((createResponse.body as ApiEnvelope<{ availableSeats: number }>).data)
-      ?.availableSeats.toString();
-
-    const searchResponse = await request(app).get("/api/rides").query({
-      date: payload.departureTime.slice(0, 10),
-      origin: "Campus Gate",
-      dest: "City Centre",
-      seats: "2",
+    afterEach(async () => {
+      await cleanupByEmailPrefix(prefix);
     });
 
-    expect(searchResponse.status).toBe(200);
-    expect((searchResponse.body as ApiEnvelope<any[]>).data).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: rideId,
-          availableSeats: 4,
-          totalSeats: 4,
-          originAddress: payload.origin.address,
-          destinationAddress: payload.destination.address,
-        }),
-      ]),
-    );
-  });
+    it("returns the driver's rides with booking request details", async () => {
+      const driverEmail = `${prefix}driver1@university.edu`;
+      const passengerEmail = `${prefix}passenger1@university.edu`;
+      const driver = await registerAndLoginUser(driverEmail, "Driver One");
+      const passenger = await registerAndLoginUser(
+        passengerEmail,
+        "Passenger One",
+      );
 
-  it("rejects ride creation for a passenger account", async () => {
-    const passengerEmail = `${prefix}passenger2@university.edu`;
-    const passenger = await registerAndLoginUser(passengerEmail, "Passenger Two");
+      await promoteToApprovedDriver(driver.userId);
+      const { rideId } = await createRide(driver.token);
+      await createBooking(rideId, passenger.token, 2);
 
-    const response = await request(app)
-      .post("/api/rides")
-      .set("Authorization", `Bearer ${passenger.token}`)
-      .send(buildRidePayload());
+      const response = await request(app)
+        .get("/api/rides/mine")
+        .set("Authorization", `Bearer ${driver.token}`);
 
-    expect(response.status).toBe(403);
-    expect((response.body as ApiEnvelope<never>).error?.code).toBe("FORBIDDEN");
-  });
+      expect(response.status).toBe(200);
+      expect((response.body as ApiEnvelope<any[]>).data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: rideId,
+            _count: { bookings: 1 },
+            bookings: expect.arrayContaining([
+              expect.objectContaining({
+                seatsBooked: 2,
+                status: "PENDING",
+                passenger: expect.objectContaining({
+                  name: "Passenger One",
+                }),
+              }),
+            ]),
+          }),
+        ]),
+      );
+    });
 
-  it("persists ride updates and reports notification metadata for confirmed passengers", async () => {
-    const driverEmail = `${prefix}driver3@university.edu`;
-    const passengerEmail = `${prefix}passenger3@university.edu`;
-    const driver = await registerAndLoginUser(driverEmail, "Driver Three");
-    const passenger = await registerAndLoginUser(passengerEmail, "Passenger Three");
+    it("creates a ride and returns it from search with the correct seat count", async () => {
+      const driverEmail = `${prefix}driver2@university.edu`;
+      const driver = await registerAndLoginUser(driverEmail, "Driver Two");
 
-    await promoteToApprovedDriver(driver.userId);
-    const { rideId } = await createRide(driver.token);
-    const bookingId = await createBooking(rideId, passenger.token, 1);
-    await confirmBooking(bookingId, driver.token);
+      await promoteToApprovedDriver(driver.userId);
+      const payload = buildRidePayload();
+      const { rideId, response: createResponse } = await createRide(
+        driver.token,
+        payload,
+      );
 
-    const nextDeparture = new Date(Date.now() + 90 * 60 * 1000).toISOString();
-    const response = await request(app)
-      .patch(`/api/rides/${rideId}`)
-      .set("Authorization", `Bearer ${driver.token}`)
-      .send({
-        departureTime: nextDeparture,
-        totalSeats: 5,
-        stops: [
-          {
-            address: "Student Union",
-            lat: 58.905,
-            lng: 5.705,
-          },
-        ],
+      expect(
+        (createResponse.body as ApiEnvelope<{ availableSeats: number }>).data
+          ?.availableSeats,
+      ).toBe(payload.totalSeats);
+
+      const searchResponse = await request(app)
+        .get("/api/rides")
+        .query({
+          date: payload.departureTime.slice(0, 10),
+          origin: "Campus Gate",
+          dest: "City Centre",
+          seats: "2",
+        });
+
+      expect(searchResponse.status).toBe(200);
+      expect((searchResponse.body as ApiEnvelope<any[]>).data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: rideId,
+            availableSeats: 4,
+            totalSeats: 4,
+            originAddress: payload.origin.address,
+            destinationAddress: payload.destination.address,
+          }),
+        ]),
+      );
+    });
+
+    it("rejects ride creation for a passenger account", async () => {
+      const passengerEmail = `${prefix}passenger2@university.edu`;
+      const passenger = await registerAndLoginUser(
+        passengerEmail,
+        "Passenger Two",
+      );
+
+      const response = await request(app)
+        .post("/api/rides")
+        .set("Authorization", `Bearer ${passenger.token}`)
+        .send(buildRidePayload());
+
+      expect(response.status).toBe(403);
+      expect((response.body as ApiEnvelope<never>).error?.code).toBe(
+        "FORBIDDEN",
+      );
+    });
+
+    it("persists ride updates and reports notification metadata for confirmed passengers", async () => {
+      const driverEmail = `${prefix}driver3@university.edu`;
+      const passengerEmail = `${prefix}passenger3@university.edu`;
+      const driver = await registerAndLoginUser(driverEmail, "Driver Three");
+      const passenger = await registerAndLoginUser(
+        passengerEmail,
+        "Passenger Three",
+      );
+
+      await promoteToApprovedDriver(driver.userId);
+      const { rideId } = await createRide(driver.token);
+      const bookingId = await createBooking(rideId, passenger.token, 1);
+      await confirmBooking(bookingId, driver.token);
+
+      const nextDeparture = new Date(Date.now() + 90 * 60 * 1000).toISOString();
+      const response = await request(app)
+        .patch(`/api/rides/${rideId}`)
+        .set("Authorization", `Bearer ${driver.token}`)
+        .send({
+          departureTime: nextDeparture,
+          totalSeats: 5,
+          stops: [
+            {
+              address: "Student Union",
+              lat: 58.905,
+              lng: 5.705,
+            },
+          ],
+          updateMessage: "Leaving 15 minutes later than planned",
+        });
+
+      expect(response.status).toBe(200);
+      expect((response.body as ApiEnvelope<any>).meta).toMatchObject({
+        notificationRequired: true,
+        notificationsTriggered: true,
+        confirmedPassengers: 1,
+        changedFields: expect.arrayContaining([
+          "departureTime",
+          "totalSeats",
+          "stops",
+        ]),
         updateMessage: "Leaving 15 minutes later than planned",
       });
 
-    expect(response.status).toBe(200);
-    expect((response.body as ApiEnvelope<any>).meta).toMatchObject({
-      notificationRequired: true,
-      notificationsTriggered: true,
-      confirmedPassengers: 1,
-      changedFields: expect.arrayContaining(["departureTime", "totalSeats", "stops"]),
-      updateMessage: "Leaving 15 minutes later than planned",
+      const updatedRide = await prisma.ride.findUniqueOrThrow({
+        where: { id: rideId },
+        include: {
+          stops: { orderBy: { orderIndex: "asc" } },
+        },
+      });
+      expect(updatedRide.totalSeats).toBe(5);
+      expect(updatedRide.availableSeats).toBe(4);
+      expect(updatedRide.stops).toMatchObject([
+        {
+          address: "Student Union",
+          orderIndex: 0,
+        },
+      ]);
     });
 
-    const updatedRide = await prisma.ride.findUniqueOrThrow({
-      where: { id: rideId },
-      include: {
-        stops: { orderBy: { orderIndex: "asc" } },
-      },
-    });
-    expect(updatedRide.totalSeats).toBe(5);
-    expect(updatedRide.availableSeats).toBe(4);
-    expect(updatedRide.stops).toMatchObject([
-      {
-        address: "Student Union",
-        orderIndex: 0,
-      },
-    ]);
-  });
+    it("allows the ride driver to start and complete a ride", async () => {
+      const driverEmail = `${prefix}driver4@university.edu`;
+      const passengerEmail = `${prefix}passenger4@university.edu`;
+      const driver = await registerAndLoginUser(driverEmail, "Driver Four");
+      const passenger = await registerAndLoginUser(
+        passengerEmail,
+        "Passenger Four",
+      );
 
-  it("allows the ride driver to start and complete a ride", async () => {
-    const driverEmail = `${prefix}driver4@university.edu`;
-    const passengerEmail = `${prefix}passenger4@university.edu`;
-    const driver = await registerAndLoginUser(driverEmail, "Driver Four");
-    const passenger = await registerAndLoginUser(passengerEmail, "Passenger Four");
+      await promoteToApprovedDriver(driver.userId);
+      const { rideId } = await createRide(driver.token);
+      const bookingId = await createBooking(rideId, passenger.token, 1);
+      await confirmBooking(bookingId, driver.token);
 
-    await promoteToApprovedDriver(driver.userId);
-    const { rideId } = await createRide(driver.token);
-    const bookingId = await createBooking(rideId, passenger.token, 1);
-    await confirmBooking(bookingId, driver.token);
+      const startResponse = await request(app)
+        .patch(`/api/rides/${rideId}/start`)
+        .set("Authorization", `Bearer ${driver.token}`)
+        .send({ startedAt: new Date().toISOString() });
 
-    const startResponse = await request(app)
-      .patch(`/api/rides/${rideId}/start`)
-      .set("Authorization", `Bearer ${driver.token}`)
-      .send({ startedAt: new Date().toISOString() });
+      expect(startResponse.status).toBe(200);
+      expect(
+        (startResponse.body as ApiEnvelope<{ status: string }>).data?.status,
+      ).toBe("IN_PROGRESS");
 
-    expect(startResponse.status).toBe(200);
-    expect((startResponse.body as ApiEnvelope<{ status: string }>).data?.status).toBe(
-      "IN_PROGRESS",
-    );
+      const completeResponse = await request(app)
+        .patch(`/api/rides/${rideId}/status`)
+        .set("Authorization", `Bearer ${driver.token}`)
+        .send({ status: "COMPLETED" });
 
-    const completeResponse = await request(app)
-      .patch(`/api/rides/${rideId}/status`)
-      .set("Authorization", `Bearer ${driver.token}`)
-      .send({ status: "COMPLETED" });
+      expect(completeResponse.status).toBe(200);
+      expect(
+        (completeResponse.body as ApiEnvelope<{ status: string }>).data?.status,
+      ).toBe("COMPLETED");
 
-    expect(completeResponse.status).toBe(200);
-    expect(
-      (completeResponse.body as ApiEnvelope<{ status: string }>).data?.status,
-    ).toBe("COMPLETED");
-
-    const completedBookings = await prisma.booking.findMany({
-      where: { rideId },
-      select: { status: true },
-    });
-    expect(completedBookings.map((booking) => booking.status)).toEqual([
-      "COMPLETED",
-    ]);
-  });
-
-  it("rejects illegal status transitions and status updates from another driver", async () => {
-    const ownerEmail = `${prefix}driver5@university.edu`;
-    const otherDriverEmail = `${prefix}driver6@university.edu`;
-    const owner = await registerAndLoginUser(ownerEmail, "Driver Five");
-    const otherDriver = await registerAndLoginUser(
-      otherDriverEmail,
-      "Driver Six",
-    );
-
-    await promoteToApprovedDriver(owner.userId);
-    await promoteToApprovedDriver(otherDriver.userId);
-    const { rideId } = await createRide(owner.token);
-
-    const invalidTransition = await request(app)
-      .patch(`/api/rides/${rideId}/status`)
-      .set("Authorization", `Bearer ${owner.token}`)
-      .send({ status: "COMPLETED" });
-
-    expect(invalidTransition.status).toBe(409);
-    expect((invalidTransition.body as ApiEnvelope<never>).error?.code).toBe(
-      "INVALID_STATUS_TRANSITION",
-    );
-
-    const forbiddenResponse = await request(app)
-      .patch(`/api/rides/${rideId}/status`)
-      .set("Authorization", `Bearer ${otherDriver.token}`)
-      .send({ status: "CANCELLED" });
-
-    expect(forbiddenResponse.status).toBe(403);
-    expect((forbiddenResponse.body as ApiEnvelope<never>).error?.code).toBe(
-      "FORBIDDEN",
-    );
-  });
-
-  it("cancels confirmed bookings, restores seats, and applies a cancellation strike", async () => {
-    const driverEmail = `${prefix}driver7@university.edu`;
-    const passengerOneEmail = `${prefix}passenger5@university.edu`;
-    const passengerTwoEmail = `${prefix}passenger6@university.edu`;
-    const driver = await registerAndLoginUser(driverEmail, "Driver Seven");
-    const passengerOne = await registerAndLoginUser(
-      passengerOneEmail,
-      "Passenger Five",
-    );
-    const passengerTwo = await registerAndLoginUser(
-      passengerTwoEmail,
-      "Passenger Six",
-    );
-
-    await promoteToApprovedDriver(driver.userId);
-    const { rideId } = await createRide(driver.token);
-    const bookingOneId = await createBooking(rideId, passengerOne.token, 2);
-    const bookingTwoId = await createBooking(rideId, passengerTwo.token, 1);
-    await confirmBooking(bookingOneId, driver.token);
-    await confirmBooking(bookingTwoId, driver.token);
-
-    const response = await request(app)
-      .delete(`/api/rides/${rideId}`)
-      .set("Authorization", `Bearer ${driver.token}`);
-
-    expect(response.status).toBe(200);
-    expect((response.body as ApiEnvelope<any>).data?.status).toBe("CANCELLED");
-    expect((response.body as ApiEnvelope<any>).meta).toMatchObject({
-      cancellationStrikeApplied: true,
-      affectedPassengers: 2,
+      const completedBookings = await prisma.booking.findMany({
+        where: { rideId },
+        select: { status: true },
+      });
+      expect(completedBookings.map((booking) => booking.status)).toEqual([
+        "COMPLETED",
+      ]);
     });
 
-    const cancelledRide = await prisma.ride.findUniqueOrThrow({
-      where: { id: rideId },
-    });
-    expect(cancelledRide.status).toBe("CANCELLED");
-    expect(cancelledRide.availableSeats).toBe(4);
+    it("rejects illegal status transitions and status updates from another driver", async () => {
+      const ownerEmail = `${prefix}driver5@university.edu`;
+      const otherDriverEmail = `${prefix}driver6@university.edu`;
+      const owner = await registerAndLoginUser(ownerEmail, "Driver Five");
+      const otherDriver = await registerAndLoginUser(
+        otherDriverEmail,
+        "Driver Six",
+      );
 
-    const cancelledBookings = await prisma.booking.findMany({
-      where: { rideId },
-      select: { status: true },
-    });
-    expect(cancelledBookings.every((booking) => booking.status === "CANCELLED")).toBe(
-      true,
-    );
+      await promoteToApprovedDriver(owner.userId);
+      await promoteToApprovedDriver(otherDriver.userId);
+      const { rideId } = await createRide(owner.token);
 
-    const driverProfile = await prisma.driverProfile.findUniqueOrThrow({
-      where: { userId: driver.userId },
-      select: { cancellationStrikes: true },
+      const invalidTransition = await request(app)
+        .patch(`/api/rides/${rideId}/status`)
+        .set("Authorization", `Bearer ${owner.token}`)
+        .send({ status: "COMPLETED" });
+
+      expect(invalidTransition.status).toBe(409);
+      expect((invalidTransition.body as ApiEnvelope<never>).error?.code).toBe(
+        "INVALID_STATUS_TRANSITION",
+      );
+
+      const forbiddenResponse = await request(app)
+        .patch(`/api/rides/${rideId}/status`)
+        .set("Authorization", `Bearer ${otherDriver.token}`)
+        .send({ status: "CANCELLED" });
+
+      expect(forbiddenResponse.status).toBe(403);
+      expect((forbiddenResponse.body as ApiEnvelope<never>).error?.code).toBe(
+        "FORBIDDEN",
+      );
     });
-    expect(driverProfile.cancellationStrikes).toBe(1);
-  });
-});
+
+    it("cancels confirmed bookings, restores seats, and applies a cancellation strike", async () => {
+      const driverEmail = `${prefix}driver7@university.edu`;
+      const passengerOneEmail = `${prefix}passenger5@university.edu`;
+      const passengerTwoEmail = `${prefix}passenger6@university.edu`;
+      const driver = await registerAndLoginUser(driverEmail, "Driver Seven");
+      const passengerOne = await registerAndLoginUser(
+        passengerOneEmail,
+        "Passenger Five",
+      );
+      const passengerTwo = await registerAndLoginUser(
+        passengerTwoEmail,
+        "Passenger Six",
+      );
+
+      await promoteToApprovedDriver(driver.userId);
+      const { rideId } = await createRide(driver.token);
+      const bookingOneId = await createBooking(rideId, passengerOne.token, 2);
+      const bookingTwoId = await createBooking(rideId, passengerTwo.token, 1);
+      await confirmBooking(bookingOneId, driver.token);
+      await confirmBooking(bookingTwoId, driver.token);
+
+      const response = await request(app)
+        .delete(`/api/rides/${rideId}`)
+        .set("Authorization", `Bearer ${driver.token}`);
+
+      expect(response.status).toBe(200);
+      expect((response.body as ApiEnvelope<any>).data?.status).toBe(
+        "CANCELLED",
+      );
+      expect((response.body as ApiEnvelope<any>).meta).toMatchObject({
+        cancellationStrikeApplied: true,
+        affectedPassengers: 2,
+      });
+
+      const cancelledRide = await prisma.ride.findUniqueOrThrow({
+        where: { id: rideId },
+      });
+      expect(cancelledRide.status).toBe("CANCELLED");
+      expect(cancelledRide.availableSeats).toBe(4);
+
+      const cancelledBookings = await prisma.booking.findMany({
+        where: { rideId },
+        select: { status: true },
+      });
+      expect(
+        cancelledBookings.every((booking) => booking.status === "CANCELLED"),
+      ).toBe(true);
+
+      const driverProfile = await prisma.driverProfile.findUniqueOrThrow({
+        where: { userId: driver.userId },
+        select: { cancellationStrikes: true },
+      });
+      expect(driverProfile.cancellationStrikes).toBe(1);
+    });
+  },
+);

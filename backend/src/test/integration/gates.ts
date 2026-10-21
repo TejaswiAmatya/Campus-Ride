@@ -7,11 +7,12 @@ function isEnabled(value: string | undefined) {
 const runLiveIntegrationTests = isEnabled(process.env.RUN_LIVE_INTEGRATION_TESTS);
 const runAuthIntegrationTests = isEnabled(process.env.RUN_AUTH_INTEGRATION_TESTS);
 
-export const describeInfrastructureIntegration = runLiveIntegrationTests
-  ? describe.sequential
-  : describe.skip;
+type IntegrationDescribe = typeof describe.sequential;
 
-export const describeAuthIntegration =
+export const describeInfrastructureIntegration: IntegrationDescribe =
+  runLiveIntegrationTests ? describe.sequential : describe.skip;
+
+export const describeAuthIntegration: IntegrationDescribe =
   runLiveIntegrationTests && runAuthIntegrationTests
     ? describe.sequential
     : describe.skip;
