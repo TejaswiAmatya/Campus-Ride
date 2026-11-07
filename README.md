@@ -143,3 +143,31 @@ Open http://localhost:5173 in your browser.
 - **Tejaswi Amatya**
 - **Rob Basnet**
 - **Aashma Adhikari**
+
+## Formatting and linting
+
+Install the shared development tools with `npm ci` at the repository root.
+The frontend and backend keep their own dependency installs (`npm ci --prefix
+frontend` and `npm ci --prefix backend`).
+
+Run these commands from the root to check both packages, or from either package
+folder to check just that package:
+
+| Command                | Purpose                                     |
+| ---------------------- | ------------------------------------------- |
+| `npm run lint`         | Check JavaScript and TypeScript with ESLint |
+| `npm run lint:fix`     | Apply safe ESLint fixes                     |
+| `npm run format:check` | Check formatting with Prettier              |
+| `npm run format`       | Apply Prettier formatting                   |
+
+The root ESLint flat config shares recommended JavaScript and TypeScript rules,
+with browser globals and React Hooks checks for the frontend and Node globals for
+backend and build scripts. Explicit `any` remains allowed for existing API
+boundaries and test mocks; unused variables and Hook dependency findings are
+warnings. Type checking remains a separate build/type-check step.
+
+Prettier uses two spaces, double quotes, semicolons, trailing commas, and LF line
+endings. Generated files, build output, coverage, dependency lockfiles, and local
+reference documents under `docs/` are excluded from formatting. ESLint and
+Prettier run separately; no formatting plugin or duplicate package-level tooling
+install is required.

@@ -16,7 +16,11 @@
     "test:all": "vitest run",
     "db:seed": "tsx prisma/seed.ts",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format:check": "prettier . --check --ignore-path ../.gitignore --ignore-path ../.prettierignore",
+    "format": "prettier . --write --ignore-path ../.gitignore --ignore-path ../.prettierignore"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

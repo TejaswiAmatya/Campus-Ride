@@ -10,7 +10,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format:check": "prettier . --check --ignore-path ../.gitignore --ignore-path ../.prettierignore",
+    "format": "prettier . --write --ignore-path ../.gitignore --ignore-path ../.prettierignore"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

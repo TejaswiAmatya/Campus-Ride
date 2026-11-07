@@ -1,0 +1,11 @@
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/package-lock.json
+**/*.tsbuildinfo
+backend/src/generated/
+backend/prisma/migrations/
+.playwright-mcp/
+# Local planning documents and reference assets are outside the source checks.
+docs/
