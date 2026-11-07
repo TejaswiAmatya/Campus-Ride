@@ -1,66 +1,16 @@
-
-# Environment — never commit secrets
+# Local environment configuration
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 
-# Node
+# Dependencies and build output
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# Build output
 dist/
-build/
-*.js.map
-*.tsbuildinfo
 
-# Prisma generated client (regenerated on install)
-backend/src/generated/
-
-# Logs
-logs/
-*.log
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-
-# Testing
+# Test output
 coverage/
-.nyc_output/
 
-# Docker volumes
-.docker/
-.next/
-prisma/migrations/dev
-
-/.playwright-mcp
-.cursor
-progress.md
-
-# Project docs not for public repo
-campus_ride.md
-plan.md
-.impeccable
-DESIGN.md
-.claude/
-CLAUDE.md
-
-# Old course lab directories
-Lab1/
-Lab2/
-Lab3/
-
-# Legacy project wrapper (now flattened to root)
-project/
+# Local project notes and agent configuration
+.cursor/
+docs/
