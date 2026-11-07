@@ -11,10 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import type {
-  AdminModerationAction,
-  AdminReport,
-} from "../types";
+import type { AdminModerationAction, AdminReport } from "../types";
 
 interface ReportsTableProps {
   reports: AdminReport[];
@@ -45,9 +42,10 @@ export function ReportsTable({
 
   useEffect(() => {
     setDraftActions(
-      Object.fromEntries(
-        reports.map((report) => [report.id, ""]),
-      ) as Record<string, AdminModerationAction | "">,
+      Object.fromEntries(reports.map((report) => [report.id, ""])) as Record<
+        string,
+        AdminModerationAction | ""
+      >,
     );
   }, [reports]);
 
@@ -90,18 +88,14 @@ export function ReportsTable({
                   <div>
                     User: {report.targetUserSummary.name ?? "Unknown user"}
                   </div>
-                  <div>
-                    Ride-Count: {report.targetUserSummary.rideCount}
-                  </div>
+                  <div>Ride-Count: {report.targetUserSummary.rideCount}</div>
                   <div>
                     Rating:{" "}
                     {report.targetUserSummary.rating === null
                       ? "No ratings"
                       : report.targetUserSummary.rating.toFixed(1)}
                   </div>
-                  <div>
-                    Report: {report.targetUserSummary.reportCount}
-                  </div>
+                  <div>Report: {report.targetUserSummary.reportCount}</div>
                 </TableCell>
                 <TableCell className="max-w-sm whitespace-normal break-words text-sm">
                   {report.reason}
@@ -126,7 +120,8 @@ export function ReportsTable({
                       onChange={(event) =>
                         setDraftActions((current) => ({
                           ...current,
-                          [report.id]: event.target.value as AdminModerationAction | "",
+                          [report.id]: event.target.value as
+                            AdminModerationAction | "",
                         }))
                       }
                       disabled={isSaving}

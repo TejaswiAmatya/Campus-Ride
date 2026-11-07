@@ -92,4 +92,6 @@ if (failures.length > 0) {
   );
 }
 
-console.log("[unit coverage gate] All targeted business-logic thresholds passed.");
+console.log(
+  "[unit coverage gate] All targeted business-logic thresholds passed.",
+);

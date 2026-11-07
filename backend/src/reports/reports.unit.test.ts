@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextFunction, Request, Response } from "express";
-import {
-  Role,
-} from "@prisma/client";
+import { Role } from "@prisma/client";
 
 import { createReport } from "./controller";
 import { prisma } from "../lib/prisma";
@@ -65,7 +63,12 @@ describe("createReport", () => {
 
   it("rejects reports for missing rides", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(
-      buildUser({ id: otherUserId, email: "driver@example.com", name: "Driver Demo", role: Role.DRIVER }),
+      buildUser({
+        id: otherUserId,
+        email: "driver@example.com",
+        name: "Driver Demo",
+        role: Role.DRIVER,
+      }),
     );
     vi.mocked(prisma.ride.findUnique).mockResolvedValueOnce(null);
 
@@ -96,7 +99,12 @@ describe("createReport", () => {
 
   it("creates a report when the target user and ride exist", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(
-      buildUser({ id: otherUserId, email: "driver@example.com", name: "Driver Demo", role: Role.DRIVER }),
+      buildUser({
+        id: otherUserId,
+        email: "driver@example.com",
+        name: "Driver Demo",
+        role: Role.DRIVER,
+      }),
     );
     vi.mocked(prisma.ride.findUnique).mockResolvedValueOnce(
       buildRide({ id: validRideId, driverId: otherUserId }),

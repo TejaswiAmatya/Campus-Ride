@@ -121,6 +121,14 @@ export function MyRidesPage() {
     () => (rides ?? []).filter((ride) => ride.status !== "COMPLETED"),
     [rides],
   );
+  const pickedUpSet = useMemo(
+    () => new Set(locallyPickedUpBookingIds),
+    [locallyPickedUpBookingIds],
+  );
+  const noShowSet = useMemo(
+    () => new Set(locallyNoShowBookingIds),
+    [locallyNoShowBookingIds],
+  );
 
   if (!user || user.role !== "DRIVER") {
     return (
@@ -140,14 +148,6 @@ export function MyRidesPage() {
     },
     { rides: 0, earned: 0, passengers: 0, pending: 0 },
   );
-  const pickedUpSet = useMemo(
-    () => new Set(locallyPickedUpBookingIds),
-    [locallyPickedUpBookingIds],
-  );
-  const noShowSet = useMemo(
-    () => new Set(locallyNoShowBookingIds),
-    [locallyNoShowBookingIds],
-  );
   const pickupPendingBookingId = markBookingPickedUp.isPending
     ? (markBookingPickedUp.variables ?? null)
     : null;
@@ -160,9 +160,7 @@ export function MyRidesPage() {
       <section className="overflow-hidden rounded-xl bg-primary text-primary-foreground">
         <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
-            <p className="text-xs font-medium text-mute">
-              Driver hub
-            </p>
+            <p className="text-xs font-medium text-mute">Driver hub</p>
             <h1 className="font-display text-display-lg">
               Manage rides, riders, and earnings
             </h1>
@@ -171,10 +169,7 @@ export function MyRidesPage() {
               each completed ride earned.
             </p>
           </div>
-          <Button
-            asChild
-            variant="secondary"
-          >
+          <Button asChild variant="secondary">
             <Link to="/driver/rides/new">
               <Plus className="mr-2 h-4 w-4" />
               Post a ride
@@ -209,10 +204,7 @@ export function MyRidesPage() {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((item) => (
-            <div
-              key={item}
-              className="h-40 animate-pulse rounded-xl bg-soft"
-            />
+            <div key={item} className="h-40 animate-pulse rounded-xl bg-soft" />
           ))}
         </div>
       ) : visibleRides.length === 0 ? (
@@ -724,7 +716,9 @@ function DriverMetric({
   return (
     <div className="rounded-xl bg-background p-5">
       <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      <p className="mt-3 font-display text-display-md text-foreground">{value}</p>
+      <p className="mt-3 font-display text-display-md text-foreground">
+        {value}
+      </p>
       <p className="mt-1 text-sm text-muted-foreground">{helper}</p>
     </div>
   );

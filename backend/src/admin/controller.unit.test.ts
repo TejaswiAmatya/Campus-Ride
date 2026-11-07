@@ -86,7 +86,11 @@ describe("academicDecision", () => {
     const res = makeResponse();
     const next = vi.fn();
 
-    await academicDecision(req, res as unknown as Response, next as NextFunction);
+    await academicDecision(
+      req,
+      res as unknown as Response,
+      next as NextFunction,
+    );
 
     expect(mocks.userUpdate).toHaveBeenCalledWith({
       where: { id: "user-1" },
@@ -153,7 +157,11 @@ describe("academicDecision", () => {
     const res = makeResponse();
     const next = vi.fn();
 
-    await academicDecision(req, res as unknown as Response, next as NextFunction);
+    await academicDecision(
+      req,
+      res as unknown as Response,
+      next as NextFunction,
+    );
 
     expect(mocks.userUpdate).toHaveBeenCalledWith({
       where: { id: "user-1" },
@@ -225,7 +233,11 @@ describe("sendAnnouncement", () => {
     const res = makeResponse();
     const next = vi.fn();
 
-    await sendAnnouncement(req, res as unknown as Response, next as NextFunction);
+    await sendAnnouncement(
+      req,
+      res as unknown as Response,
+      next as NextFunction,
+    );
 
     expect(mocks.announcementCreate).toHaveBeenCalledWith({
       data: {

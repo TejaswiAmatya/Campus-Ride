@@ -263,7 +263,8 @@ async function main() {
         reviewerId: IDS.dave,
         revieweeId: IDS.alice,
         rating: 5,
-        comment: "Excellent passenger, ready on time and easy to coordinate with.",
+        comment:
+          "Excellent passenger, ready on time and easy to coordinate with.",
       },
     ],
   });

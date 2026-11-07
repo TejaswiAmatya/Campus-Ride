@@ -34,17 +34,26 @@ const PERIOD_OPTIONS: Array<{ value: UserGrowthPeriod; label: string }> = [
   { value: "monthly", label: "12 Months" },
 ];
 
-function formatPeriodLabel(periodStart: string, period: UserGrowthPeriod): string {
+function formatPeriodLabel(
+  periodStart: string,
+  period: UserGrowthPeriod,
+): string {
   const date = new Date(periodStart);
   if (period === "daily") {
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
   }
 
   if (period === "weekly") {
     return `Wk ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
   }
 
-  return date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function formatRatio(drivers: number, passengers: number): string {
@@ -58,14 +67,8 @@ function formatRatio(drivers: number, passengers: number): string {
 
 export function UserGrowthTrendsCard() {
   const [period, setPeriod] = useState<UserGrowthPeriod>("daily");
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    isFetching,
-    refetch,
-  } = useUserGrowthAnalytics();
+  const { data, isLoading, isError, error, isFetching, refetch } =
+    useUserGrowthAnalytics();
 
   const selectedSeries = useMemo(() => {
     if (!data) return [];
@@ -73,7 +76,8 @@ export function UserGrowthTrendsCard() {
   }, [data, period]);
 
   const labels = useMemo(
-    () => selectedSeries.map((item) => formatPeriodLabel(item.periodStart, period)),
+    () =>
+      selectedSeries.map((item) => formatPeriodLabel(item.periodStart, period)),
     [selectedSeries, period],
   );
 
@@ -99,7 +103,10 @@ export function UserGrowthTrendsCard() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {[1, 2, 3].map((item) => (
-              <div key={item} className="h-20 animate-pulse rounded-xl bg-soft" />
+              <div
+                key={item}
+                className="h-20 animate-pulse rounded-xl bg-soft"
+              />
             ))}
           </div>
           <div className="h-64 animate-pulse rounded-xl bg-soft" />
@@ -212,7 +219,9 @@ export function UserGrowthTrendsCard() {
             <p className="text-xs text-muted-foreground">
               Total Users This Month
             </p>
-            <p className="mt-2 font-display text-display-md">{totalUsersThisMonth}</p>
+            <p className="mt-2 font-display text-display-md">
+              {totalUsersThisMonth}
+            </p>
           </div>
           <div className="rounded-xl bg-soft p-3">
             <p className="text-xs text-muted-foreground">

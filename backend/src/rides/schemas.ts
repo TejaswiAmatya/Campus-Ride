@@ -12,7 +12,12 @@ const RideStopSchema = z.object({
   lng: z.number().min(-180).max(180),
 });
 
-const recurrencePatternSchema = z.enum(["NONE", "DAILY", "WEEKLY", "SPECIFIC_DAYS"]);
+const recurrencePatternSchema = z.enum([
+  "NONE",
+  "DAILY",
+  "WEEKLY",
+  "SPECIFIC_DAYS",
+]);
 const rideOfferTypeSchema = z.enum(["ONE_TIME", "RECURRING"]);
 
 const OptionalRideLocationSchema = z.object({
@@ -21,46 +26,56 @@ const OptionalRideLocationSchema = z.object({
   lng: z.number().min(-180).max(180).optional(),
 });
 
-export const CreateRideSchema = z.object({
-  offerType: rideOfferTypeSchema.default("ONE_TIME"),
-  origin: RideLocationSchema,
-  destination: RideLocationSchema,
-  stops: z.array(RideStopSchema).max(8).optional().default([]),
-  departureTime: z
-    .string()
-    .datetime({ message: "Must be a valid ISO 8601 datetime" }),
-  totalSeats: z.number().int().min(1).max(8),
-  pricePerSeat: z.number().min(0, "Price cannot be negative"),
-  detourFlexibilityKm: z.number().min(0).max(100).optional().default(0),
-  preferences: z.array(z.string().trim().min(1)).max(20).optional().default([]),
-  recurrencePattern: recurrencePatternSchema.optional().default("NONE"),
-  recurrenceDays: z.array(z.number().int().min(0).max(6)).max(7).optional().default([]),
-  recurrenceEndDate: z.string().datetime().optional().nullable(),
-  routePolyline: z.string().trim().min(1).optional().nullable(),
-  routeDistanceKm: z.number().min(0).optional().nullable(),
-  routeDurationMinutes: z.number().int().min(0).optional().nullable(),
-}).superRefine((value, ctx) => {
-  if (value.offerType === "RECURRING") {
-    if (value.recurrencePattern === "NONE") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Recurring rides must choose a recurrence pattern",
-        path: ["recurrencePattern"],
-      });
-    }
+export const CreateRideSchema = z
+  .object({
+    offerType: rideOfferTypeSchema.default("ONE_TIME"),
+    origin: RideLocationSchema,
+    destination: RideLocationSchema,
+    stops: z.array(RideStopSchema).max(8).optional().default([]),
+    departureTime: z
+      .string()
+      .datetime({ message: "Must be a valid ISO 8601 datetime" }),
+    totalSeats: z.number().int().min(1).max(8),
+    pricePerSeat: z.number().min(0, "Price cannot be negative"),
+    detourFlexibilityKm: z.number().min(0).max(100).optional().default(0),
+    preferences: z
+      .array(z.string().trim().min(1))
+      .max(20)
+      .optional()
+      .default([]),
+    recurrencePattern: recurrencePatternSchema.optional().default("NONE"),
+    recurrenceDays: z
+      .array(z.number().int().min(0).max(6))
+      .max(7)
+      .optional()
+      .default([]),
+    recurrenceEndDate: z.string().datetime().optional().nullable(),
+    routePolyline: z.string().trim().min(1).optional().nullable(),
+    routeDistanceKm: z.number().min(0).optional().nullable(),
+    routeDurationMinutes: z.number().int().min(0).optional().nullable(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.offerType === "RECURRING") {
+      if (value.recurrencePattern === "NONE") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Recurring rides must choose a recurrence pattern",
+          path: ["recurrencePattern"],
+        });
+      }
 
-    if (
-      value.recurrencePattern === "SPECIFIC_DAYS" &&
-      (!value.recurrenceDays || value.recurrenceDays.length === 0)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Choose at least one weekday for specific-day recurrence",
-        path: ["recurrenceDays"],
-      });
+      if (
+        value.recurrencePattern === "SPECIFIC_DAYS" &&
+        (!value.recurrenceDays || value.recurrenceDays.length === 0)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Choose at least one weekday for specific-day recurrence",
+          path: ["recurrenceDays"],
+        });
+      }
     }
-  }
-});
+  });
 
 export const SearchRidesSchema = z
   .object({
@@ -94,12 +109,12 @@ export const SearchRidesSchema = z
       .transform((value) => {
         if (!value) return undefined;
         const raw = Array.isArray(value) ? value : value.split(",");
-        const normalized = raw
-          .map((item) => item.trim())
-          .filter(Boolean);
+        const normalized = raw.map((item) => item.trim()).filter(Boolean);
         return normalized.length > 0 ? normalized : undefined;
       }),
-    sortBy: z.enum(["bestMatch", "departureTime", "price", "rating"]).optional(),
+    sortBy: z
+      .enum(["bestMatch", "departureTime", "price", "rating"])
+      .optional(),
   })
   .superRefine((value, ctx) => {
     const hasOriginLat = value.originLat !== undefined;
@@ -158,7 +173,8 @@ export const SearchRidesSchema = z
     if (
       value.earliestDepartureTime &&
       value.latestDepartureTime &&
-      new Date(value.earliestDepartureTime) > new Date(value.latestDepartureTime)
+      new Date(value.earliestDepartureTime) >
+        new Date(value.latestDepartureTime)
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

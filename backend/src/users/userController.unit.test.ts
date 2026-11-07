@@ -119,7 +119,11 @@ describe("deleteMyAccount", () => {
     const res = makeResponse();
     const next = vi.fn();
 
-    await deleteMyAccount(req, res as unknown as Response, next as NextFunction);
+    await deleteMyAccount(
+      req,
+      res as unknown as Response,
+      next as NextFunction,
+    );
 
     expect(mocks.userFindUnique).toHaveBeenCalledWith({
       where: { id: "user-1" },
@@ -224,7 +228,11 @@ describe("deleteMyAccount", () => {
     const res = makeResponse();
     const next = vi.fn();
 
-    await deleteMyAccount(req, res as unknown as Response, next as NextFunction);
+    await deleteMyAccount(
+      req,
+      res as unknown as Response,
+      next as NextFunction,
+    );
 
     expect(mocks.transaction).not.toHaveBeenCalled();
     expect(mocks.deleteAuthUser).not.toHaveBeenCalled();

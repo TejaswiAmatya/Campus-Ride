@@ -1,21 +1,28 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
-import type { PendingDriver } from '../types'
+import type { PendingDriver } from "../types";
 
 interface DriverApprovalTableProps {
-  drivers: PendingDriver[]
-  activeDecisionId: string | null
-  onApprove: (driverId: string) => void
-  onReject: (driverId: string) => void
+  drivers: PendingDriver[];
+  activeDecisionId: string | null;
+  onApprove: (driverId: string) => void;
+  onReject: (driverId: string) => void;
 }
 
 function formatVehicle(driver: PendingDriver) {
   if (!driver.vehicle) {
-    return 'No vehicle information submitted'
+    return "No vehicle information submitted";
   }
 
-  return `${driver.vehicle.make} ${driver.vehicle.model} (${driver.vehicle.plateNumber})`
+  return `${driver.vehicle.make} ${driver.vehicle.model} (${driver.vehicle.plateNumber})`;
 }
 
 export function DriverApprovalTable({
@@ -29,7 +36,7 @@ export function DriverApprovalTable({
       <div className="rounded-xl bg-card p-6 text-sm text-muted-foreground">
         No pending driver applications.
       </div>
-    )
+    );
   }
 
   return (
@@ -46,7 +53,7 @@ export function DriverApprovalTable({
         </TableHeader>
         <TableBody>
           {drivers.map((driver) => {
-            const isPending = activeDecisionId === driver.id
+            const isPending = activeDecisionId === driver.id;
 
             return (
               <TableRow key={driver.id} data-testid={`driver-row-${driver.id}`}>
@@ -67,7 +74,9 @@ export function DriverApprovalTable({
                       />
                     </a>
                   ) : (
-                    <span className="text-muted-foreground">No licence uploaded</span>
+                    <span className="text-muted-foreground">
+                      No licence uploaded
+                    </span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -81,7 +90,9 @@ export function DriverApprovalTable({
                       View insurance
                     </a>
                   ) : (
-                    <span className="text-muted-foreground">No insurance uploaded</span>
+                    <span className="text-muted-foreground">
+                      No insurance uploaded
+                    </span>
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
@@ -95,7 +106,7 @@ export function DriverApprovalTable({
                       disabled={isPending}
                       data-testid={`approve-${driver.id}`}
                     >
-                      {isPending ? 'Saving…' : 'Approve'}
+                      {isPending ? "Saving…" : "Approve"}
                     </Button>
                     <Button
                       size="sm"
@@ -109,10 +120,10 @@ export function DriverApprovalTable({
                   </div>
                 </TableCell>
               </TableRow>
-            )
+            );
           })}
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }

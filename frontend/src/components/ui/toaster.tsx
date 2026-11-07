@@ -42,7 +42,9 @@ function ToastCard({ toast }: { toast: ToastItem }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{toast.title}</p>
           {toast.description ? (
-            <p className="mt-1 text-sm text-muted-foreground">{toast.description}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {toast.description}
+            </p>
           ) : null}
         </div>
         <button

@@ -23,7 +23,7 @@ export function getDisplayName(user: DisplayUser): string {
 export function getDisplayAvatarPath(user: DisplayUser): string | null {
   return isDeactivatedAccountStatus(user.accountStatus)
     ? null
-    : user.avatarPath ?? null;
+    : (user.avatarPath ?? null);
 }
 
 export function toAvatarUrlSummary(user: DisplayUser) {

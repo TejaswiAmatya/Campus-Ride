@@ -123,7 +123,9 @@ describe("email worker integration", () => {
       data: { rideId: "ride-empty" },
     });
 
-    expect(logSpy).toHaveBeenCalledWith("[emailWorker] no confirmed bookings for ride ride-empty");
+    expect(logSpy).toHaveBeenCalledWith(
+      "[emailWorker] no confirmed bookings for ride ride-empty",
+    );
     expect(workerState.sendMail).not.toHaveBeenCalled();
   });
 
@@ -141,10 +143,20 @@ describe("email worker integration", () => {
     });
 
     worker.handlers.completed?.({ name: "welcomeEmail", id: "job-1" });
-    worker.handlers.failed?.({ name: "welcomeEmail" }, new Error("smtp failed"));
+    worker.handlers.failed?.(
+      { name: "welcomeEmail" },
+      new Error("smtp failed"),
+    );
 
-    expect(warnSpy).toHaveBeenCalledWith("[emailWorker] unknown job type: mysteryJob");
-    expect(logSpy).toHaveBeenCalledWith("[emailWorker] job completed: welcomeEmail (job-1)");
-    expect(errorSpy).toHaveBeenCalledWith("[emailWorker] job failed: welcomeEmail", "smtp failed");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[emailWorker] unknown job type: mysteryJob",
+    );
+    expect(logSpy).toHaveBeenCalledWith(
+      "[emailWorker] job completed: welcomeEmail (job-1)",
+    );
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[emailWorker] job failed: welcomeEmail",
+      "smtp failed",
+    );
   });
 });

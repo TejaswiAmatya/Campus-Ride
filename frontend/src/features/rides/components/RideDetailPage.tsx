@@ -512,9 +512,7 @@ export function RideDetailPage() {
         <section className="rounded-xl bg-primary p-5 text-primary-foreground">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
-              <p className="text-xs font-medium text-mute">
-                Driver controls
-              </p>
+              <p className="text-xs font-medium text-mute">Driver controls</p>
               <h2 className="text-xl font-semibold">
                 {ride.status === "IN_PROGRESS"
                   ? "Finish this ride when everyone reaches the destination"
@@ -627,15 +625,11 @@ export function RideDetailPage() {
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <div className="rounded-xl bg-soft px-4 py-4 text-sm text-foreground">
-              <p className="text-xs font-medium text-mute">
-                Pickup
-              </p>
+              <p className="text-xs font-medium text-mute">Pickup</p>
               <p className="mt-2">
                 {passengerBookingForRide.pickup?.address ?? ride.originAddress}
               </p>
-              <p className="mt-4 text-xs font-medium text-mute">
-                Dropoff
-              </p>
+              <p className="mt-4 text-xs font-medium text-mute">Dropoff</p>
               <p className="mt-2">
                 {passengerBookingForRide.dropoff?.address ??
                   ride.destinationAddress}
@@ -643,9 +637,7 @@ export function RideDetailPage() {
             </div>
 
             <div className="rounded-xl bg-soft px-4 py-4 text-sm text-foreground">
-              <p className="text-xs font-medium text-mute">
-                Refund policy
-              </p>
+              <p className="text-xs font-medium text-mute">Refund policy</p>
               <p className="mt-2 leading-6">
                 Full refund if cancelled more than{" "}
                 {

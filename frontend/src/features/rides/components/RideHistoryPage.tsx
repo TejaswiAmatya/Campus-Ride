@@ -20,9 +20,7 @@ export function RideHistoryPage() {
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-xs font-medium text-mute">
-          Driver
-        </p>
+        <p className="text-xs font-medium text-mute">Driver</p>
         <h1 className="mt-1 font-display text-display-lg text-foreground">
           Ride history
         </h1>
@@ -52,10 +50,7 @@ export function RideHistoryPage() {
           ) : (
             <div className="space-y-3">
               {completedRides.map((ride) => (
-                <div
-                  key={ride.id}
-                  className="rounded-xl bg-soft p-4"
-                >
+                <div key={ride.id} className="rounded-xl bg-soft p-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-foreground">

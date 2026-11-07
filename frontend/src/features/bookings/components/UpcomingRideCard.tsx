@@ -1,35 +1,42 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { CalendarClock, MapPin, MessageSquareText, PhoneCall, Timer, Wallet } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import {
+  CalendarClock,
+  MapPin,
+  MessageSquareText,
+  PhoneCall,
+  Timer,
+  Wallet,
+} from "lucide-react";
 
-import { MapView } from '@/features/rides/components/MapView'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { MapView } from "@/features/rides/components/MapView";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-import { StatusBadge } from './StatusBadge'
-import type { BookingListItem } from '../types'
+import { StatusBadge } from "./StatusBadge";
+import type { BookingListItem } from "../types";
 
 function formatCountdown(target: string, now: number) {
-  const diff = new Date(target).getTime() - now
+  const diff = new Date(target).getTime() - now;
 
   if (diff <= 0) {
-    return 'Departing now'
+    return "Departing now";
   }
 
-  const totalMinutes = Math.floor(diff / 60_000)
-  const days = Math.floor(totalMinutes / (60 * 24))
-  const hours = Math.floor((totalMinutes % (60 * 24)) / 60)
-  const minutes = totalMinutes % 60
+  const totalMinutes = Math.floor(diff / 60_000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
 
   if (days > 0) {
-    return `${days}d ${hours}h ${minutes}m`
+    return `${days}d ${hours}h ${minutes}m`;
   }
 
   if (hours > 0) {
-    return `${hours}h ${minutes}m`
+    return `${hours}h ${minutes}m`;
   }
 
-  return `${minutes}m`
+  return `${minutes}m`;
 }
 
 export function UpcomingRideCard({
@@ -37,42 +44,42 @@ export function UpcomingRideCard({
   cancelPending,
   onCancel,
 }: {
-  booking: BookingListItem
-  cancelPending: boolean
-  onCancel: () => void
+  booking: BookingListItem;
+  cancelPending: boolean;
+  onCancel: () => void;
 }) {
-  const [now, setNow] = useState(() => Date.now())
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setNow(Date.now())
-    }, 30_000)
+      setNow(Date.now());
+    }, 30_000);
 
-    return () => window.clearInterval(timer)
-  }, [])
+    return () => window.clearInterval(timer);
+  }, []);
 
-  const pickup = booking.pickup
-  const dropoff = booking.dropoff
+  const pickup = booking.pickup;
+  const dropoff = booking.dropoff;
   const markers =
     pickup && dropoff
       ? [
           {
             position: [pickup.lat, pickup.lng] as [number, number],
             label: `Pickup: ${pickup.address}`,
-            type: 'origin' as const,
+            type: "origin" as const,
           },
           {
             position: [dropoff.lat, dropoff.lng] as [number, number],
             label: `Dropoff: ${dropoff.address}`,
-            type: 'destination' as const,
+            type: "destination" as const,
           },
         ]
-      : []
+      : [];
 
   const countdown = useMemo(
     () => formatCountdown(booking.ride.departureTime, now),
     [booking.ride.departureTime, now],
-  )
+  );
 
   return (
     <article className="overflow-hidden rounded-xl bg-background">
@@ -88,11 +95,12 @@ export function UpcomingRideCard({
 
           <div className="space-y-2">
             <h2 className="font-display text-display-md text-foreground">
-              {booking.pickup?.address ?? booking.ride.originAddress} to{' '}
+              {booking.pickup?.address ?? booking.ride.originAddress} to{" "}
               {booking.dropoff?.address ?? booking.ride.destinationAddress}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Your driver has confirmed this ride. Keep an eye on the pickup point and departure countdown.
+              Your driver has confirmed this ride. Keep an eye on the pickup
+              point and departure countdown.
             </p>
           </div>
 
@@ -105,13 +113,16 @@ export function UpcomingRideCard({
             <InfoPill
               icon={<CalendarClock className="h-4 w-4" />}
               label="Departure"
-              value={new Date(booking.ride.departureTime).toLocaleString('en-GB', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+              value={new Date(booking.ride.departureTime).toLocaleString(
+                "en-GB",
+                {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                },
+              )}
             />
             <InfoPill
               icon={<Wallet className="h-4 w-4" />}
@@ -127,16 +138,12 @@ export function UpcomingRideCard({
 
           <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="rounded-xl bg-soft p-4">
-              <p className="text-xs font-medium text-mute">
-                Pickup
-              </p>
+              <p className="text-xs font-medium text-mute">Pickup</p>
               <p className="mt-2 flex items-start gap-2 text-sm text-foreground">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
-              {pickup?.address ?? booking.ride.originAddress}
+                {pickup?.address ?? booking.ride.originAddress}
               </p>
-              <p className="mt-4 text-xs font-medium text-mute">
-                Dropoff
-              </p>
+              <p className="mt-4 text-xs font-medium text-mute">Dropoff</p>
               <p className="mt-2 flex items-start gap-2 text-sm text-foreground">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 {dropoff?.address ?? booking.ride.destinationAddress}
@@ -144,18 +151,19 @@ export function UpcomingRideCard({
             </div>
 
             <div className="rounded-xl bg-soft p-4">
-              <p className="text-xs font-medium text-mute">
-                Driver contact
-              </p>
+              <p className="text-xs font-medium text-mute">Driver contact</p>
               <p className="mt-2 text-sm font-medium text-foreground">
                 {booking.ride.driver.name}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Open the driver profile before departure if you need the latest trip details.
+                Open the driver profile before departure if you need the latest
+                trip details.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button asChild size="sm" variant="outline">
-                  <Link to={`/profile/${booking.ride.driver.id}`}>View profile</Link>
+                  <Link to={`/profile/${booking.ride.driver.id}`}>
+                    View profile
+                  </Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
                   <Link to={`/rides/${booking.ride.id}`}>Open details</Link>
@@ -179,7 +187,7 @@ export function UpcomingRideCard({
               disabled={cancelPending}
               onClick={onCancel}
             >
-              {cancelPending ? 'Cancelling...' : 'Quick cancel'}
+              {cancelPending ? "Cancelling..." : "Quick cancel"}
             </Button>
             <Button asChild variant="outline">
               <Link to={`/rides/${booking.ride.id}`}>Full details</Link>
@@ -192,7 +200,7 @@ export function UpcomingRideCard({
         </div>
       </div>
     </article>
-  )
+  );
 }
 
 function InfoPill({
@@ -200,9 +208,9 @@ function InfoPill({
   label,
   value,
 }: {
-  icon: ReactNode
-  label: string
-  value: string
+  icon: ReactNode;
+  label: string;
+  value: string;
 }) {
   return (
     <div className="rounded-xl bg-soft px-4 py-3">
@@ -212,5 +220,5 @@ function InfoPill({
       </div>
       <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
     </div>
-  )
+  );
 }

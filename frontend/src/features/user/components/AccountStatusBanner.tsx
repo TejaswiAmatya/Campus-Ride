@@ -1,18 +1,9 @@
-import {
-  AlertTriangle,
-  Ban,
-  CalendarClock,
-  ShieldAlert,
-} from "lucide-react";
+import { AlertTriangle, Ban, CalendarClock, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 type AccountStatus =
-  | "ACTIVE"
-  | "WARNED"
-  | "SUSPENDED"
-  | "BANNED"
-  | "DEACTIVATED";
+  "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED" | "DEACTIVATED";
 
 interface AccountStatusBannerProps {
   accountStatus: AccountStatus;
@@ -56,7 +47,9 @@ export function AccountStatusBanner({
             <AlertTriangle className="h-4 w-4" />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground">Account warning</p>
+            <p className="text-sm font-medium text-foreground">
+              Account warning
+            </p>
             <p className="text-sm leading-6 text-muted-foreground">
               Your account has been warned. Further policy violations can lead
               to a temporary suspension or a permanent ban.
@@ -96,9 +89,14 @@ export function AccountStatusBanner({
             </div>
           </div>
 
-          <Badge variant="warning" className="inline-flex items-center gap-2 self-start">
+          <Badge
+            variant="warning"
+            className="inline-flex items-center gap-2 self-start"
+          >
             <CalendarClock className="h-3.5 w-3.5" />
-            {suspendedUntil ? `Suspension ends ${suspensionLabel}` : suspensionLabel}
+            {suspendedUntil
+              ? `Suspension ends ${suspensionLabel}`
+              : suspensionLabel}
           </Badge>
         </div>
       </section>
@@ -109,17 +107,16 @@ export function AccountStatusBanner({
     return (
       <section
         role="alert"
-        className={cn(
-          "rounded-xl bg-soft px-5 py-4",
-          className,
-        )}
+        className={cn("rounded-xl bg-soft px-5 py-4", className)}
       >
         <div className="flex items-start gap-3">
           <div className="mt-0.5 rounded-full bg-background p-2 text-foreground">
             <Ban className="h-4 w-4" />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground">Account closed</p>
+            <p className="text-sm font-medium text-foreground">
+              Account closed
+            </p>
             <p className="text-sm leading-6 text-muted-foreground">
               This account has been closed and can no longer access ride or
               booking features.

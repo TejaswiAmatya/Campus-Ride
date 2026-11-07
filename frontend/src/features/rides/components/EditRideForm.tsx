@@ -1,15 +1,29 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { LocateFixed, MapPin, Timer } from 'lucide-react'
-import { MapView } from '@/features/rides/components/MapView'
-import { Button } from '@/components/ui/button'
-import { RidePreferencesInput } from './RidePreferencesInput'
-import { RouteInputForm, type RouteInputValue } from './RouteInputForm'
-import { StopsEditor, type StopFormValue } from './StopsEditor'
-import { reverseGeocode, type GeocodingSuggestion } from '../lib/geocoding'
-import { fetchRoutePreview, formatRouteDistance, formatRouteDuration, serializeRouteGeometry, type RoutePreview } from '../lib/routing'
-import type { Ride, UpdateRideDto } from '../types'
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { LocateFixed, MapPin, Timer } from "lucide-react";
+import { MapView } from "@/features/rides/components/MapView";
+import { Button } from "@/components/ui/button";
+import { RidePreferencesInput } from "./RidePreferencesInput";
+import { RouteInputForm, type RouteInputValue } from "./RouteInputForm";
+import { StopsEditor, type StopFormValue } from "./StopsEditor";
+import { reverseGeocode, type GeocodingSuggestion } from "../lib/geocoding";
+import {
+  fetchRoutePreview,
+  formatRouteDistance,
+  formatRouteDuration,
+  serializeRouteGeometry,
+  type RoutePreview,
+} from "../lib/routing";
+import type { Ride, UpdateRideDto } from "../types";
 
-function TripMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+function TripMetric({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="rounded-xl bg-background p-4">
       <div className="flex items-center gap-2 text-xs font-medium text-mute">
@@ -18,7 +32,7 @@ function TripMetric({ icon, label, value }: { icon: ReactNode; label: string; va
       </div>
       <p className="mt-3 text-sm font-medium text-foreground">{value}</p>
     </div>
-  )
+  );
 }
 
 export function EditRideForm({
@@ -28,164 +42,217 @@ export function EditRideForm({
   onSubmit,
   onClose,
 }: {
-  ride: Ride | null
-  isOpen: boolean
-  isSaving: boolean
-  onSubmit: (input: { rideId: string; payload: UpdateRideDto }) => void
-  onClose: () => void
+  ride: Ride | null;
+  isOpen: boolean;
+  isSaving: boolean;
+  onSubmit: (input: { rideId: string; payload: UpdateRideDto }) => void;
+  onClose: () => void;
 }) {
-  const [origin, setOrigin] = useState<RouteInputValue>({ address: '', lat: null, lng: null })
-  const [destination, setDestination] = useState<RouteInputValue>({ address: '', lat: null, lng: null })
-  const [stops, setStops] = useState<StopFormValue[]>([])
-  const [departureTime, setDepartureTime] = useState('')
-  const [totalSeats, setTotalSeats] = useState('3')
-  const [pricePerSeat, setPricePerSeat] = useState('0')
-  const [detourFlexibilityKm, setDetourFlexibilityKm] = useState('0')
-  const [preferences, setPreferences] = useState<string[]>([])
-  const [updateMessage, setUpdateMessage] = useState('')
-  const [mapSelectionTarget, setMapSelectionTarget] = useState<'origin' | 'destination' | null>(null)
-  const [mapError, setMapError] = useState<string | null>(null)
-  const [routePreview, setRoutePreview] = useState<RoutePreview | null>(null)
-  const [routeError, setRouteError] = useState<string | null>(null)
-  const [isLoadingRoute, setIsLoadingRoute] = useState(false)
+  const [origin, setOrigin] = useState<RouteInputValue>({
+    address: "",
+    lat: null,
+    lng: null,
+  });
+  const [destination, setDestination] = useState<RouteInputValue>({
+    address: "",
+    lat: null,
+    lng: null,
+  });
+  const [stops, setStops] = useState<StopFormValue[]>([]);
+  const [departureTime, setDepartureTime] = useState("");
+  const [totalSeats, setTotalSeats] = useState("3");
+  const [pricePerSeat, setPricePerSeat] = useState("0");
+  const [detourFlexibilityKm, setDetourFlexibilityKm] = useState("0");
+  const [preferences, setPreferences] = useState<string[]>([]);
+  const [updateMessage, setUpdateMessage] = useState("");
+  const [mapSelectionTarget, setMapSelectionTarget] = useState<
+    "origin" | "destination" | null
+  >(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [routePreview, setRoutePreview] = useState<RoutePreview | null>(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
 
   useEffect(() => {
     if (!ride || !isOpen) {
-      return
+      return;
     }
 
     setOrigin({
       address: ride.originAddress,
       lat: ride.originLat,
       lng: ride.originLng,
-    })
+    });
     setDestination({
       address: ride.destinationAddress,
       lat: ride.destinationLat,
       lng: ride.destinationLng,
-    })
+    });
     setStops(
       (ride.stops ?? []).map((stop) => ({
         address: stop.address,
         lat: stop.lat,
         lng: stop.lng,
       })),
-    )
-    setDepartureTime(new Date(ride.departureTime).toISOString().slice(0, 16))
-    setTotalSeats(String(ride.totalSeats))
-    setPricePerSeat(ride.pricePerSeat)
-    setDetourFlexibilityKm(String(ride.detourFlexibilityKm ?? 0))
-    setPreferences(ride.preferences ?? [])
-    setUpdateMessage('')
-    setMapSelectionTarget(null)
-    setMapError(null)
-    setRouteError(null)
-  }, [isOpen, ride])
+    );
+    setDepartureTime(new Date(ride.departureTime).toISOString().slice(0, 16));
+    setTotalSeats(String(ride.totalSeats));
+    setPricePerSeat(ride.pricePerSeat);
+    setDetourFlexibilityKm(String(ride.detourFlexibilityKm ?? 0));
+    setPreferences(ride.preferences ?? []);
+    setUpdateMessage("");
+    setMapSelectionTarget(null);
+    setMapError(null);
+    setRouteError(null);
+  }, [isOpen, ride]);
 
-  const handleAddressInput = (segment: 'origin' | 'destination', address: string) => {
-    if (segment === 'origin') {
-      setOrigin({ address, lat: null, lng: null })
+  const handleAddressInput = (
+    segment: "origin" | "destination",
+    address: string,
+  ) => {
+    if (segment === "origin") {
+      setOrigin({ address, lat: null, lng: null });
     } else {
-      setDestination({ address, lat: null, lng: null })
+      setDestination({ address, lat: null, lng: null });
     }
-  }
+  };
 
-  const handleSuggestionSelect = (segment: 'origin' | 'destination', suggestion: GeocodingSuggestion) => {
-    if (segment === 'origin') {
-      setOrigin({ address: suggestion.address, lat: suggestion.lat, lng: suggestion.lng })
+  const handleSuggestionSelect = (
+    segment: "origin" | "destination",
+    suggestion: GeocodingSuggestion,
+  ) => {
+    if (segment === "origin") {
+      setOrigin({
+        address: suggestion.address,
+        lat: suggestion.lat,
+        lng: suggestion.lng,
+      });
     } else {
-      setDestination({ address: suggestion.address, lat: suggestion.lat, lng: suggestion.lng })
+      setDestination({
+        address: suggestion.address,
+        lat: suggestion.lat,
+        lng: suggestion.lng,
+      });
     }
-    setMapError(null)
-  }
+    setMapError(null);
+  };
 
   const handleMapClick = async (position: [number, number]) => {
     if (!mapSelectionTarget) {
-      return
+      return;
     }
 
     try {
-      setMapError(null)
-      const suggestion = await reverseGeocode(position[0], position[1])
-      handleSuggestionSelect(mapSelectionTarget, suggestion)
-      setMapSelectionTarget(null)
+      setMapError(null);
+      const suggestion = await reverseGeocode(position[0], position[1]);
+      handleSuggestionSelect(mapSelectionTarget, suggestion);
+      setMapSelectionTarget(null);
     } catch {
-      setMapError('Could not resolve that map point. Try another location or use search.')
+      setMapError(
+        "Could not resolve that map point. Try another location or use search.",
+      );
     }
-  }
+  };
 
   const validStops = useMemo(
-    () => stops.filter((stop) => stop.address.trim() && stop.lat !== null && stop.lng !== null),
+    () =>
+      stops.filter(
+        (stop) => stop.address.trim() && stop.lat !== null && stop.lng !== null,
+      ),
     [stops],
-  )
+  );
 
   const routePoints = useMemo(() => {
-    const points: Array<{ lat: number; lng: number }> = []
+    const points: Array<{ lat: number; lng: number }> = [];
     if (origin.lat !== null && origin.lng !== null) {
-      points.push({ lat: origin.lat, lng: origin.lng })
+      points.push({ lat: origin.lat, lng: origin.lng });
     }
-    validStops.forEach((stop) => points.push({ lat: stop.lat!, lng: stop.lng! }))
+    validStops.forEach((stop) =>
+      points.push({ lat: stop.lat!, lng: stop.lng! }),
+    );
     if (destination.lat !== null && destination.lng !== null) {
-      points.push({ lat: destination.lat, lng: destination.lng })
+      points.push({ lat: destination.lat, lng: destination.lng });
     }
-    return points
-  }, [destination.lat, destination.lng, origin.lat, origin.lng, validStops])
+    return points;
+  }, [destination.lat, destination.lng, origin.lat, origin.lng, validStops]);
 
   useEffect(() => {
     if (!isOpen || routePoints.length < 2) {
-      setRoutePreview(null)
-      setRouteError(null)
-      setIsLoadingRoute(false)
-      return
+      setRoutePreview(null);
+      setRouteError(null);
+      setIsLoadingRoute(false);
+      return;
     }
 
-    const controller = new AbortController()
-    setIsLoadingRoute(true)
-    setRouteError(null)
+    const controller = new AbortController();
+    setIsLoadingRoute(true);
+    setRouteError(null);
 
     void fetchRoutePreview(routePoints, controller.signal)
       .then((route) => setRoutePreview(route))
       .catch((error: unknown) => {
         if (controller.signal.aborted) {
-          return
+          return;
         }
-        setRoutePreview(null)
-        setRouteError(error instanceof Error ? error.message : 'Unable to load route preview.')
+        setRoutePreview(null);
+        setRouteError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load route preview.",
+        );
       })
       .finally(() => {
         if (!controller.signal.aborted) {
-          setIsLoadingRoute(false)
+          setIsLoadingRoute(false);
         }
-      })
+      });
 
-    return () => controller.abort()
-  }, [isOpen, routePoints])
+    return () => controller.abort();
+  }, [isOpen, routePoints]);
 
   const markers = [
     ...(origin.lat !== null && origin.lng !== null
-      ? [{ position: [origin.lat, origin.lng] as [number, number], label: origin.address, type: 'origin' as const }]
+      ? [
+          {
+            position: [origin.lat, origin.lng] as [number, number],
+            label: origin.address,
+            type: "origin" as const,
+          },
+        ]
       : []),
     ...validStops.map((stop, index) => ({
       position: [stop.lat!, stop.lng!] as [number, number],
       label: `Stop ${index + 1}: ${stop.address}`,
-      type: 'default' as const,
+      type: "default" as const,
     })),
     ...(destination.lat !== null && destination.lng !== null
-      ? [{ position: [destination.lat, destination.lng] as [number, number], label: destination.address, type: 'destination' as const }]
+      ? [
+          {
+            position: [destination.lat, destination.lng] as [number, number],
+            label: destination.address,
+            type: "destination" as const,
+          },
+        ]
       : []),
-  ]
+  ];
 
   const mapCenter = useMemo<[number, number]>(() => {
     if (markers.length === 0) {
-      return [39.835814661475204, -77.23454471268786]
+      return [39.835814661475204, -77.23454471268786];
     }
 
-    const lat = markers.reduce((sum, marker) => sum + marker.position[0], 0) / markers.length
-    const lng = markers.reduce((sum, marker) => sum + marker.position[1], 0) / markers.length
-    return [lat, lng]
-  }, [markers])
+    const lat =
+      markers.reduce((sum, marker) => sum + marker.position[0], 0) /
+      markers.length;
+    const lng =
+      markers.reduce((sum, marker) => sum + marker.position[1], 0) /
+      markers.length;
+    return [lat, lng];
+  }, [markers]);
 
-  const confirmedPassengers = ride?.bookings?.filter((booking) => booking.status === 'CONFIRMED').length ?? 0
+  const confirmedPassengers =
+    ride?.bookings?.filter((booking) => booking.status === "CONFIRMED")
+      .length ?? 0;
   const notificationWillBeRequired =
     !!ride &&
     (origin.address !== ride.originAddress ||
@@ -194,7 +261,8 @@ export function EditRideForm({
       destination.address !== ride.destinationAddress ||
       destination.lat !== ride.destinationLat ||
       destination.lng !== ride.destinationLng ||
-      departureTime !== new Date(ride.departureTime).toISOString().slice(0, 16) ||
+      departureTime !==
+        new Date(ride.departureTime).toISOString().slice(0, 16) ||
       totalSeats !== String(ride.totalSeats) ||
       pricePerSeat !== ride.pricePerSeat ||
       detourFlexibilityKm !== String(ride.detourFlexibilityKm ?? 0) ||
@@ -212,22 +280,31 @@ export function EditRideForm({
             lat: stop.lat,
             lng: stop.lng,
           })),
-        ))
+        ));
 
   if (!isOpen || !ride) {
-    return null
+    return null;
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 px-4 py-8" role="dialog" aria-modal="true" aria-labelledby="edit-ride-title">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/50 px-4 py-8"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-ride-title"
+    >
       <div className="mx-auto max-w-4xl rounded-xl bg-background p-6 shadow-elev-2">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 id="edit-ride-title" className="font-display text-display-sm text-foreground">
+            <h2
+              id="edit-ride-title"
+              className="font-display text-display-sm text-foreground"
+            >
               Edit ride
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Update timing, route, stops, pricing, and rider preferences before the trip starts.
+              Update timing, route, stops, pricing, and rider preferences before
+              the trip starts.
             </p>
           </div>
           <Button variant="outline" onClick={onClose} disabled={isSaving}>
@@ -248,19 +325,39 @@ export function EditRideForm({
             <span>
               {mapSelectionTarget
                 ? `Click the map to set the ${mapSelectionTarget}.`
-                : 'Use search or choose Origin / Destination to pick on the map.'}
+                : "Use search or choose Origin / Destination to pick on the map."}
             </span>
           </div>
           {(isLoadingRoute || routePreview || routeError) && (
             <div className="grid gap-3 rounded-xl bg-soft p-4 sm:grid-cols-3">
-              <TripMetric icon={<MapPin className="h-4 w-4" />} label="Distance" value={routePreview ? formatRouteDistance(routePreview.distanceMeters) : isLoadingRoute ? 'Loading...' : 'Unavailable'} />
-              <TripMetric icon={<Timer className="h-4 w-4" />} label="Drive time" value={routePreview ? formatRouteDuration(routePreview.durationSeconds) : isLoadingRoute ? 'Loading...' : 'Unavailable'} />
+              <TripMetric
+                icon={<MapPin className="h-4 w-4" />}
+                label="Distance"
+                value={
+                  routePreview
+                    ? formatRouteDistance(routePreview.distanceMeters)
+                    : isLoadingRoute
+                      ? "Loading..."
+                      : "Unavailable"
+                }
+              />
+              <TripMetric
+                icon={<Timer className="h-4 w-4" />}
+                label="Drive time"
+                value={
+                  routePreview
+                    ? formatRouteDuration(routePreview.durationSeconds)
+                    : isLoadingRoute
+                      ? "Loading..."
+                      : "Unavailable"
+                }
+              />
               <div className="rounded-xl bg-background px-4 py-3 text-sm text-muted-foreground">
                 {routeError
                   ? routeError
                   : routePreview
-                    ? 'Preview reflects the current route through all selected stops.'
-                    : 'Route preview updates once at least two route points are selected.'}
+                    ? "Preview reflects the current route through all selected stops."
+                    : "Route preview updates once at least two route points are selected."}
               </div>
             </div>
           )}
@@ -269,7 +366,7 @@ export function EditRideForm({
         <form
           className="mt-6 space-y-5"
           onSubmit={(event) => {
-            event.preventDefault()
+            event.preventDefault();
 
             if (
               origin.lat === null ||
@@ -277,14 +374,18 @@ export function EditRideForm({
               destination.lat === null ||
               destination.lng === null
             ) {
-              setMapError('Select both origin and destination before saving.')
-              return
+              setMapError("Select both origin and destination before saving.");
+              return;
             }
 
             onSubmit({
               rideId: ride.id,
               payload: {
-                origin: { address: origin.address, lat: origin.lat, lng: origin.lng },
+                origin: {
+                  address: origin.address,
+                  lat: origin.lat,
+                  lng: origin.lng,
+                },
                 destination: {
                   address: destination.address,
                   lat: destination.lat,
@@ -299,14 +400,20 @@ export function EditRideForm({
                 departureTime: new Date(departureTime).toISOString(),
                 totalSeats: parseInt(totalSeats, 10),
                 pricePerSeat: parseFloat(pricePerSeat),
-                detourFlexibilityKm: parseFloat(detourFlexibilityKm || '0'),
+                detourFlexibilityKm: parseFloat(detourFlexibilityKm || "0"),
                 preferences,
-                routePolyline: routePreview ? serializeRouteGeometry(routePreview.geometry) : null,
-                routeDistanceKm: routePreview ? Number((routePreview.distanceMeters / 1000).toFixed(2)) : null,
-                routeDurationMinutes: routePreview ? Math.round(routePreview.durationSeconds / 60) : null,
+                routePolyline: routePreview
+                  ? serializeRouteGeometry(routePreview.geometry)
+                  : null,
+                routeDistanceKm: routePreview
+                  ? Number((routePreview.distanceMeters / 1000).toFixed(2))
+                  : null,
+                routeDurationMinutes: routePreview
+                  ? Math.round(routePreview.durationSeconds / 60)
+                  : null,
                 updateMessage: updateMessage.trim() || undefined,
               },
-            })
+            });
           }}
         >
           <RouteInputForm
@@ -315,14 +422,20 @@ export function EditRideForm({
             mapSelectionTarget={mapSelectionTarget}
             onAddressInput={handleAddressInput}
             onSelectSuggestion={handleSuggestionSelect}
-            onPickFromMap={(segment) => setMapSelectionTarget((current) => (current === segment ? null : segment))}
+            onPickFromMap={(segment) =>
+              setMapSelectionTarget((current) =>
+                current === segment ? null : segment,
+              )
+            }
           />
 
           <StopsEditor stops={stops} onChange={setStops} />
 
           <div className="grid gap-4 sm:grid-cols-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">Departure time</label>
+              <label className="mb-1 block text-sm font-medium">
+                Departure time
+              </label>
               <input
                 type="datetime-local"
                 value={departureTime}
@@ -345,7 +458,9 @@ export function EditRideForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Price per seat</label>
+              <label className="mb-1 block text-sm font-medium">
+                Price per seat
+              </label>
               <input
                 type="number"
                 min="0"
@@ -357,7 +472,9 @@ export function EditRideForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Detour flexibility (km)</label>
+              <label className="mb-1 block text-sm font-medium">
+                Detour flexibility (km)
+              </label>
               <input
                 type="number"
                 min="0"
@@ -375,10 +492,12 @@ export function EditRideForm({
           {confirmedPassengers > 0 && (
             <div className="rounded-xl bg-soft px-4 py-4 text-sm text-foreground">
               <p className="font-medium">
-                {confirmedPassengers} confirmed passenger{confirmedPassengers === 1 ? '' : 's'} on this ride.
+                {confirmedPassengers} confirmed passenger
+                {confirmedPassengers === 1 ? "" : "s"} on this ride.
               </p>
               <p className="mt-1 text-muted-foreground">
-                We only notify passengers when a confirmed ride actually changes. Add a short note if you want to explain what changed.
+                We only notify passengers when a confirmed ride actually
+                changes. Add a short note if you want to explain what changed.
               </p>
               <textarea
                 value={updateMessage}
@@ -389,8 +508,8 @@ export function EditRideForm({
               />
               <p className="mt-2 text-xs text-muted-foreground">
                 {notificationWillBeRequired
-                  ? 'This edit changes a confirmed ride, so passengers will be notified.'
-                  : 'No passenger notification will be sent unless the route, timing, seats, or pricing changes.'}
+                  ? "This edit changes a confirmed ride, so passengers will be notified."
+                  : "No passenger notification will be sent unless the route, timing, seats, or pricing changes."}
               </p>
             </div>
           )}
@@ -402,15 +521,20 @@ export function EditRideForm({
           )}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSaving}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save changes'}
+              {isSaving ? "Saving..." : "Save changes"}
             </Button>
           </div>
         </form>
       </div>
     </div>
-  )
+  );
 }

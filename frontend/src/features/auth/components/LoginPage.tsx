@@ -8,13 +8,11 @@ import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-function getModerationMessage(
-  authError: {
-    code: string;
-    message: string;
-    suspendedUntil?: string | null;
-  },
-) {
+function getModerationMessage(authError: {
+  code: string;
+  message: string;
+  suspendedUntil?: string | null;
+}) {
   if (authError.code === "ACCOUNT_BANNED") {
     return "Your account has been permanently banned. Contact support.";
   }
@@ -77,7 +75,9 @@ export function LoginPage() {
         <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-background">
           <Car className="h-6 w-6 text-foreground" />
         </span>
-        <h1 className="font-display text-display-md text-foreground">Welcome back</h1>
+        <h1 className="font-display text-display-md text-foreground">
+          Welcome back
+        </h1>
         <p className="text-sm text-mute">Sign in to Campus Ride</p>
       </div>
 
@@ -89,7 +89,10 @@ export function LoginPage() {
         )}
 
         <div>
-          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground">
+          <label
+            htmlFor="email"
+            className="mb-1.5 block text-sm font-medium text-foreground"
+          >
             University email
           </label>
           <Input
@@ -104,7 +107,10 @@ export function LoginPage() {
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-foreground">
+          <label
+            htmlFor="password"
+            className="mb-1.5 block text-sm font-medium text-foreground"
+          >
             Password
           </label>
           <Input
@@ -133,14 +139,21 @@ export function LoginPage() {
           </p>
         )}
 
-        <Button type="submit" disabled={loginMutation.isPending} className="w-full">
+        <Button
+          type="submit"
+          disabled={loginMutation.isPending}
+          className="w-full"
+        >
           {loginMutation.isPending ? "Signing in…" : "Sign in"}
         </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-mute">
         Don't have an account?{" "}
-        <Link to="/auth/register" className="font-medium text-foreground hover:underline">
+        <Link
+          to="/auth/register"
+          className="font-medium text-foreground hover:underline"
+        >
           Create one
         </Link>
       </p>

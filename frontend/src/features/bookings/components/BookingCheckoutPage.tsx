@@ -389,8 +389,7 @@ export function BookingCheckoutPage() {
     (axios.isAxiosError(bookMutation.error)
       ? ((
           bookMutation.error.response?.data as
-            | { error?: { message?: string } }
-            | undefined
+            { error?: { message?: string } } | undefined
         )?.error?.message ??
         "Could not complete booking. Try refreshing the ride page.")
       : "Could not complete booking. Try refreshing the ride page.");
@@ -402,7 +401,9 @@ export function BookingCheckoutPage() {
           <CheckCircle2 className="h-3.5 w-3.5" />
           Ride checkout
         </div>
-        <h1 className="font-display text-display-lg text-foreground">Reserve your seat</h1>
+        <h1 className="font-display text-display-lg text-foreground">
+          Reserve your seat
+        </h1>
         <p className="text-sm text-muted-foreground">
           Confirm your seats, fine-tune your pickup and drop-off points, and
           leave the driver a quick note if needed.
@@ -458,9 +459,7 @@ export function BookingCheckoutPage() {
               <div className="flex items-start gap-2">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
                 <div>
-                  <p className="font-medium text-foreground">
-                    Before you book
-                  </p>
+                  <p className="font-medium text-foreground">Before you book</p>
                   <p className="text-muted-foreground">
                     Make sure your selected points are realistic for the driver
                     to reach and mention anything useful like landmark details

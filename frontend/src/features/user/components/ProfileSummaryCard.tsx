@@ -1,18 +1,18 @@
-import type { AppRole } from '@/features/auth/lib/routing'
-import { Badge } from '@/components/ui/badge'
+import type { AppRole } from "@/features/auth/lib/routing";
+import { Badge } from "@/components/ui/badge";
 
 type ProfileSummaryCardProps = {
-  name: string
-  email: string
-  avatarUrl: string | null
-  role: AppRole
-}
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  role: AppRole;
+};
 
 const roleLabels: Record<AppRole, string> = {
-  PASSENGER: 'Passenger',
-  DRIVER: 'Driver',
-  ADMIN: 'Admin',
-}
+  PASSENGER: "Passenger",
+  DRIVER: "Driver",
+  ADMIN: "Admin",
+};
 
 export function ProfileSummaryCard({
   name,
@@ -20,7 +20,7 @@ export function ProfileSummaryCard({
   avatarUrl,
   role,
 }: ProfileSummaryCardProps) {
-  const initial = (name.trim().charAt(0) || '?').toUpperCase()
+  const initial = (name.trim().charAt(0) || "?").toUpperCase();
 
   return (
     <div className="flex items-center gap-4 rounded-xl bg-card px-6 py-5">
@@ -45,5 +45,5 @@ export function ProfileSummaryCard({
         {roleLabels[role]}
       </Badge>
     </div>
-  )
+  );
 }

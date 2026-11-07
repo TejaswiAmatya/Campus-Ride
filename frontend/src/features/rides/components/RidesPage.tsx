@@ -1,1 +1,1 @@
-export { SearchRidesPage as RidesPage } from './SearchRidesPage'
+export { SearchRidesPage as RidesPage } from "./SearchRidesPage";

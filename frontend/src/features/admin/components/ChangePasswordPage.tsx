@@ -73,7 +73,10 @@ export function ChangePasswordPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="new-password" className="mb-1 block text-sm font-medium">
+          <label
+            htmlFor="new-password"
+            className="mb-1 block text-sm font-medium"
+          >
             New password
           </label>
           <Input

@@ -56,9 +56,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   setSession: ({ access_token, refresh_token }) => {
     localStorage.setItem("access_token", access_token);
     localStorage.setItem("refresh_token", refresh_token);
-    void applySupabaseSession({ access_token, refresh_token }).catch((error) => {
-      console.warn("[authStore] Failed to sync Supabase session", error);
-    });
+    void applySupabaseSession({ access_token, refresh_token }).catch(
+      (error) => {
+        console.warn("[authStore] Failed to sync Supabase session", error);
+      },
+    );
     set({
       accessToken: access_token,
       refreshToken: refresh_token,

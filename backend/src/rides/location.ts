@@ -32,13 +32,18 @@ function buildDepartureTimeFilter(date?: string) {
 
 function getAverageRating(ride: SearchRideRow) {
   const ratings =
-    ride.driver?.reviewsReceived?.map((review: { rating: number }) => review.rating) ?? [];
+    ride.driver?.reviewsReceived?.map(
+      (review: { rating: number }) => review.rating,
+    ) ?? [];
 
   if (ratings.length === 0) {
     return null;
   }
 
-  const total = ratings.reduce((sum: number, rating: number) => sum + rating, 0);
+  const total = ratings.reduce(
+    (sum: number, rating: number) => sum + rating,
+    0,
+  );
   return Number((total / ratings.length).toFixed(2));
 }
 
@@ -46,7 +51,8 @@ function serializeSearchRide(ride: SearchRideRow) {
   return {
     ...serializeRideList(ride),
     driverRating: getAverageRating(ride),
-    matchScore: typeof ride.matchScore === "number" ? ride.matchScore : undefined,
+    matchScore:
+      typeof ride.matchScore === "number" ? ride.matchScore : undefined,
   };
 }
 
@@ -63,18 +69,18 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
   const textFilters = {
     ...(!hasPickupCoordinates &&
       originText && {
-      originAddress: {
-        contains: originText,
-        mode: "insensitive" as const,
-      },
-    }),
+        originAddress: {
+          contains: originText,
+          mode: "insensitive" as const,
+        },
+      }),
     ...(!hasDropoffCoordinates &&
       destinationText && {
-      destinationAddress: {
-        contains: destinationText,
-        mode: "insensitive" as const,
-      },
-    }),
+        destinationAddress: {
+          contains: destinationText,
+          mode: "insensitive" as const,
+        },
+      }),
   };
   const priceFilters = {
     ...(query.minPrice !== undefined && {
@@ -126,5 +132,7 @@ export async function searchRidesByLocation(query: SearchRidesInput) {
     query,
   );
 
-  return ranked.filter((ride) => isRelevantSearchRide(ride, query)).map(serializeSearchRide);
+  return ranked
+    .filter((ride) => isRelevantSearchRide(ride, query))
+    .map(serializeSearchRide);
 }

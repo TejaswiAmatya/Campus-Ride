@@ -11,10 +11,7 @@ import { AppError } from "../middleware/error";
 import { emailQueue } from "../lib/emailQueue";
 import { notify } from "../lib/notify";
 import type { BookingStatusPayload } from "../lib/socket.types";
-import {
-  toAvatarUrlSummary,
-  toNameSummary,
-} from "../lib/userDisplay";
+import { toAvatarUrlSummary, toNameSummary } from "../lib/userDisplay";
 
 const PLATFORM_FEE_PERCENT = 0.1;
 import { getPlatformFeePercent, getPlatformFeeRate } from "../config/service";

@@ -1,25 +1,28 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, ShieldCheck } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 
-import { api } from '@/api/client'
-import { Button } from '@/components/ui/button'
+import { api } from "@/api/client";
+import { Button } from "@/components/ui/button";
 
-import { DriverApprovalTable } from './DriverApprovalTable'
-import { pendingDriversQueryKey, usePendingDrivers } from '../hooks/usePendingDrivers'
-import type { PendingDriver } from '../types'
+import { DriverApprovalTable } from "./DriverApprovalTable";
+import {
+  pendingDriversQueryKey,
+  usePendingDrivers,
+} from "../hooks/usePendingDrivers";
+import type { PendingDriver } from "../types";
 
 interface DriverDecisionVariables {
-  id: string
-  approved: boolean
+  id: string;
+  approved: boolean;
 }
 
 interface DriverDecisionContext {
-  previousDrivers: PendingDriver[]
+  previousDrivers: PendingDriver[];
 }
 
 export function DriverApprovalPage() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   const {
     data: pendingDrivers = [],
     isLoading,
@@ -27,44 +30,50 @@ export function DriverApprovalPage() {
     error,
     refetch,
     isFetching,
-  } = usePendingDrivers()
+  } = usePendingDrivers();
 
   const driverDecisionMutation = useMutation({
     mutationFn: ({ id, approved }: DriverDecisionVariables) =>
       api.patch(`/api/admin/drivers/${id}/decision`, { approved }),
     onMutate: async ({ id }): Promise<DriverDecisionContext> => {
-      await queryClient.cancelQueries({ queryKey: pendingDriversQueryKey })
+      await queryClient.cancelQueries({ queryKey: pendingDriversQueryKey });
 
-      const previousDrivers = queryClient.getQueryData<PendingDriver[]>(pendingDriversQueryKey) ?? []
+      const previousDrivers =
+        queryClient.getQueryData<PendingDriver[]>(pendingDriversQueryKey) ?? [];
 
       queryClient.setQueryData<PendingDriver[]>(
         pendingDriversQueryKey,
         previousDrivers.filter((driver) => driver.id !== id),
-      )
+      );
 
-      return { previousDrivers }
+      return { previousDrivers };
     },
     onError: (_error, _variables, context) => {
       if (context) {
-        queryClient.setQueryData(pendingDriversQueryKey, context.previousDrivers)
+        queryClient.setQueryData(
+          pendingDriversQueryKey,
+          context.previousDrivers,
+        );
       }
     },
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: pendingDriversQueryKey })
-      await queryClient.invalidateQueries({ queryKey: ['adminStats'] })
+      await queryClient.invalidateQueries({ queryKey: pendingDriversQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["adminStats"] });
     },
-  })
+  });
 
   const activeDecisionId = driverDecisionMutation.isPending
-    ? driverDecisionMutation.variables?.id ?? null
-    : null
+    ? (driverDecisionMutation.variables?.id ?? null)
+    : null;
 
   const queryErrorMessage =
-    error instanceof Error ? error.message : 'Unable to load pending driver applications.'
+    error instanceof Error
+      ? error.message
+      : "Unable to load pending driver applications.";
   const decisionErrorMessage =
     driverDecisionMutation.error instanceof Error
       ? driverDecisionMutation.error.message
-      : 'Unable to update the driver application decision.'
+      : "Unable to update the driver application decision.";
 
   return (
     <div className="space-y-6">
@@ -77,7 +86,8 @@ export function DriverApprovalPage() {
             </h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Review pending driver applications and approve or reject each applicant.
+            Review pending driver applications and approve or reject each
+            applicant.
           </p>
         </div>
 
@@ -96,7 +106,10 @@ export function DriverApprovalPage() {
         <div className="rounded-xl bg-card p-6">
           <div className="space-y-3">
             {[1, 2, 3].map((item) => (
-              <div key={item} className="h-16 animate-pulse rounded-xl bg-soft" />
+              <div
+                key={item}
+                className="h-16 animate-pulse rounded-xl bg-soft"
+              />
             ))}
           </div>
         </div>
@@ -111,8 +124,12 @@ export function DriverApprovalPage() {
                 </p>
                 <p className="text-destructive/80">{queryErrorMessage}</p>
               </div>
-              <Button onClick={() => void refetch()} disabled={isFetching} variant="outline">
-                {isFetching ? 'Retrying…' : 'Retry'}
+              <Button
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                variant="outline"
+              >
+                {isFetching ? "Retrying…" : "Retry"}
               </Button>
             </div>
           </div>
@@ -121,10 +138,14 @@ export function DriverApprovalPage() {
         <DriverApprovalTable
           drivers={pendingDrivers}
           activeDecisionId={activeDecisionId}
-          onApprove={(id) => driverDecisionMutation.mutate({ id, approved: true })}
-          onReject={(id) => driverDecisionMutation.mutate({ id, approved: false })}
+          onApprove={(id) =>
+            driverDecisionMutation.mutate({ id, approved: true })
+          }
+          onReject={(id) =>
+            driverDecisionMutation.mutate({ id, approved: false })
+          }
         />
       )}
     </div>
-  )
+  );
 }

@@ -67,16 +67,23 @@ function normalizeDistanceScore(distanceKm: number, targetKm: number) {
 function getRoutePoints(ride: SearchRideCandidate) {
   return [
     { lat: ride.originLat, lng: ride.originLng },
-    ...((ride.stops ?? []).map((stop) => ({ lat: stop.lat, lng: stop.lng })) ?? []),
+    ...((ride.stops ?? []).map((stop) => ({ lat: stop.lat, lng: stop.lng })) ??
+      []),
     { lat: ride.destinationLat, lng: ride.destinationLng },
   ];
 }
 
 function getClosestDistanceKm(target: RoutePoint, points: RoutePoint[]) {
-  return points.reduce((best, point) => Math.min(best, haversineKm(target, point)), Number.POSITIVE_INFINITY);
+  return points.reduce(
+    (best, point) => Math.min(best, haversineKm(target, point)),
+    Number.POSITIVE_INFINITY,
+  );
 }
 
-function scoreDepartureWindow(ride: SearchRideCandidate, query: SearchRidesInput) {
+function scoreDepartureWindow(
+  ride: SearchRideCandidate,
+  query: SearchRidesInput,
+) {
   if (!query.earliestDepartureTime && !query.latestDepartureTime) {
     return 1;
   }
@@ -106,13 +113,18 @@ function scoreDepartureWindow(ride: SearchRideCandidate, query: SearchRidesInput
   return clamp(1 - distanceFromMidpoint / ((endMs - startMs) / 2 || 1), 0.5, 1);
 }
 
-function scorePreferenceMatch(ride: SearchRideCandidate, requestedPreferences?: string[]) {
+function scorePreferenceMatch(
+  ride: SearchRideCandidate,
+  requestedPreferences?: string[],
+) {
   if (!requestedPreferences || requestedPreferences.length === 0) {
     return 1;
   }
 
   const ridePreferences = new Set(ride.preferences ?? []);
-  const matched = requestedPreferences.filter((preference) => ridePreferences.has(preference)).length;
+  const matched = requestedPreferences.filter((preference) =>
+    ridePreferences.has(preference),
+  ).length;
   return matched / requestedPreferences.length;
 }
 
@@ -125,7 +137,10 @@ export function scoreRideMatch(
   },
 ): RideMatchBreakdown {
   const routePoints = getRoutePoints(ride);
-  const stopPoints = (ride.stops ?? []).map((stop) => ({ lat: stop.lat, lng: stop.lng }));
+  const stopPoints = (ride.stops ?? []).map((stop) => ({
+    lat: stop.lat,
+    lng: stop.lng,
+  }));
   const radiusKm = query.radiusKm ?? 5;
   const detourKm = Math.max(ride.detourFlexibilityKm ?? 0, 0);
   const price = Number(ride.pricePerSeat);
@@ -170,18 +185,35 @@ export function scoreRideMatch(
     stopPoints.length === 0
       ? 0
       : Math.max(
-          pickupTarget ? normalizeDistanceScore(pickupStopDistance, Math.max(radiusKm, 1.5)) : 0,
-          dropoffTarget ? normalizeDistanceScore(dropoffStopDistance, Math.max(radiusKm, 1.5)) : 0,
+          pickupTarget
+            ? normalizeDistanceScore(
+                pickupStopDistance,
+                Math.max(radiusKm, 1.5),
+              )
+            : 0,
+          dropoffTarget
+            ? normalizeDistanceScore(
+                dropoffStopDistance,
+                Math.max(radiusKm, 1.5),
+              )
+            : 0,
         );
 
   const detourTarget = Math.max(pickupDistance, dropoffDistance);
   const detour =
     pickupTarget || dropoffTarget
-      ? normalizeDistanceScore(detourTarget, Math.max(detourKm + radiusKm, radiusKm))
+      ? normalizeDistanceScore(
+          detourTarget,
+          Math.max(detourKm + radiusKm, radiusKm),
+        )
       : 1;
 
   const departure = scoreDepartureWindow(ride, query);
-  const seats = clamp((ride.availableSeats - requestedSeats + 1) / Math.max(ride.totalSeats, 1), 0, 1);
+  const seats = clamp(
+    (ride.availableSeats - requestedSeats + 1) / Math.max(ride.totalSeats, 1),
+    0,
+    1,
+  );
   const priceRange = Math.max(context.maxPrice - context.minPrice, 1);
   const normalizedPrice = clamp((context.maxPrice - price) / priceRange, 0, 1);
   const preferences = scorePreferenceMatch(ride, query.preferences);
@@ -245,7 +277,8 @@ export function rankSearchRides<T extends SearchRideCandidate>(
     }
 
     if (query.sortBy === "departureTime") {
-      const departureDiff = left.departureTime.getTime() - right.departureTime.getTime();
+      const departureDiff =
+        left.departureTime.getTime() - right.departureTime.getTime();
       if (departureDiff !== 0) return departureDiff;
     }
 

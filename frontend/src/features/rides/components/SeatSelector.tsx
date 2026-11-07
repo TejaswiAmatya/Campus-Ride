@@ -1,8 +1,8 @@
-import { Input } from '@/components/ui/input'
+import { Input } from "@/components/ui/input";
 
 interface SeatSelectorProps {
-  value: string
-  onChange: (value: string) => void
+  value: string;
+  onChange: (value: string) => void;
 }
 
 export function SeatSelector({ value, onChange }: SeatSelectorProps) {
@@ -18,5 +18,5 @@ export function SeatSelector({ value, onChange }: SeatSelectorProps) {
         required
       />
     </div>
-  )
+  );
 }

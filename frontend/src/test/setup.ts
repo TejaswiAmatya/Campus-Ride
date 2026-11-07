@@ -1,13 +1,13 @@
-import '@testing-library/jest-dom'
-import { cleanup } from '@testing-library/react'
-import { afterEach, vi } from 'vitest'
+import "@testing-library/jest-dom";
+import { cleanup } from "@testing-library/react";
+import { afterEach, vi } from "vitest";
 
 afterEach(() => {
-  cleanup()
-  vi.restoreAllMocks()
-})
+  cleanup();
+  vi.restoreAllMocks();
+});
 
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({
     matches: false,
@@ -19,7 +19,7 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
-})
+});
 
 class ResizeObserverMock {
   observe() {}
@@ -28,48 +28,48 @@ class ResizeObserverMock {
 }
 
 class IntersectionObserverMock {
-  root = null
-  rootMargin = ''
-  thresholds = []
+  root = null;
+  rootMargin = "";
+  thresholds = [];
 
   disconnect() {}
   observe() {}
   takeRecords() {
-    return []
+    return [];
   }
   unobserve() {}
 }
 
-Object.defineProperty(globalThis, 'ResizeObserver', {
+Object.defineProperty(globalThis, "ResizeObserver", {
   writable: true,
   value: ResizeObserverMock,
-})
+});
 
-Object.defineProperty(globalThis, 'IntersectionObserver', {
+Object.defineProperty(globalThis, "IntersectionObserver", {
   writable: true,
   value: IntersectionObserverMock,
-})
+});
 
-Object.defineProperty(window, 'scrollTo', {
+Object.defineProperty(window, "scrollTo", {
   writable: true,
   value: vi.fn(),
-})
+});
 
-Object.defineProperty(URL, 'createObjectURL', {
+Object.defineProperty(URL, "createObjectURL", {
   writable: true,
-  value: vi.fn(() => 'blob:mock-url'),
-})
+  value: vi.fn(() => "blob:mock-url"),
+});
 
-Object.defineProperty(URL, 'revokeObjectURL', {
+Object.defineProperty(URL, "revokeObjectURL", {
   writable: true,
   value: vi.fn(),
-})
+});
 
-Object.defineProperty(globalThis.navigator, 'geolocation', {
+Object.defineProperty(globalThis.navigator, "geolocation", {
   writable: true,
   value: {
     getCurrentPosition: vi.fn(),
     watchPosition: vi.fn(() => 1),
     clearWatch: vi.fn(),
   },
-})
+});

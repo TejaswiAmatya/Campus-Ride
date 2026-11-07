@@ -8,7 +8,11 @@ const socketMocks = vi.hoisted(() => ({
 
 class FakeServer {
   public handlers: Record<string, (...args: any[]) => void> = {};
-  public emits: Array<{ room: string | null; event: string; payload: unknown }> = [];
+  public emits: Array<{
+    room: string | null;
+    event: string;
+    payload: unknown;
+  }> = [];
 
   constructor(
     public readonly httpServer: unknown,
@@ -142,7 +146,9 @@ describe("socket integration", () => {
       lng: 5.71,
     });
 
-    const locationEmits = io.emits.filter((entry) => entry.event === "driver:location");
+    const locationEmits = io.emits.filter(
+      (entry) => entry.event === "driver:location",
+    );
     expect(locationEmits).toHaveLength(1);
     expect(locationEmits[0]).toMatchObject({
       room: "ride:ride-2",
@@ -210,7 +216,9 @@ describe("socket integration", () => {
     });
 
     expect(socketMocks.chatCreate).not.toHaveBeenCalled();
-    expect(io.emits.find((entry) => entry.event === "chat:message")).toBeUndefined();
+    expect(
+      io.emits.find((entry) => entry.event === "chat:message"),
+    ).toBeUndefined();
 
     socketMocks.isRideParticipant.mockResolvedValueOnce(true);
     socketMocks.chatCreate.mockRejectedValueOnce(new Error("db failed"));

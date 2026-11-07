@@ -1,15 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
-import { Car, CirclePlus, History, TrendingUp } from 'lucide-react'
-import { fetchMe } from '@/api/client'
-import type { AppRole } from '@/features/auth/lib/routing'
-import { DashboardCard } from '@/features/user/components/DashboardCard'
-import { ProfileCompletionCard } from '@/features/user/components/ProfileCompletionCard'
-import { ProfileSummaryCard } from '@/features/user/components/ProfileSummaryCard'
+import { useQuery } from "@tanstack/react-query";
+import { Car, CirclePlus, History, TrendingUp } from "lucide-react";
+import { fetchMe } from "@/api/client";
+import type { AppRole } from "@/features/auth/lib/routing";
+import { DashboardCard } from "@/features/user/components/DashboardCard";
+import { ProfileCompletionCard } from "@/features/user/components/ProfileCompletionCard";
+import { ProfileSummaryCard } from "@/features/user/components/ProfileSummaryCard";
 
 export function DriverDashboardPage() {
-  const { data: user } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
-  const role: AppRole = user?.role ?? 'DRIVER'
-  const firstName = user?.name?.split(' ')[0] ?? 'Driver'
+  const { data: user } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
+  const role: AppRole = user?.role ?? "DRIVER";
+  const firstName = user?.name?.split(" ")[0] ?? "Driver";
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
@@ -21,8 +21,8 @@ export function DriverDashboardPage() {
       </div>
 
       <ProfileSummaryCard
-        name={user?.name ?? 'Driver'}
-        email={user?.email ?? 'driver@example.com'}
+        name={user?.name ?? "Driver"}
+        email={user?.email ?? "driver@example.com"}
         avatarUrl={user?.avatarPath ?? null}
         role={role}
       />
@@ -56,5 +56,5 @@ export function DriverDashboardPage() {
         />
       </div>
     </div>
-  )
+  );
 }

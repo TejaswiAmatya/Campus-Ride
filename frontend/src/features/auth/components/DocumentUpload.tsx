@@ -1,41 +1,41 @@
-import { useEffect, useId, useRef, useState } from 'react'
-import { FileText, ImageIcon, Upload, X } from 'lucide-react'
+import { useEffect, useId, useRef, useState } from "react";
+import { FileText, ImageIcon, Upload, X } from "lucide-react";
 
 interface DocumentUploadProps {
-  onFileSelect: (file: File) => void
+  onFileSelect: (file: File) => void;
 }
 
-const acceptedTypes = '.jpg,.jpeg,.png,.webp,.heic,.pdf'
-const previewableMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const acceptedTypes = ".jpg,.jpeg,.png,.webp,.heic,.pdf";
+const previewableMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export function DocumentUpload({ onFileSelect }: DocumentUploadProps) {
-  const inputId = useId()
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
+  const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (!selectedFile || !previewableMimeTypes.has(selectedFile.type)) {
-      setPreviewUrl(null)
-      return
+      setPreviewUrl(null);
+      return;
     }
-    const url = URL.createObjectURL(selectedFile)
-    setPreviewUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [selectedFile])
+    const url = URL.createObjectURL(selectedFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedFile]);
 
   const selectFile = (file: File | null) => {
-    if (!file) return
-    setSelectedFile(file)
-    onFileSelect(file)
-  }
+    if (!file) return;
+    setSelectedFile(file);
+    onFileSelect(file);
+  };
 
   const reset = () => {
-    setSelectedFile(null)
-    setPreviewUrl(null)
-    if (inputRef.current) inputRef.current.value = ''
-  }
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (inputRef.current) inputRef.current.value = "";
+  };
 
   return (
     <div className="space-y-3">
@@ -52,26 +52,30 @@ export function DocumentUpload({ onFileSelect }: DocumentUploadProps) {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={(e) => {
-            e.preventDefault()
-            setIsDragging(false)
-            selectFile(e.dataTransfer.files?.[0] ?? null)
+            e.preventDefault();
+            setIsDragging(false);
+            selectFile(e.dataTransfer.files?.[0] ?? null);
           }}
           className={[
-            'flex w-full flex-col items-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition',
+            "flex w-full flex-col items-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition",
             isDragging
-              ? 'border-hairline-mid bg-soft'
-              : 'border-border bg-background hover:border-hairline-mid hover:bg-soft',
-          ].join(' ')}
+              ? "border-hairline-mid bg-soft"
+              : "border-border bg-background hover:border-hairline-mid hover:bg-soft",
+          ].join(" ")}
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-pill bg-soft">
             <Upload className="h-4 w-4 text-hairline-mid" />
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">
-              Drop your licence here, or <span className="underline">browse</span>
+              Drop your licence here, or{" "}
+              <span className="underline">browse</span>
             </p>
             <p className="mt-1 text-xs text-mute">JPEG, PNG, WebP, HEIC, PDF</p>
           </div>
@@ -93,7 +97,9 @@ export function DocumentUpload({ onFileSelect }: DocumentUploadProps) {
           )}
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{selectedFile.name}</p>
+            <p className="truncate text-sm font-medium text-foreground">
+              {selectedFile.name}
+            </p>
             <p className="mt-0.5 text-xs text-mute">
               {previewUrl ? (
                 <span className="flex items-center gap-1">
@@ -116,5 +122,5 @@ export function DocumentUpload({ onFileSelect }: DocumentUploadProps) {
         </div>
       )}
     </div>
-  )
+  );
 }

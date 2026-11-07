@@ -1,45 +1,42 @@
-import { z } from 'zod'
+import { z } from "zod";
 
-const UNIVERSITY_EMAIL_RE = /@[a-zA-Z0-9.-]+\.(edu|no)$/i
+const UNIVERSITY_EMAIL_RE = /@[a-zA-Z0-9.-]+\.(edu|no)$/i;
 
 export const AccountStatusSchema = z.enum([
-  'ACTIVE',
-  'WARNED',
-  'SUSPENDED',
-  'BANNED',
-  'DEACTIVATED',
-])
+  "ACTIVE",
+  "WARNED",
+  "SUSPENDED",
+  "BANNED",
+  "DEACTIVATED",
+]);
 
-export const AcademicRoleSchema = z.enum([
-  'STUDENT',
-  'STAFF',
-])
+export const AcademicRoleSchema = z.enum(["STUDENT", "STAFF"]);
 
 export const AcademicResponseRoleSchema = z.enum([
-  'STUDENT',
-  'FACULTY',
-  'STAFF',
-])
+  "STUDENT",
+  "FACULTY",
+  "STAFF",
+]);
 
 export const AcademicVerificationStatusSchema = z.enum([
-  'NOT_SUBMITTED',
-  'PENDING',
-  'VERIFIED',
-  'REJECTED',
-])
+  "NOT_SUBMITTED",
+  "PENDING",
+  "VERIFIED",
+  "REJECTED",
+]);
 
 export const AcademicResponseVerificationStatusSchema = z.enum([
-  'NOT_SUBMITTED',
-  'PENDING',
-  'VERIFIED',
-  'REJECTED',
-  'APPROVED',
-])
+  "NOT_SUBMITTED",
+  "PENDING",
+  "VERIFIED",
+  "REJECTED",
+  "APPROVED",
+]);
 
 export const ModerationStateSchema = z.object({
   accountStatus: AccountStatusSchema,
   suspendedUntil: z.string().datetime().nullable(),
-})
+});
 
 export const AcademicVerificationStateSchema = z.object({
   academicRole: AcademicResponseRoleSchema.nullable(),
@@ -47,32 +44,32 @@ export const AcademicVerificationStateSchema = z.object({
   academicIdPath: z.string().nullable(),
   academicVerifiedAt: z.string().datetime().nullable(),
   academicRejectionReason: z.string().nullable(),
-})
+});
 
 export const RegisterSchema = z.object({
   email: z
     .string()
-    .email('Must be a valid email address')
+    .email("Must be a valid email address")
     .refine((e) => UNIVERSITY_EMAIL_RE.test(e), {
-      message: 'Must be a university email (.edu or .no)',
+      message: "Must be a university email (.edu or .no)",
     }),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().min(2).max(100),
   phone: z.string().optional(),
-})
+});
 
 export const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-})
+});
 
 export const ConfirmSignupSchema = z.object({
-  tokenHash: z.string().min(1, 'Confirmation token is required'),
-})
+  tokenHash: z.string().min(1, "Confirmation token is required"),
+});
 
 export const ConfirmSignupSessionSchema = z.object({
-  accessToken: z.string().min(1, 'Confirmation session is required'),
-})
+  accessToken: z.string().min(1, "Confirmation session is required"),
+});
 
 export const UpdateProfileSchema = z
   .object({
@@ -88,8 +85,8 @@ export const UpdateProfileSchema = z
     campusLng: z.number().nullable().optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
-    message: 'At least one field must be provided',
-  })
+    message: "At least one field must be provided",
+  });
 
 export const ProfileFieldsSchema = z.object({
   phone: z.string().nullable(),
@@ -100,7 +97,7 @@ export const ProfileFieldsSchema = z.object({
   campusAddress: z.string().nullable(),
   campusLat: z.number().nullable(),
   campusLng: z.number().nullable(),
-})
+});
 
 const VehicleInfoSchema = z.object({
   make: z.string().min(1),
@@ -112,46 +109,46 @@ const VehicleInfoSchema = z.object({
     .max(new Date().getFullYear() + 1),
   colour: z.string().min(1),
   plateNumber: z.string().min(1),
-})
+});
 
 export const DriverApplicationSchema = z.object({
   vehicle: z.preprocess((value) => {
-    if (typeof value !== 'string') return value
+    if (typeof value !== "string") return value;
 
     try {
-      return JSON.parse(value)
+      return JSON.parse(value);
     } catch {
-      return value
+      return value;
     }
   }, VehicleInfoSchema),
-})
+});
 
 export const SubmitAcademicVerificationSchema = z.object({
   role: AcademicRoleSchema,
-})
+});
 
 export const DeleteMyAccountSchema = z.object({
-  confirmation: z.literal('DELETE'),
-})
+  confirmation: z.literal("DELETE"),
+});
 
 export const MeResponseSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   name: z.string(),
-  role: z.enum(['PASSENGER', 'DRIVER', 'ADMIN']),
+  role: z.enum(["PASSENGER", "DRIVER", "ADMIN"]),
   mustChangePassword: z.boolean(),
   avatarPath: z.string().nullable(),
-  driverStatus: z.enum(['PENDING', 'APPROVED', 'REJECTED']).nullable(),
+  driverStatus: z.enum(["PENDING", "APPROVED", "REJECTED"]).nullable(),
   createdAt: z.string().datetime(),
   ...ProfileFieldsSchema.shape,
   ...ModerationStateSchema.shape,
   ...AcademicVerificationStateSchema.shape,
-})
+});
 
 export const BlockedAuthErrorSchema = z.object({
   error: z.union([
     z.object({
-      code: z.literal('ACCOUNT_SUSPENDED'),
+      code: z.literal("ACCOUNT_SUSPENDED"),
       message: z.string(),
       details: z
         .object({
@@ -160,31 +157,41 @@ export const BlockedAuthErrorSchema = z.object({
         .optional(),
     }),
     z.object({
-      code: z.literal('ACCOUNT_BANNED'),
+      code: z.literal("ACCOUNT_BANNED"),
       message: z.string(),
     }),
     z.object({
-      code: z.literal('ACCOUNT_DEACTIVATED'),
+      code: z.literal("ACCOUNT_DEACTIVATED"),
       message: z.string(),
     }),
   ]),
-})
+});
 
-export type RegisterInput = z.infer<typeof RegisterSchema>
-export type LoginInput = z.infer<typeof LoginSchema>
-export type ConfirmSignupInput = z.infer<typeof ConfirmSignupSchema>
-export type ConfirmSignupSessionInput = z.infer<typeof ConfirmSignupSessionSchema>
-export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>
-export type ProfileFields = z.infer<typeof ProfileFieldsSchema>
-export type DriverApplicationInput = z.infer<typeof DriverApplicationSchema>
-export type SubmitAcademicVerificationInput = z.infer<typeof SubmitAcademicVerificationSchema>
-export type DeleteMyAccountInput = z.infer<typeof DeleteMyAccountSchema>
-export type AccountStatus = z.infer<typeof AccountStatusSchema>
-export type AcademicRole = z.infer<typeof AcademicRoleSchema>
-export type AcademicResponseRole = z.infer<typeof AcademicResponseRoleSchema>
-export type AcademicVerificationStatus = z.infer<typeof AcademicVerificationStatusSchema>
-export type AcademicResponseVerificationStatus = z.infer<typeof AcademicResponseVerificationStatusSchema>
-export type ModerationState = z.infer<typeof ModerationStateSchema>
-export type AcademicVerificationState = z.infer<typeof AcademicVerificationStateSchema>
-export type MeResponse = z.infer<typeof MeResponseSchema>
-export type BlockedAuthError = z.infer<typeof BlockedAuthErrorSchema>
+export type RegisterInput = z.infer<typeof RegisterSchema>;
+export type LoginInput = z.infer<typeof LoginSchema>;
+export type ConfirmSignupInput = z.infer<typeof ConfirmSignupSchema>;
+export type ConfirmSignupSessionInput = z.infer<
+  typeof ConfirmSignupSessionSchema
+>;
+export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
+export type ProfileFields = z.infer<typeof ProfileFieldsSchema>;
+export type DriverApplicationInput = z.infer<typeof DriverApplicationSchema>;
+export type SubmitAcademicVerificationInput = z.infer<
+  typeof SubmitAcademicVerificationSchema
+>;
+export type DeleteMyAccountInput = z.infer<typeof DeleteMyAccountSchema>;
+export type AccountStatus = z.infer<typeof AccountStatusSchema>;
+export type AcademicRole = z.infer<typeof AcademicRoleSchema>;
+export type AcademicResponseRole = z.infer<typeof AcademicResponseRoleSchema>;
+export type AcademicVerificationStatus = z.infer<
+  typeof AcademicVerificationStatusSchema
+>;
+export type AcademicResponseVerificationStatus = z.infer<
+  typeof AcademicResponseVerificationStatusSchema
+>;
+export type ModerationState = z.infer<typeof ModerationStateSchema>;
+export type AcademicVerificationState = z.infer<
+  typeof AcademicVerificationStateSchema
+>;
+export type MeResponse = z.infer<typeof MeResponseSchema>;
+export type BlockedAuthError = z.infer<typeof BlockedAuthErrorSchema>;

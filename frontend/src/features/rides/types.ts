@@ -14,10 +14,7 @@ export interface RideStopInput {
 
 export type RideOfferType = "ONE_TIME" | "RECURRING";
 export type RideRecurrencePattern =
-  | "NONE"
-  | "DAILY"
-  | "WEEKLY"
-  | "SPECIFIC_DAYS";
+  "NONE" | "DAILY" | "WEEKLY" | "SPECIFIC_DAYS";
 
 export interface CreateRideDto {
   offerType: RideOfferType;

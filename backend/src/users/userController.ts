@@ -72,11 +72,7 @@ type CurrentUserRecord = {
   campusLng: number | null;
   academicRole: "STUDENT" | "FACULTY" | "STAFF" | null;
   academicVerificationStatus:
-    | "NOT_SUBMITTED"
-    | "PENDING"
-    | "VERIFIED"
-    | "REJECTED"
-    | "APPROVED";
+    "NOT_SUBMITTED" | "PENDING" | "VERIFIED" | "REJECTED" | "APPROVED";
   academicIdPath: string | null;
   academicVerifiedAt: Date | null;
   academicRejectionReason: string | null;
@@ -94,11 +90,7 @@ type AccountDeletionUserRecord = {
   avatarPath: string | null;
   accountStatus: "ACTIVE" | "WARNED" | "SUSPENDED" | "BANNED" | "DEACTIVATED";
   academicVerificationStatus:
-    | "NOT_SUBMITTED"
-    | "PENDING"
-    | "VERIFIED"
-    | "REJECTED"
-    | "APPROVED";
+    "NOT_SUBMITTED" | "PENDING" | "VERIFIED" | "REJECTED" | "APPROVED";
   academicIdPath: string | null;
   driverProfile: {
     status: "PENDING" | "APPROVED" | "REJECTED";
@@ -107,7 +99,9 @@ type AccountDeletionUserRecord = {
   } | null;
 };
 
-async function cleanupClosedAccountFiles(user: AccountDeletionUserRecord): Promise<void> {
+async function cleanupClosedAccountFiles(
+  user: AccountDeletionUserRecord,
+): Promise<void> {
   const cleanupTasks: Array<Promise<void>> = [];
 
   if (user.avatarPath) {
@@ -210,7 +204,7 @@ function serializeCurrentUserProfile(user: CurrentUserRecord) {
 }
 
 function getUploadedFile(
-  files: Request['files'],
+  files: Request["files"],
   fieldName: string,
 ): Express.Multer.File | null {
   if (!files || Array.isArray(files)) {

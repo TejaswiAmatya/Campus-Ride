@@ -122,7 +122,9 @@ export function useUserReviews(userId?: string) {
     queryFn: async (): Promise<UserReview[]> => {
       if (!userId) return [];
 
-      const res = await api.get<{ data: UserReview[] }>(`/api/users/${userId}/reviews`);
+      const res = await api.get<{ data: UserReview[] }>(
+        `/api/users/${userId}/reviews`,
+      );
       return res.data.data ?? [];
     },
     enabled: !!userId,
@@ -135,7 +137,9 @@ export function usePublicUserProfile(userId?: string) {
     queryFn: async (): Promise<PublicUserSummary | null> => {
       if (!userId) return null;
 
-      const res = await api.get<{ data: PublicUserSummary }>(`/api/users/${userId}`);
+      const res = await api.get<{ data: PublicUserSummary }>(
+        `/api/users/${userId}`,
+      );
       return res.data.data ?? null;
     },
     enabled: !!userId,
@@ -232,8 +236,7 @@ export function useDriverRideReviewPassengers(
       const reviews = passengerReviewQueries[index]?.data ?? [];
 
       return !reviews.some(
-        (review) =>
-          review.rideId === rideId && review.reviewer.id === driverId,
+        (review) => review.rideId === rideId && review.reviewer.id === driverId,
       );
     });
   }, [confirmedPassengers, driverId, passengerReviewQueries, rideId]);

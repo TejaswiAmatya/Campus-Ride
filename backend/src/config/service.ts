@@ -52,7 +52,9 @@ export async function getAdminConfigMap(client: ConfigClient = prisma) {
     orderBy: { key: "asc" },
   });
 
-  return Object.fromEntries(configs.map((config) => [config.key, config.value]));
+  return Object.fromEntries(
+    configs.map((config) => [config.key, config.value]),
+  );
 }
 
 export async function getPublicConfigMap(client: ConfigClient = prisma) {

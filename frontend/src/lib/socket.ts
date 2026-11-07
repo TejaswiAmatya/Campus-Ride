@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import { io, type Socket } from 'socket.io-client'
+import { useEffect, useState } from "react";
+import { io, type Socket } from "socket.io-client";
 
-let socket: Socket | null = null
+let socket: Socket | null = null;
 
 /**
  * Singleton Socket.io client. Uses Vite proxy in dev (`/socket.io` → backend).
@@ -9,40 +9,40 @@ let socket: Socket | null = null
  */
 export function getSocket(): Socket {
   if (!socket) {
-    socket = io(import.meta.env.VITE_SOCKET_URL || '/', {
+    socket = io(import.meta.env.VITE_SOCKET_URL || "/", {
       autoConnect: false,
       withCredentials: true,
-    })
+    });
   }
-  return socket
+  return socket;
 }
 
 export function useSocket() {
-  const s = getSocket()
-  const [isConnected, setIsConnected] = useState(s.connected)
+  const s = getSocket();
+  const [isConnected, setIsConnected] = useState(s.connected);
 
   useEffect(() => {
-    setIsConnected(s.connected)
+    setIsConnected(s.connected);
 
     function onConnect() {
-      setIsConnected(true)
+      setIsConnected(true);
     }
     function onDisconnect() {
-      setIsConnected(false)
+      setIsConnected(false);
     }
 
-    s.on('connect', onConnect)
-    s.on('disconnect', onDisconnect)
+    s.on("connect", onConnect);
+    s.on("disconnect", onDisconnect);
 
     if (!s.connected) {
-      s.connect()
+      s.connect();
     }
 
     return () => {
-      s.off('connect', onConnect)
-      s.off('disconnect', onDisconnect)
-    }
-  }, [s])
+      s.off("connect", onConnect);
+      s.off("disconnect", onDisconnect);
+    };
+  }, [s]);
 
-  return { socket: s, isConnected }
+  return { socket: s, isConnected };
 }

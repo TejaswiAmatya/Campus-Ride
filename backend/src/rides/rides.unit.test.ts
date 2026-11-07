@@ -89,10 +89,7 @@ function matchesWhere(ride: SearchRideRecord, where: SearchWhere) {
     return false;
   }
 
-  if (
-    where.availableSeats &&
-    ride.availableSeats < where.availableSeats.gte
-  ) {
+  if (where.availableSeats && ride.availableSeats < where.availableSeats.gte) {
     return false;
   }
 

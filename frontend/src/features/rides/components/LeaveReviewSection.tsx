@@ -64,7 +64,10 @@ export function LeaveReviewSection({
     onSubmitted?.();
   }
 
-  function handleRatingChange(_event: React.SyntheticEvent, value: number | null) {
+  function handleRatingChange(
+    _event: React.SyntheticEvent,
+    value: number | null,
+  ) {
     if (hasSubmitted) {
       return;
     }
@@ -90,10 +93,7 @@ export function LeaveReviewSection({
 
   return (
     <section className="relative overflow-hidden rounded-xl bg-background p-6">
-      <div
-        aria-hidden="true"
-        className="hidden"
-      />
+      <div aria-hidden="true" className="hidden" />
 
       <div className="relative space-y-6">
         <div className="space-y-2">
@@ -160,7 +160,9 @@ export function LeaveReviewSection({
             <div className="rounded-xl bg-soft p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Your rating</p>
+                  <p className="text-sm font-medium text-foreground">
+                    Your rating
+                  </p>
                   <Rating
                     name="half-rating"
                     defaultValue={2.5}
@@ -179,9 +181,7 @@ export function LeaveReviewSection({
                 </div>
 
                 <div className="rounded-xl bg-background px-4 py-3">
-                  <p className="text-xs font-medium text-mute">
-                    Preview
-                  </p>
+                  <p className="text-xs font-medium text-mute">Preview</p>
                   <div className="mt-2 flex items-center gap-3">
                     <Rating
                       name="half-rating-read"
@@ -197,7 +197,9 @@ export function LeaveReviewSection({
                       }}
                     />
                     <span className="text-sm font-medium text-foreground">
-                      {rating ? rating.toFixed(1).replace(".0", "") : "No rating"}
+                      {rating
+                        ? rating.toFixed(1).replace(".0", "")
+                        : "No rating"}
                     </span>
                   </div>
                 </div>
@@ -229,7 +231,9 @@ export function LeaveReviewSection({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-h-5 text-sm">
                 {createReview.isPending && (
-                  <span className="text-muted-foreground">Submitting review...</span>
+                  <span className="text-muted-foreground">
+                    Submitting review...
+                  </span>
                 )}
                 {createReview.isError && (
                   <span className="text-destructive">

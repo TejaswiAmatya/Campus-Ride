@@ -29,7 +29,9 @@ const profileChecks = [
 ];
 
 export function ProfileCompletionCard({ user }: { user: ProfileUser }) {
-  const completedCount = profileChecks.filter((check) => check.isComplete(user)).length;
+  const completedCount = profileChecks.filter((check) =>
+    check.isComplete(user),
+  ).length;
   const totalCount = profileChecks.length;
   const completionPercent = Math.round((completedCount / totalCount) * 100);
   const nextSteps = profileChecks.filter((check) => !check.isComplete(user));

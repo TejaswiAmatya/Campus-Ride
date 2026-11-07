@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from "vitest";
 import {
   RegisterSchema,
   LoginSchema,
@@ -10,101 +10,115 @@ import {
   AccountStatusSchema,
   MeResponseSchema,
   BlockedAuthErrorSchema,
-} from './schemas'
+} from "./schemas";
 
-describe('RegisterSchema', () => {
-  const valid = { email: 'alice@university.edu', password: 'Password1!', name: 'Alice' }
+describe("RegisterSchema", () => {
+  const valid = {
+    email: "alice@university.edu",
+    password: "Password1!",
+    name: "Alice",
+  };
 
-  it('accepts a valid .edu email', () => {
-    expect(RegisterSchema.safeParse(valid).success).toBe(true)
-  })
+  it("accepts a valid .edu email", () => {
+    expect(RegisterSchema.safeParse(valid).success).toBe(true);
+  });
 
-  it('rejects a .ac.uk university email', () => {
+  it("rejects a .ac.uk university email", () => {
     expect(
-      RegisterSchema.safeParse({ ...valid, email: 'bob@imperial.ac.uk' }).success,
-    ).toBe(false)
-  })
+      RegisterSchema.safeParse({ ...valid, email: "bob@imperial.ac.uk" })
+        .success,
+    ).toBe(false);
+  });
 
-  it('accepts a valid .no email', () => {
+  it("accepts a valid .no email", () => {
     expect(
-      RegisterSchema.safeParse({ ...valid, email: 'bob@ntnu.no' }).success,
-    ).toBe(true)
-  })
+      RegisterSchema.safeParse({ ...valid, email: "bob@ntnu.no" }).success,
+    ).toBe(true);
+  });
 
-  it('rejects a non-university email', () => {
-    const result = RegisterSchema.safeParse({ ...valid, email: 'user@gmail.com' })
-    expect(result.success).toBe(false)
+  it("rejects a non-university email", () => {
+    const result = RegisterSchema.safeParse({
+      ...valid,
+      email: "user@gmail.com",
+    });
+    expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.flatten().fieldErrors.email).toBeDefined()
+      expect(result.error.flatten().fieldErrors.email).toBeDefined();
     }
-  })
+  });
 
-  it('rejects a password shorter than 8 characters', () => {
-    const result = RegisterSchema.safeParse({ ...valid, password: 'short' })
-    expect(result.success).toBe(false)
-  })
+  it("rejects a password shorter than 8 characters", () => {
+    const result = RegisterSchema.safeParse({ ...valid, password: "short" });
+    expect(result.success).toBe(false);
+  });
 
-  it('rejects a missing name', () => {
-    const result = RegisterSchema.safeParse({ ...valid, name: '' })
-    expect(result.success).toBe(false)
-  })
+  it("rejects a missing name", () => {
+    const result = RegisterSchema.safeParse({ ...valid, name: "" });
+    expect(result.success).toBe(false);
+  });
 
-  it('accepts an optional phone number', () => {
+  it("accepts an optional phone number", () => {
     expect(
-      RegisterSchema.safeParse({ ...valid, phone: '+4712345678' }).success,
-    ).toBe(true)
-  })
-})
+      RegisterSchema.safeParse({ ...valid, phone: "+4712345678" }).success,
+    ).toBe(true);
+  });
+});
 
-describe('LoginSchema', () => {
-  it('accepts valid credentials', () => {
+describe("LoginSchema", () => {
+  it("accepts valid credentials", () => {
     expect(
-      LoginSchema.safeParse({ email: 'alice@university.edu', password: 'pass' }).success,
-    ).toBe(true)
-  })
+      LoginSchema.safeParse({ email: "alice@university.edu", password: "pass" })
+        .success,
+    ).toBe(true);
+  });
 
-  it('rejects an empty password', () => {
+  it("rejects an empty password", () => {
     expect(
-      LoginSchema.safeParse({ email: 'alice@university.edu', password: '' }).success,
-    ).toBe(false)
-  })
-})
+      LoginSchema.safeParse({ email: "alice@university.edu", password: "" })
+        .success,
+    ).toBe(false);
+  });
+});
 
-describe('ConfirmSignupSchema', () => {
-  it('accepts a token hash', () => {
-    expect(ConfirmSignupSchema.safeParse({ tokenHash: 'token-hash' }).success).toBe(true)
-  })
+describe("ConfirmSignupSchema", () => {
+  it("accepts a token hash", () => {
+    expect(
+      ConfirmSignupSchema.safeParse({ tokenHash: "token-hash" }).success,
+    ).toBe(true);
+  });
 
-  it('rejects an empty token hash', () => {
-    expect(ConfirmSignupSchema.safeParse({ tokenHash: '' }).success).toBe(false)
-  })
-})
+  it("rejects an empty token hash", () => {
+    expect(ConfirmSignupSchema.safeParse({ tokenHash: "" }).success).toBe(
+      false,
+    );
+  });
+});
 
-describe('AccountStatusSchema', () => {
-  it('accepts the supported moderation states', () => {
-    expect(AccountStatusSchema.safeParse('ACTIVE').success).toBe(true)
-    expect(AccountStatusSchema.safeParse('WARNED').success).toBe(true)
-    expect(AccountStatusSchema.safeParse('SUSPENDED').success).toBe(true)
-    expect(AccountStatusSchema.safeParse('BANNED').success).toBe(true)
-    expect(AccountStatusSchema.safeParse('DEACTIVATED').success).toBe(true)
-  })
+describe("AccountStatusSchema", () => {
+  it("accepts the supported moderation states", () => {
+    expect(AccountStatusSchema.safeParse("ACTIVE").success).toBe(true);
+    expect(AccountStatusSchema.safeParse("WARNED").success).toBe(true);
+    expect(AccountStatusSchema.safeParse("SUSPENDED").success).toBe(true);
+    expect(AccountStatusSchema.safeParse("BANNED").success).toBe(true);
+    expect(AccountStatusSchema.safeParse("DEACTIVATED").success).toBe(true);
+  });
 
-  it('rejects unsupported moderation states', () => {
-    expect(AccountStatusSchema.safeParse('DISABLED').success).toBe(false)
-  })
-})
+  it("rejects unsupported moderation states", () => {
+    expect(AccountStatusSchema.safeParse("DISABLED").success).toBe(false);
+  });
+});
 
-describe('MeResponseSchema', () => {
-  it('accepts the flat hydration payload with moderation fields', () => {
+describe("MeResponseSchema", () => {
+  it("accepts the flat hydration payload with moderation fields", () => {
     expect(
       MeResponseSchema.safeParse({
-        id: 'user-1',
-        email: 'alice@university.edu',
-        name: 'Alice',
+        id: "user-1",
+        email: "alice@university.edu",
+        name: "Alice",
         phone: null,
-        role: 'PASSENGER',
+        role: "PASSENGER",
         mustChangePassword: true,
-        accountStatus: 'ACTIVE',
+        accountStatus: "ACTIVE",
         suspendedUntil: null,
         avatarPath: null,
         bio: null,
@@ -115,153 +129,160 @@ describe('MeResponseSchema', () => {
         campusLat: null,
         campusLng: null,
         academicRole: null,
-        academicVerificationStatus: 'NOT_SUBMITTED',
+        academicVerificationStatus: "NOT_SUBMITTED",
         academicIdPath: null,
         academicVerifiedAt: null,
         academicRejectionReason: null,
         driverStatus: null,
-        createdAt: '2026-04-26T12:00:00.000Z',
+        createdAt: "2026-04-26T12:00:00.000Z",
       }).success,
-    ).toBe(true)
-  })
-})
+    ).toBe(true);
+  });
+});
 
-describe('BlockedAuthErrorSchema', () => {
-  it('accepts the suspended account error shape', () => {
+describe("BlockedAuthErrorSchema", () => {
+  it("accepts the suspended account error shape", () => {
     expect(
       BlockedAuthErrorSchema.safeParse({
         error: {
-          code: 'ACCOUNT_SUSPENDED',
-          message: 'Your account is suspended.',
+          code: "ACCOUNT_SUSPENDED",
+          message: "Your account is suspended.",
           details: {
-            suspendedUntil: '2026-05-01T12:00:00.000Z',
+            suspendedUntil: "2026-05-01T12:00:00.000Z",
           },
         },
       }).success,
-    ).toBe(true)
-  })
+    ).toBe(true);
+  });
 
-  it('accepts the banned account error shape', () => {
+  it("accepts the banned account error shape", () => {
     expect(
       BlockedAuthErrorSchema.safeParse({
         error: {
-          code: 'ACCOUNT_BANNED',
-          message: 'Your account has been banned.',
+          code: "ACCOUNT_BANNED",
+          message: "Your account has been banned.",
         },
       }).success,
-    ).toBe(true)
-  })
+    ).toBe(true);
+  });
 
-  it('accepts the deactivated account error shape', () => {
+  it("accepts the deactivated account error shape", () => {
     expect(
       BlockedAuthErrorSchema.safeParse({
         error: {
-          code: 'ACCOUNT_DEACTIVATED',
-          message: 'This account has been closed.',
+          code: "ACCOUNT_DEACTIVATED",
+          message: "This account has been closed.",
         },
       }).success,
-    ).toBe(true)
-  })
-})
+    ).toBe(true);
+  });
+});
 
-describe('UpdateProfileSchema', () => {
-  it('accepts a name-only update', () => {
-    expect(UpdateProfileSchema.safeParse({ name: 'Alice B' }).success).toBe(true)
-  })
+describe("UpdateProfileSchema", () => {
+  it("accepts a name-only update", () => {
+    expect(UpdateProfileSchema.safeParse({ name: "Alice B" }).success).toBe(
+      true,
+    );
+  });
 
-  it('accepts profile field updates', () => {
+  it("accepts profile field updates", () => {
     expect(
       UpdateProfileSchema.safeParse({
-        bio: 'Campus commuter',
-        homeAddress: '12 Hill St',
+        bio: "Campus commuter",
+        homeAddress: "12 Hill St",
         homeLat: 59.91,
         homeLng: 10.75,
-        campusAddress: 'University Ave',
+        campusAddress: "University Ave",
         campusLat: 59.94,
         campusLng: 10.72,
       }).success,
-    ).toBe(true)
-  })
+    ).toBe(true);
+  });
 
-  it('rejects an empty object (nothing to update)', () => {
-    expect(UpdateProfileSchema.safeParse({}).success).toBe(false)
-  })
+  it("rejects an empty object (nothing to update)", () => {
+    expect(UpdateProfileSchema.safeParse({}).success).toBe(false);
+  });
 
-  it('accepts a non-URL avatar path', () => {
-    expect(UpdateProfileSchema.safeParse({ avatarPath: 'user-1/avatar-123.jpg' }).success).toBe(true)
-  })
-})
+  it("accepts a non-URL avatar path", () => {
+    expect(
+      UpdateProfileSchema.safeParse({ avatarPath: "user-1/avatar-123.jpg" })
+        .success,
+    ).toBe(true);
+  });
+});
 
-describe('DriverApplicationSchema', () => {
+describe("DriverApplicationSchema", () => {
   const validVehicle = {
-    make: 'Toyota',
-    model: 'Prius',
+    make: "Toyota",
+    model: "Prius",
     year: 2020,
-    colour: 'Silver',
-    plateNumber: 'AB12345',
-  }
+    colour: "Silver",
+    plateNumber: "AB12345",
+  };
 
-  it('accepts a valid application', () => {
+  it("accepts a valid application", () => {
     expect(
       DriverApplicationSchema.safeParse({
         vehicle: JSON.stringify(validVehicle),
       }).success,
-    ).toBe(true)
-  })
+    ).toBe(true);
+  });
 
-  it('rejects a missing vehicle payload', () => {
-    expect(
-      DriverApplicationSchema.safeParse({}).success,
-    ).toBe(false)
-  })
+  it("rejects a missing vehicle payload", () => {
+    expect(DriverApplicationSchema.safeParse({}).success).toBe(false);
+  });
 
-  it('rejects a vehicle year before 1990', () => {
+  it("rejects a vehicle year before 1990", () => {
     expect(
       DriverApplicationSchema.safeParse({
         vehicle: JSON.stringify({ ...validVehicle, year: 1985 }),
       }).success,
-    ).toBe(false)
-  })
+    ).toBe(false);
+  });
 
-  it('rejects invalid vehicle JSON', () => {
+  it("rejects invalid vehicle JSON", () => {
     expect(
       DriverApplicationSchema.safeParse({
-        vehicle: '{bad json}',
+        vehicle: "{bad json}",
       }).success,
-    ).toBe(false)
-  })
-})
+    ).toBe(false);
+  });
+});
 
-describe('SubmitAcademicVerificationSchema', () => {
-  it('accepts a student verification submission', () => {
+describe("SubmitAcademicVerificationSchema", () => {
+  it("accepts a student verification submission", () => {
     expect(
-      SubmitAcademicVerificationSchema.safeParse({ role: 'STUDENT' }).success,
-    ).toBe(true)
-  })
+      SubmitAcademicVerificationSchema.safeParse({ role: "STUDENT" }).success,
+    ).toBe(true);
+  });
 
-  it('accepts a staff verification submission', () => {
+  it("accepts a staff verification submission", () => {
     expect(
-      SubmitAcademicVerificationSchema.safeParse({ role: 'STAFF' }).success,
-    ).toBe(true)
-  })
+      SubmitAcademicVerificationSchema.safeParse({ role: "STAFF" }).success,
+    ).toBe(true);
+  });
 
-  it('rejects an invalid academic role', () => {
+  it("rejects an invalid academic role", () => {
     expect(
-      SubmitAcademicVerificationSchema.safeParse({ role: 'FACULTY' }).success,
-    ).toBe(false)
-  })
-})
+      SubmitAcademicVerificationSchema.safeParse({ role: "FACULTY" }).success,
+    ).toBe(false);
+  });
+});
 
-describe('DeleteMyAccountSchema', () => {
-  it('accepts the required confirmation phrase', () => {
-    expect(DeleteMyAccountSchema.safeParse({ confirmation: 'DELETE' }).success).toBe(true)
-  })
+describe("DeleteMyAccountSchema", () => {
+  it("accepts the required confirmation phrase", () => {
+    expect(
+      DeleteMyAccountSchema.safeParse({ confirmation: "DELETE" }).success,
+    ).toBe(true);
+  });
 
-  it('rejects missing confirmation', () => {
-    expect(DeleteMyAccountSchema.safeParse({}).success).toBe(false)
-  })
+  it("rejects missing confirmation", () => {
+    expect(DeleteMyAccountSchema.safeParse({}).success).toBe(false);
+  });
 
-  it('rejects the wrong confirmation phrase', () => {
-    expect(DeleteMyAccountSchema.safeParse({ confirmation: 'delete' }).success).toBe(false)
-  })
-})
+  it("rejects the wrong confirmation phrase", () => {
+    expect(
+      DeleteMyAccountSchema.safeParse({ confirmation: "delete" }).success,
+    ).toBe(false);
+  });
+});

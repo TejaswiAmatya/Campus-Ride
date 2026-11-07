@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react'
+import type { ReactNode } from "react";
 
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent } from "@/components/ui/card";
 
 interface StatsCardProps {
-  title: string
-  value: number | string
-  icon?: ReactNode
+  title: string;
+  value: number | string;
+  icon?: ReactNode;
 }
 
 export function StatsCard({ title, value, icon }: StatsCardProps) {
@@ -21,5 +21,5 @@ export function StatsCard({ title, value, icon }: StatsCardProps) {
         <p className="text-xs text-muted-foreground">{title}</p>
       </CardContent>
     </Card>
-  )
+  );
 }

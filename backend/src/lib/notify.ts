@@ -16,10 +16,7 @@ import type {
   RideUpdatePayload,
 } from "./socket.types";
 
-async function bookingNew(
-  driverId: string,
-  booking: BookingNewPayload,
-) {
+async function bookingNew(driverId: string, booking: BookingNewPayload) {
   console.log("[notify] bookingNew", { driverId, booking });
 
   notifyBookingNew(driverId, booking);
@@ -46,7 +43,10 @@ async function rideUpdate(rideId: string, update: RideUpdatePayload) {
   notifyRideUpdate(rideId, update);
 }
 
-async function moderationAction(userId: string, payload: ModerationActionPayload) {
+async function moderationAction(
+  userId: string,
+  payload: ModerationActionPayload,
+) {
   console.log("[notify] moderationAction", { userId, payload });
 
   notifyModerationAction(userId, payload);

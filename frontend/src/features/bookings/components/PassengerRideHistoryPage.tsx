@@ -17,7 +17,9 @@ export function PassengerRideHistoryPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="font-display text-display-lg text-foreground">Ride history</h1>
+        <h1 className="font-display text-display-lg text-foreground">
+          Ride history
+        </h1>
         <p className="text-sm text-muted-foreground">
           Review your completed and cancelled rides.
         </p>
@@ -26,10 +28,7 @@ export function PassengerRideHistoryPage() {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-28 animate-pulse rounded-xl bg-soft"
-            />
+            <div key={i} className="h-28 animate-pulse rounded-xl bg-soft" />
           ))}
         </div>
       ) : historyBookings.length === 0 ? (

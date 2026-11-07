@@ -1,21 +1,29 @@
-import { useEffect, type ReactNode } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet'
-import type { LatLngBoundsExpression, LatLngExpression } from 'leaflet'
-import L from 'leaflet'
-import { cn } from '@/lib/utils'
+import { useEffect, type ReactNode } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Polyline,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
+import type { LatLngBoundsExpression, LatLngExpression } from "leaflet";
+import L from "leaflet";
+import { cn } from "@/lib/utils";
 
-function createMarkerIcon(type: MapMarker['type'] = 'default') {
+function createMarkerIcon(type: MapMarker["type"] = "default") {
   const color =
-    type === 'origin'
-      ? '#000000'
-      : type === 'destination'
-        ? '#5e5e5e'
-        : type === 'driver'
-          ? '#282828'
-          : '#4b4b4b'
+    type === "origin"
+      ? "#000000"
+      : type === "destination"
+        ? "#5e5e5e"
+        : type === "driver"
+          ? "#282828"
+          : "#4b4b4b";
 
   return L.divIcon({
-    className: 'campus-ride-marker',
+    className: "campus-ride-marker",
     html: `
       <span
         style="
@@ -32,41 +40,45 @@ function createMarkerIcon(type: MapMarker['type'] = 'default') {
     iconSize: [18, 18],
     iconAnchor: [9, 9],
     popupAnchor: [0, -10],
-  })
+  });
 }
 
 export interface MapMarker {
-  position: [number, number]
-  label?: string
+  position: [number, number];
+  label?: string;
   /** 'origin' renders a dark marker, 'destination' a mid-gray one */
-  type?: 'origin' | 'destination' | 'driver' | 'default'
+  type?: "origin" | "destination" | "driver" | "default";
 }
 
 interface MapViewProps {
   /** Map centre [lat, lng]. Defaults to Gettysburg, PA. */
-  center?: [number, number]
-  zoom?: number
-  markers?: MapMarker[]
-  className?: string
+  center?: [number, number];
+  zoom?: number;
+  markers?: MapMarker[];
+  className?: string;
   /** Height override — default is h-64 */
-  height?: string
-  children?: ReactNode
-  onMapClick?: (position: [number, number]) => void
-  routePath?: Array<[number, number]>
+  height?: string;
+  children?: ReactNode;
+  onMapClick?: (position: [number, number]) => void;
+  routePath?: Array<[number, number]>;
 }
 
-function MapClickHandler({ onMapClick }: { onMapClick?: (position: [number, number]) => void }) {
+function MapClickHandler({
+  onMapClick,
+}: {
+  onMapClick?: (position: [number, number]) => void;
+}) {
   useMapEvents({
     click(event) {
       if (!onMapClick) {
-        return
+        return;
       }
 
-      onMapClick([event.latlng.lat, event.latlng.lng])
+      onMapClick([event.latlng.lat, event.latlng.lng]);
     },
-  })
+  });
 
-  return null
+  return null;
 }
 
 function MapViewport({
@@ -74,29 +86,26 @@ function MapViewport({
   markers,
   routePath,
 }: {
-  center: [number, number]
-  markers: MapMarker[]
-  routePath: Array<[number, number]>
+  center: [number, number];
+  markers: MapMarker[];
+  routePath: Array<[number, number]>;
 }) {
-  const map = useMap()
+  const map = useMap();
 
   useEffect(() => {
-    const points = [
-      ...markers.map((marker) => marker.position),
-      ...routePath,
-    ]
+    const points = [...markers.map((marker) => marker.position), ...routePath];
 
     if (points.length >= 2) {
       map.fitBounds(points as LatLngBoundsExpression, {
         padding: [36, 36],
-      })
-      return
+      });
+      return;
     }
 
-    map.setView(center as LatLngExpression)
-  }, [center, map, markers, routePath])
+    map.setView(center as LatLngExpression);
+  }, [center, map, markers, routePath]);
 
-  return null
+  return null;
 }
 
 /**
@@ -114,7 +123,7 @@ export function MapView({
   zoom = 13,
   markers = [],
   className,
-  height = 'h-64',
+  height = "h-64",
   children,
   onMapClick,
   routePath = [],
@@ -123,15 +132,19 @@ export function MapView({
     <MapContainer
       center={center as LatLngExpression}
       zoom={zoom}
-      className={cn('w-full overflow-hidden rounded-xl', height, className)}
-      style={{ minHeight: '200px' }}
+      className={cn("w-full overflow-hidden rounded-xl", height, className)}
+      style={{ minHeight: "200px" }}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {markers.map((marker, i) => (
-        <Marker key={i} position={marker.position as LatLngExpression} icon={createMarkerIcon(marker.type)}>
+        <Marker
+          key={i}
+          position={marker.position as LatLngExpression}
+          icon={createMarkerIcon(marker.type)}
+        >
           {marker.label && <Popup>{marker.label}</Popup>}
         </Marker>
       ))}
@@ -139,7 +152,7 @@ export function MapView({
         <Polyline
           positions={routePath as LatLngExpression[]}
           pathOptions={{
-            color: '#000000',
+            color: "#000000",
             weight: 5,
             opacity: 0.8,
           }}
@@ -149,5 +162,5 @@ export function MapView({
       <MapViewport center={center} markers={markers} routePath={routePath} />
       {children}
     </MapContainer>
-  )
+  );
 }

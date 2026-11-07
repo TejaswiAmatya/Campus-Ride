@@ -61,15 +61,17 @@ export function ProfilePage() {
   const deleteAccountErrorMessage = axios.isAxiosError<{
     error?: { message?: string };
   }>(deleteMyAccountMutation.error)
-    ? deleteMyAccountMutation.error.response?.data?.error?.message ??
-      "Unable to close your account right now."
+    ? (deleteMyAccountMutation.error.response?.data?.error?.message ??
+      "Unable to close your account right now.")
     : deleteMyAccountMutation.error instanceof Error
       ? deleteMyAccountMutation.error.message
       : null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
-      <h1 className="font-display text-display-md text-foreground">Your Profile</h1>
+      <h1 className="font-display text-display-md text-foreground">
+        Your Profile
+      </h1>
       <AccountStatusBanner
         accountStatus={user.accountStatus}
         suspendedUntil={user.suspendedUntil}
@@ -133,7 +135,11 @@ export function ProfilePage() {
               </div>
             </div>
           ) : (
-            <p className={user.bio?.trim() ? "text-sm" : "text-sm text-muted-foreground"}>
+            <p
+              className={
+                user.bio?.trim() ? "text-sm" : "text-sm text-muted-foreground"
+              }
+            >
               {user.bio?.trim() ? user.bio : "No bio yet"}
             </p>
           )}
@@ -176,7 +182,9 @@ export function ProfilePage() {
                 <Input
                   type="text"
                   value={campusAddressDraft}
-                  onChange={(event) => setCampusAddressDraft(event.target.value)}
+                  onChange={(event) =>
+                    setCampusAddressDraft(event.target.value)
+                  }
                 />
               </div>
 
@@ -246,7 +254,9 @@ export function ProfilePage() {
 
       <Card className="rounded-xl">
         <CardHeader>
-          <CardTitle className="text-display-sm">Academic verification</CardTitle>
+          <CardTitle className="text-display-sm">
+            Academic verification
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
             Add a verified student or staff badge to your profile.
           </p>
@@ -269,7 +279,8 @@ export function ProfilePage() {
 
           {user.academicVerificationStatus === "REJECTED" ? (
             <p className="rounded-xl bg-warning/10 px-3 py-2 text-sm text-foreground">
-              {user.academicRejectionReason ?? "Your verification was rejected."}
+              {user.academicRejectionReason ??
+                "Your verification was rejected."}
             </p>
           ) : null}
 
@@ -390,7 +401,9 @@ export function ProfilePage() {
                       />
                     ))}
                   </div>
-                  {review.comment && <p className="text-sm">{review.comment}</p>}
+                  {review.comment && (
+                    <p className="text-sm">{review.comment}</p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     {new Date(review.createdAt).toLocaleDateString("en-GB")}
                   </p>
@@ -417,7 +430,8 @@ export function ProfilePage() {
 
           <div className="rounded-xl bg-soft px-4 py-3">
             <p className="text-sm text-foreground">
-              Type <span className="font-semibold text-destructive">DELETE</span> to
+              Type{" "}
+              <span className="font-semibold text-destructive">DELETE</span> to
               confirm this irreversible action.
             </p>
           </div>

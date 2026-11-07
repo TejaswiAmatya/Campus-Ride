@@ -15,11 +15,16 @@ function getRideChatQueryKey(rideId?: string) {
   return ["rides", "chat", rideId];
 }
 
-function toMessageKey(message: Pick<ChatMessage, "rideId" | "senderId" | "text" | "createdAt">) {
+function toMessageKey(
+  message: Pick<ChatMessage, "rideId" | "senderId" | "text" | "createdAt">,
+) {
   return `${message.rideId}:${message.senderId}:${message.createdAt}:${message.text}`;
 }
 
-function appendMessage(existing: ChatMessage[] | undefined, nextMessage: ChatMessage) {
+function appendMessage(
+  existing: ChatMessage[] | undefined,
+  nextMessage: ChatMessage,
+) {
   const current = existing ?? [];
   const nextKey = toMessageKey(nextMessage);
 
@@ -33,7 +38,9 @@ function appendMessage(existing: ChatMessage[] | undefined, nextMessage: ChatMes
   );
 }
 
-function normalizeHistoryMessage(message: ChatHistoryMessageResponse): ChatMessage {
+function normalizeHistoryMessage(
+  message: ChatHistoryMessageResponse,
+): ChatMessage {
   return {
     rideId: message.rideId,
     senderId: message.sender.id,

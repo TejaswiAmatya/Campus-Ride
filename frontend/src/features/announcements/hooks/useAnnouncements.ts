@@ -61,7 +61,10 @@ export function useAnnouncements() {
         );
       })
       .catch((error) => {
-        console.error("[useAnnouncements] Failed to load unread announcements", error);
+        console.error(
+          "[useAnnouncements] Failed to load unread announcements",
+          error,
+        );
       });
 
     return () => {
@@ -79,11 +82,15 @@ export function useAnnouncements() {
 
     const dismissedAnnouncementId = currentAnnouncement.id;
     setQueue((currentQueue) =>
-      currentQueue.filter((announcement) => announcement.id !== dismissedAnnouncementId),
+      currentQueue.filter(
+        (announcement) => announcement.id !== dismissedAnnouncementId,
+      ),
     );
 
     try {
-      await apiClient.post(`/api/admin/announcements/${dismissedAnnouncementId}/read`);
+      await apiClient.post(
+        `/api/admin/announcements/${dismissedAnnouncementId}/read`,
+      );
     } catch (error) {
       console.error("[useAnnouncements] Failed to mark announcement as read", {
         announcementId: dismissedAnnouncementId,

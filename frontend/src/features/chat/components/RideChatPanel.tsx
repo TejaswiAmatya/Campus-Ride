@@ -99,9 +99,7 @@ export function RideChatPanel({
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-foreground">
               <MessageCircleMore className="h-5 w-5" />
-              <span className="text-xs font-medium text-mute">
-                Ride chat
-              </span>
+              <span className="text-xs font-medium text-mute">Ride chat</span>
             </div>
             <CardTitle className="text-display-sm">
               Coordinate pickup and timing
@@ -112,7 +110,10 @@ export function RideChatPanel({
             </p>
           </div>
 
-          <Badge variant={isConnected ? "success" : "warning"} className="gap-2">
+          <Badge
+            variant={isConnected ? "success" : "warning"}
+            className="gap-2"
+          >
             {isConnected ? (
               <Wifi className="h-3.5 w-3.5" />
             ) : (
@@ -158,11 +159,10 @@ export function RideChatPanel({
             <div className="flex min-h-[14rem] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-soft px-6 text-center">
               <MessageCircleMore className="h-8 w-8 text-mute" />
               <div className="space-y-1">
-                <p className="font-medium text-foreground">
-                  No messages yet.
-                </p>
+                <p className="font-medium text-foreground">No messages yet.</p>
                 <p className="text-sm text-muted-foreground">
-                  Start with pickup details, arrival timing, or a simple heads-up.
+                  Start with pickup details, arrival timing, or a simple
+                  heads-up.
                 </p>
               </div>
             </div>
@@ -251,9 +251,7 @@ export function RideChatPanel({
                 Press Enter to send
               </p>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-mute">
-                  {draft.length}/1000
-                </span>
+                <span className="text-xs text-mute">{draft.length}/1000</span>
                 <Button
                   type="submit"
                   disabled={!canSend}

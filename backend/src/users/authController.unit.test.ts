@@ -258,12 +258,10 @@ describe("authController", () => {
       },
       error: null,
     });
-    mocks.userFindUnique
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        accountStatus: "ACTIVE",
-        suspendedUntil: null,
-      });
+    mocks.userFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      accountStatus: "ACTIVE",
+      suspendedUntil: null,
+    });
     mocks.userCreate.mockResolvedValue({
       id: "auth-user-3",
       email: "alice@university.edu",

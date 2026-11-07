@@ -120,8 +120,8 @@ export function EditUserDetailForm({
             className="bg-softer"
           />
           <p className="text-xs text-muted-foreground">
-            Email is validated here, but profile save currently persists name and
-            phone only.
+            Email is validated here, but profile save currently persists name
+            and phone only.
           </p>
         </div>
 

@@ -1,39 +1,44 @@
-import { Router } from 'express'
-import { requireAuth } from '../middleware/auth'
-import { upload } from '../middleware/upload'
-import * as authController from './authController'
-import * as userController from './userController'
+import { Router } from "express";
+import { requireAuth } from "../middleware/auth";
+import { upload } from "../middleware/upload";
+import * as authController from "./authController";
+import * as userController from "./userController";
 
-export const usersRouter = Router()
-export const authRouter = Router()
+export const usersRouter = Router();
+export const authRouter = Router();
 
 // Auth routes
-authRouter.post('/register', authController.register)
-authRouter.post('/confirm-signup', authController.confirmSignup)
-authRouter.post('/confirm-signup/session', authController.confirmSignupSession)
-authRouter.post('/login', authController.login)
+authRouter.post("/register", authController.register);
+authRouter.post("/confirm-signup", authController.confirmSignup);
+authRouter.post("/confirm-signup/session", authController.confirmSignupSession);
+authRouter.post("/login", authController.login);
 
 // Authenticated routes
-usersRouter.get('/me', requireAuth, userController.getCurrentUser)
-usersRouter.patch('/me', requireAuth, userController.updateCurrentUser)
-usersRouter.delete('/me', requireAuth, userController.deleteMyAccount)
-usersRouter.post('/me/avatar', requireAuth, upload.single('avatar'), userController.uploadCurrentUserAvatar)
+usersRouter.get("/me", requireAuth, userController.getCurrentUser);
+usersRouter.patch("/me", requireAuth, userController.updateCurrentUser);
+usersRouter.delete("/me", requireAuth, userController.deleteMyAccount);
 usersRouter.post(
-  '/me/academic-verification',
+  "/me/avatar",
   requireAuth,
-  upload.single('document'),
-  userController.submitAcademicVerification,
-)
+  upload.single("avatar"),
+  userController.uploadCurrentUserAvatar,
+);
 usersRouter.post(
-  '/me/driver',
+  "/me/academic-verification",
+  requireAuth,
+  upload.single("document"),
+  userController.submitAcademicVerification,
+);
+usersRouter.post(
+  "/me/driver",
   requireAuth,
   upload.fields([
-    { name: 'licence', maxCount: 1 },
-    { name: 'insurance', maxCount: 1 },
+    { name: "licence", maxCount: 1 },
+    { name: "insurance", maxCount: 1 },
   ]),
   userController.applyAsDriver,
-)
+);
 
 // Public user routes
-usersRouter.get('/:id', userController.getPublicUserProfile)
-usersRouter.get('/:id/reviews', userController.getUserReviews)
+usersRouter.get("/:id", userController.getPublicUserProfile);
+usersRouter.get("/:id/reviews", userController.getUserReviews);

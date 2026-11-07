@@ -7,7 +7,10 @@ import { Star, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { VerificationBadge } from "@/features/user/components/VerificationBadge";
-import { usePublicUserProfile, useUserReviews } from "@/features/user/hooks/useProfile";
+import {
+  usePublicUserProfile,
+  useUserReviews,
+} from "@/features/user/hooks/useProfile";
 
 function formatShortId(id: string) {
   return id.slice(0, 8).toUpperCase();
@@ -166,7 +169,9 @@ export function PublicProfilePage() {
                 <span className="font-display text-display-xl leading-none text-foreground">
                   {reviews.length === 0 ? "0.0" : averageRating.toFixed(1)}
                 </span>
-                <span className="pb-1 text-sm text-muted-foreground">out of 5</span>
+                <span className="pb-1 text-sm text-muted-foreground">
+                  out of 5
+                </span>
               </div>
 
               <div className="mt-4 flex items-center gap-3">
@@ -194,7 +199,9 @@ export function PublicProfilePage() {
                   Average rating
                 </p>
                 <p className="mt-4 font-display text-display-md text-foreground">
-                  {reviews.length === 0 ? "No ratings" : averageRating.toFixed(1)}
+                  {reviews.length === 0
+                    ? "No ratings"
+                    : averageRating.toFixed(1)}
                 </p>
               </div>
 
@@ -241,10 +248,7 @@ export function PublicProfilePage() {
         ) : (
           <div className="grid gap-4">
             {reviews.map((review) => (
-              <article
-                key={review.id}
-                className="rounded-xl bg-card p-6"
-              >
+              <article key={review.id} className="rounded-xl bg-card p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
@@ -256,7 +260,9 @@ export function PublicProfilePage() {
                         />
                       ) : (
                         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-soft text-sm font-semibold text-foreground">
-                          {(review.reviewer.name.trim().charAt(0) || "R").toUpperCase()}
+                          {(
+                            review.reviewer.name.trim().charAt(0) || "R"
+                          ).toUpperCase()}
                         </div>
                       )}
 

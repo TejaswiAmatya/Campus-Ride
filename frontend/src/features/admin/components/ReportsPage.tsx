@@ -24,7 +24,7 @@ export function ReportsPage() {
       ? updateReportActionMutation.error.message
       : "Unable to apply the moderation action.";
   const activeReportId = updateReportActionMutation.isPending
-    ? updateReportActionMutation.variables?.id ?? null
+    ? (updateReportActionMutation.variables?.id ?? null)
     : null;
 
   return (

@@ -69,7 +69,8 @@ export async function requireAuth(
 
     const blockedAccountError = getBlockedAccountError({
       accountStatus:
-        user.accountStatus === "SUSPENDED" && hasSuspensionExpired(user.suspendedUntil)
+        user.accountStatus === "SUSPENDED" &&
+        hasSuspensionExpired(user.suspendedUntil)
           ? "ACTIVE"
           : user.accountStatus,
       suspendedUntil: user.suspendedUntil,
@@ -105,20 +106,16 @@ export async function requireAuth(
 export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res
-        .status(401)
-        .json({
-          error: { code: "UNAUTHORIZED", message: "Not authenticated" },
-        });
+      res.status(401).json({
+        error: { code: "UNAUTHORIZED", message: "Not authenticated" },
+      });
       return;
     }
 
     if (!roles.includes(req.user.role)) {
-      res
-        .status(403)
-        .json({
-          error: { code: "FORBIDDEN", message: "Insufficient permissions" },
-        });
+      res.status(403).json({
+        error: { code: "FORBIDDEN", message: "Insufficient permissions" },
+      });
       return;
     }
 

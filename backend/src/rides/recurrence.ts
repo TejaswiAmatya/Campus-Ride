@@ -1,5 +1,6 @@
 export type RideOfferType = "ONE_TIME" | "RECURRING";
-export type RideRecurrencePattern = "NONE" | "DAILY" | "WEEKLY" | "SPECIFIC_DAYS";
+export type RideRecurrencePattern =
+  "NONE" | "DAILY" | "WEEKLY" | "SPECIFIC_DAYS";
 
 type GenerateRideOccurrencesInput = {
   offerType: RideOfferType;
@@ -62,7 +63,9 @@ export function generateRideOccurrences({
 
   const windowStart = startOfDay(firstDeparture);
   const windowEnd = addDays(windowStart, windowDays);
-  const endDate = recurrenceEndDate ? startOfDay(new Date(recurrenceEndDate)) : null;
+  const endDate = recurrenceEndDate
+    ? startOfDay(new Date(recurrenceEndDate))
+    : null;
   const results: Date[] = [];
   const normalizedDays = dedupeSortedDays(recurrenceDays);
 

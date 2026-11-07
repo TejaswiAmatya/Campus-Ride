@@ -68,12 +68,14 @@ describe("redis wiring integration", () => {
     await import("./redis");
 
     expect(constructorArgs).toEqual([
-      [{
-        host: "redis.internal",
-        port: 6380,
-        password: "secret",
-        maxRetriesPerRequest: null,
-      }],
+      [
+        {
+          host: "redis.internal",
+          port: 6380,
+          password: "secret",
+          maxRetriesPerRequest: null,
+        },
+      ],
     ]);
   });
 });

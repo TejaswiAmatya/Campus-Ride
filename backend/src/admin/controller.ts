@@ -114,9 +114,12 @@ function buildGrowthSeries(
   for (const bucket of buckets) {
     const newUsers = users.filter(
       (user) =>
-        user.createdAt >= bucket.periodStart && user.createdAt < bucket.periodEnd,
+        user.createdAt >= bucket.periodStart &&
+        user.createdAt < bucket.periodEnd,
     );
-    const driverCount = newUsers.filter((user) => user.role === "DRIVER").length;
+    const driverCount = newUsers.filter(
+      (user) => user.role === "DRIVER",
+    ).length;
     const passengerCount = newUsers.filter(
       (user) => user.role === "PASSENGER",
     ).length;
@@ -125,7 +128,8 @@ function buildGrowthSeries(
 
     const deactivatedOrBannedUsers = deactivationEvents.filter(
       (event) =>
-        event.updatedAt >= bucket.periodStart && event.updatedAt < bucket.periodEnd,
+        event.updatedAt >= bucket.periodStart &&
+        event.updatedAt < bucket.periodEnd,
     ).length;
 
     points.push({
@@ -163,8 +167,7 @@ const PLATFORM_HEALTH_SIGNAL_ORDER = [
   "New Account Activity Spike",
 ] as const;
 
-type PlatformHealthSignalLabel =
-  (typeof PLATFORM_HEALTH_SIGNAL_ORDER)[number];
+type PlatformHealthSignalLabel = (typeof PLATFORM_HEALTH_SIGNAL_ORDER)[number];
 
 const PLATFORM_HEALTH_SIGNAL_WEIGHTS: Record<
   PlatformHealthSignalLabel,
@@ -354,7 +357,9 @@ export async function getPlatformHealth(
     >();
 
     for (const booking of bookingsByPassenger) {
-      const bookingStats = bookingStatsByPassengerId.get(booking.passengerId) ?? {
+      const bookingStats = bookingStatsByPassengerId.get(
+        booking.passengerId,
+      ) ?? {
         total: 0,
         cancelled: 0,
       };
@@ -396,7 +401,11 @@ export async function getPlatformHealth(
 
     for (const reviewSummary of reviewsByReviewee) {
       const averageRating = reviewSummary._avg.rating;
-      if (reviewSummary._count._all >= 3 && averageRating !== null && averageRating <= 2.5) {
+      if (
+        reviewSummary._count._all >= 3 &&
+        averageRating !== null &&
+        averageRating <= 2.5
+      ) {
         applyPlatformHealthSignal(
           suspiciousUsersById,
           reviewSummary.revieweeId,
@@ -485,9 +494,7 @@ export async function getPlatformHealth(
           noShowCount: entry.noShowCount,
         };
       })
-      .filter(
-        (entry): entry is PlatformHealthResponseItem => entry !== null,
-      )
+      .filter((entry): entry is PlatformHealthResponseItem => entry !== null)
       .sort((left, right) => right.score - left.score);
 
     res.json({ data: rankedUsers });
@@ -727,23 +734,25 @@ export async function listPendingAcademicVerifications(
     });
 
     const serializedUsers = await Promise.all(
-      users.map(async (user: {
-        id: string;
-        name: string;
-        email: string;
-        academicRole: "STUDENT" | "STAFF" | null;
-        academicIdPath: string | null;
-        createdAt: Date;
-      }) => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        academicRole: user.academicRole,
-        academicIdUrl: user.academicIdPath
-          ? await createSignedPrivateDocumentUrl(user.academicIdPath)
-          : null,
-        createdAt: user.createdAt,
-      })),
+      users.map(
+        async (user: {
+          id: string;
+          name: string;
+          email: string;
+          academicRole: "STUDENT" | "STAFF" | null;
+          academicIdPath: string | null;
+          createdAt: Date;
+        }) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          academicRole: user.academicRole,
+          academicIdUrl: user.academicIdPath
+            ? await createSignedPrivateDocumentUrl(user.academicIdPath)
+            : null,
+          createdAt: user.createdAt,
+        }),
+      ),
     );
 
     res.json({
@@ -1009,8 +1018,7 @@ export async function listReports(
           name: targetUserNameById.get(report.targetUserId) ?? null,
           rideCount: completedRideCountByUserId.get(report.targetUserId) ?? 0,
           rating: averageRatingByUserId.get(report.targetUserId) ?? null,
-          reportCount:
-            previousReportCountByReportId.get(report.id) ?? 0,
+          reportCount: previousReportCountByReportId.get(report.id) ?? 0,
         },
         targetUserRole: report.targetUserRole,
         reason: report.reason,
@@ -1231,15 +1239,20 @@ export async function createModerationAction(
           reason: body.reason,
           note: body.note,
           suspendedUntil:
-            body.actionType === "SUSPENSION" ? body.suspendedUntil ?? null : null,
+            body.actionType === "SUSPENSION"
+              ? (body.suspendedUntil ?? null)
+              : null,
           updatedAt: updatedAt.toISOString(),
         });
       } catch (socketErr) {
-        console.error("[admin/createModerationAction] moderation socket failed", {
-          targetUserId,
-          actionType: body.actionType,
-          error: socketErr,
-        });
+        console.error(
+          "[admin/createModerationAction] moderation socket failed",
+          {
+            targetUserId,
+            actionType: body.actionType,
+            error: socketErr,
+          },
+        );
       }
 
       try {
@@ -1250,14 +1263,19 @@ export async function createModerationAction(
           body.actionType,
           body.reason,
           body.note,
-          body.actionType === "SUSPENSION" ? body.suspendedUntil ?? null : null,
+          body.actionType === "SUSPENSION"
+            ? (body.suspendedUntil ?? null)
+            : null,
         );
       } catch (queueErr) {
-        console.error("[admin/createModerationAction] moderation queue failed", {
-          targetUserId,
-          actionType: body.actionType,
-          error: queueErr,
-        });
+        console.error(
+          "[admin/createModerationAction] moderation queue failed",
+          {
+            targetUserId,
+            actionType: body.actionType,
+            error: queueErr,
+          },
+        );
       }
     }
 

@@ -1,5 +1,5 @@
-import { CalendarDays, Clock3, Search, User } from 'lucide-react'
-import { DashboardCard } from '@/features/user/components/DashboardCard'
+import { CalendarDays, Clock3, Search, User } from "lucide-react";
+import { DashboardCard } from "@/features/user/components/DashboardCard";
 
 export function PassengerDashboardPage() {
   return (
@@ -41,5 +41,5 @@ export function PassengerDashboardPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

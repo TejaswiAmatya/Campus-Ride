@@ -1,20 +1,20 @@
-import { Router } from 'express'
-import { requireAuth } from '../middleware/auth'
-import * as controller from './controller'
+import { Router } from "express";
+import { requireAuth } from "../middleware/auth";
+import * as controller from "./controller";
 
-export const bookingsRouter = Router()
+export const bookingsRouter = Router();
 
 // All booking routes require authentication
-bookingsRouter.use(requireAuth)
+bookingsRouter.use(requireAuth);
 
-bookingsRouter.post('/', controller.createBooking)
-bookingsRouter.get('/', controller.listBookings)
-bookingsRouter.get('/earnings', controller.getEarnings)
-bookingsRouter.get('/:id', controller.getBooking)
-bookingsRouter.patch('/:id/confirm', controller.confirmBooking)
-bookingsRouter.patch('/:id/decline', controller.declineBooking)
-bookingsRouter.patch('/:id/cancel', controller.cancelBooking)
-bookingsRouter.patch('/:id/complete', controller.completeBooking)
-bookingsRouter.patch('/:id/picked-up', controller.markBookingPickedUp)
-bookingsRouter.patch('/:id/no-show', controller.markBookingNoShow)
-bookingsRouter.patch('/:id/complete', controller.completeBooking)
+bookingsRouter.post("/", controller.createBooking);
+bookingsRouter.get("/", controller.listBookings);
+bookingsRouter.get("/earnings", controller.getEarnings);
+bookingsRouter.get("/:id", controller.getBooking);
+bookingsRouter.patch("/:id/confirm", controller.confirmBooking);
+bookingsRouter.patch("/:id/decline", controller.declineBooking);
+bookingsRouter.patch("/:id/cancel", controller.cancelBooking);
+bookingsRouter.patch("/:id/complete", controller.completeBooking);
+bookingsRouter.patch("/:id/picked-up", controller.markBookingPickedUp);
+bookingsRouter.patch("/:id/no-show", controller.markBookingNoShow);
+bookingsRouter.patch("/:id/complete", controller.completeBooking);

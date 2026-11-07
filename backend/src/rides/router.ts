@@ -9,8 +9,33 @@ ridesRouter.get("/mine", requireAuth, controller.getMyRides); // must come befor
 ridesRouter.post("/:rideId/reviews", requireAuth, controller.createReview);
 ridesRouter.get("/:id", controller.getRide);
 
-ridesRouter.post("/", requireAuth, requireRole("DRIVER"), controller.createRide);
-ridesRouter.patch("/:id", requireAuth, requireRole("DRIVER"), controller.updateRide);
-ridesRouter.patch("/:id/start", requireAuth, requireRole("DRIVER"), controller.startRide);
-ridesRouter.patch("/:id/status", requireAuth, requireRole("DRIVER"), controller.updateRideStatus);
-ridesRouter.delete("/:id", requireAuth, requireRole("DRIVER"), controller.cancelRide);
+ridesRouter.post(
+  "/",
+  requireAuth,
+  requireRole("DRIVER"),
+  controller.createRide,
+);
+ridesRouter.patch(
+  "/:id",
+  requireAuth,
+  requireRole("DRIVER"),
+  controller.updateRide,
+);
+ridesRouter.patch(
+  "/:id/start",
+  requireAuth,
+  requireRole("DRIVER"),
+  controller.startRide,
+);
+ridesRouter.patch(
+  "/:id/status",
+  requireAuth,
+  requireRole("DRIVER"),
+  controller.updateRideStatus,
+);
+ridesRouter.delete(
+  "/:id",
+  requireAuth,
+  requireRole("DRIVER"),
+  controller.cancelRide,
+);

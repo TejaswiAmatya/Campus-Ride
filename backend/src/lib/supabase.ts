@@ -1,87 +1,88 @@
-import { createClient } from '@supabase/supabase-js'
-import { AppError } from '../middleware/error'
+import { createClient } from "@supabase/supabase-js";
+import { AppError } from "../middleware/error";
 
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const appUrl = process.env.APP_URL || process.env.CORS_ORIGIN || 'http://localhost:5173'
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const appUrl =
+  process.env.APP_URL || process.env.CORS_ORIGIN || "http://localhost:5173";
 
 const missingSupabaseConfigMessage =
-  'Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY and/or SUPABASE_SERVICE_ROLE_KEY'
+  "Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY and/or SUPABASE_SERVICE_ROLE_KEY";
 
-type SupabaseClientInstance = ReturnType<typeof createClient>
+type SupabaseClientInstance = ReturnType<typeof createClient>;
 
-let supabaseAdminInstance: SupabaseClientInstance | null = null
-let supabaseAuthInstance: SupabaseClientInstance | null = null
+let supabaseAdminInstance: SupabaseClientInstance | null = null;
+let supabaseAuthInstance: SupabaseClientInstance | null = null;
 
 function assertSupabaseConfig() {
   if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-    throw new Error(missingSupabaseConfigMessage)
+    throw new Error(missingSupabaseConfigMessage);
   }
 }
 
 function getSupabaseAdminClient() {
-  assertSupabaseConfig()
-  const url = supabaseUrl!
-  const serviceRoleKey = supabaseServiceRoleKey!
+  assertSupabaseConfig();
+  const url = supabaseUrl!;
+  const serviceRoleKey = supabaseServiceRoleKey!;
 
   supabaseAdminInstance ??= createClient(url, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
-  })
-  return supabaseAdminInstance
+  });
+  return supabaseAdminInstance;
 }
 
 function getSupabaseAuthClient() {
-  assertSupabaseConfig()
-  const url = supabaseUrl!
-  const anonKey = supabaseAnonKey!
+  assertSupabaseConfig();
+  const url = supabaseUrl!;
+  const anonKey = supabaseAnonKey!;
 
   supabaseAuthInstance ??= createClient(url, anonKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
-  })
-  return supabaseAuthInstance
+  });
+  return supabaseAuthInstance;
 }
 
 function createLazyClient(getClient: () => SupabaseClientInstance) {
   return new Proxy({} as SupabaseClientInstance, {
     get(_target, prop) {
-      const client = getClient()
-      const value = Reflect.get(client, prop)
-      return typeof value === 'function' ? value.bind(client) : value
+      const client = getClient();
+      const value = Reflect.get(client, prop);
+      return typeof value === "function" ? value.bind(client) : value;
     },
-  })
+  });
 }
 
 /**
  * Supabase admin client — uses the service-role key for elevated access.
  */
-export const supabaseAdmin = createLazyClient(getSupabaseAdminClient)
+export const supabaseAdmin = createLazyClient(getSupabaseAdminClient);
 
 /**
  * Supabase auth client — uses the anon key for user-facing auth flows.
  */
-export const supabaseAuth = createLazyClient(getSupabaseAuthClient)
+export const supabaseAuth = createLazyClient(getSupabaseAuthClient);
 
 export async function createAuthUser(email: string, password: string) {
   return getSupabaseAdminClient().auth.admin.createUser({
     email,
     password,
     email_confirm: true,
-  })
+  });
 }
 
 type RegisterAuthUserInput = {
-  email: string
-  password: string
-  name: string
-  phone?: string
-}
+  email: string;
+  password: string;
+  name: string;
+  phone?: string;
+};
 
 export async function registerAuthUser({
   email,
@@ -93,67 +94,66 @@ export async function registerAuthUser({
     email,
     password,
     options: {
-      emailRedirectTo: `${appUrl.replace(/\/$/, '')}/auth/confirm`,
+      emailRedirectTo: `${appUrl.replace(/\/$/, "")}/auth/confirm`,
       data: {
         name,
         ...(phone ? { phone } : {}),
       },
     },
-  })
+  });
 }
 
 export async function confirmAuthSignup(tokenHash: string) {
   return getSupabaseAuthClient().auth.verifyOtp({
     token_hash: tokenHash,
-    type: 'email',
-  })
+    type: "email",
+  });
 }
 
 export async function deleteAuthUser(userId: string) {
-  return getSupabaseAdminClient().auth.admin.deleteUser(userId)
+  return getSupabaseAdminClient().auth.admin.deleteUser(userId);
 }
 
-const PRIVATE_DOCUMENTS_BUCKET = 'license'
-const AVATARS_BUCKET = 'avatars'
+const PRIVATE_DOCUMENTS_BUCKET = "license";
+const AVATARS_BUCKET = "avatars";
 
 function sanitizeFilename(filename: string): string {
-  const trimmed = filename.trim()
-  const fallback = 'document'
-  const normalized = trimmed || fallback
+  const trimmed = filename.trim();
+  const fallback = "document";
+  const normalized = trimmed || fallback;
 
   return normalized
-    .replace(/[/\\]/g, '-')
-    .replace(/\s+/g, '-')
-    .replace(/[^a-zA-Z0-9._-]/g, '')
+    .replace(/[/\\]/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9._-]/g, "");
 }
 
 function buildPrivateDocumentPath(
-  folder: 'licences' | 'insurance' | 'academic-ids',
+  folder: "licences" | "insurance" | "academic-ids",
   userId: string,
   filename: string,
 ): string {
-  const timestamp = Date.now()
-  const safeFilename = sanitizeFilename(filename)
-  return `${folder}/${userId}/${timestamp}-${safeFilename}`
+  const timestamp = Date.now();
+  const safeFilename = sanitizeFilename(filename);
+  return `${folder}/${userId}/${timestamp}-${safeFilename}`;
 }
 
 async function uploadPrivateDocument(
-  folder: 'licences' | 'insurance' | 'academic-ids',
+  folder: "licences" | "insurance" | "academic-ids",
   userId: string,
   buffer: Buffer,
   filetype: string,
   filename: string,
   errorLabel: string,
 ): Promise<string> {
-  const path = buildPrivateDocumentPath(folder, userId, filename)
+  const path = buildPrivateDocumentPath(folder, userId, filename);
 
   const { error } = await getSupabaseAdminClient()
-    .storage
-    .from(PRIVATE_DOCUMENTS_BUCKET)
+    .storage.from(PRIVATE_DOCUMENTS_BUCKET)
     .upload(path, buffer, {
       contentType: filetype,
       upsert: true,
-    })
+    });
 
   if (error) {
     console.error(`Supabase ${errorLabel} upload failed:`, {
@@ -162,11 +162,11 @@ async function uploadPrivateDocument(
       userId,
       path,
       filetype,
-    })
-    throw new AppError('UPLOAD_FAILED', `Failed to upload ${errorLabel}`, 500)
+    });
+    throw new AppError("UPLOAD_FAILED", `Failed to upload ${errorLabel}`, 500);
   }
 
-  return path
+  return path;
 }
 
 export async function uploadLicense(
@@ -174,15 +174,15 @@ export async function uploadLicense(
   buffer: Buffer,
   filetype: string,
   filename: string,
-) : Promise<string> {
+): Promise<string> {
   return uploadPrivateDocument(
-    'licences',
+    "licences",
     userId,
     buffer,
     filetype,
     filename,
-    'license',
-  )
+    "license",
+  );
 }
 
 export async function uploadInsurance(
@@ -192,30 +192,32 @@ export async function uploadInsurance(
   filename: string,
 ): Promise<string> {
   return uploadPrivateDocument(
-    'insurance',
+    "insurance",
     userId,
     buffer,
     filetype,
     filename,
-    'insurance',
-  )
+    "insurance",
+  );
 }
 
-export async function createSignedPrivateDocumentUrl(path: string): Promise<string> {
+export async function createSignedPrivateDocumentUrl(
+  path: string,
+): Promise<string> {
   const { data, error } = await supabaseAdmin.storage
     .from(PRIVATE_DOCUMENTS_BUCKET)
-    .createSignedUrl(path, 60 * 60)
+    .createSignedUrl(path, 60 * 60);
 
   if (error || !data?.signedUrl) {
-    console.error('Supabase signed private document URL creation failed:', {
+    console.error("Supabase signed private document URL creation failed:", {
       message: error?.message,
       name: error?.name,
       path,
-    })
-    throw new AppError('UPLOAD_FAILED', 'Failed to access document', 500)
+    });
+    throw new AppError("UPLOAD_FAILED", "Failed to access document", 500);
   }
 
-  return data.signedUrl
+  return data.signedUrl;
 }
 
 export async function uploadAcademicId(
@@ -225,41 +227,45 @@ export async function uploadAcademicId(
   filename: string,
 ): Promise<string> {
   return uploadPrivateDocument(
-    'academic-ids',
+    "academic-ids",
     userId,
     buffer,
     filetype,
     filename,
-    'academic ID',
-  )
+    "academic ID",
+  );
 }
 
 export async function uploadAvatar(
   userId: string,
   buffer: Buffer,
-  filetype: string
+  filetype: string,
 ): Promise<string> {
-  const ext = filetype.split('/')[1] ?? 'jpg'
-  const path = `${userId}/avatar-${Date.now()}.${ext}`
+  const ext = filetype.split("/")[1] ?? "jpg";
+  const path = `${userId}/avatar-${Date.now()}.${ext}`;
 
-  const { error } = await getSupabaseAdminClient().storage.from(AVATARS_BUCKET).upload(path, buffer, {
-    contentType: filetype,
-    upsert: false,
-  })
+  const { error } = await getSupabaseAdminClient()
+    .storage.from(AVATARS_BUCKET)
+    .upload(path, buffer, {
+      contentType: filetype,
+      upsert: false,
+    });
 
   if (error) {
-    console.error('Supabase avatar upload failed:', {
+    console.error("Supabase avatar upload failed:", {
       message: error.message,
       name: error.name,
       userId,
       path,
       filetype,
-    })
-    throw new AppError('UPLOAD_FAILED', 'Failed to upload avatar', 500)
+    });
+    throw new AppError("UPLOAD_FAILED", "Failed to upload avatar", 500);
   }
 
-  const { data } = getSupabaseAdminClient().storage.from(AVATARS_BUCKET).getPublicUrl(path)
-  return data.publicUrl
+  const { data } = getSupabaseAdminClient()
+    .storage.from(AVATARS_BUCKET)
+    .getPublicUrl(path);
+  return data.publicUrl;
 }
 
 async function removeStorageObjects(
@@ -269,15 +275,15 @@ async function removeStorageObjects(
 ): Promise<void> {
   const filteredPaths = Array.from(
     new Set(paths.map((path) => path.trim()).filter(Boolean)),
-  )
+  );
 
   if (filteredPaths.length === 0) {
-    return
+    return;
   }
 
-  const { error } = await getSupabaseAdminClient().storage
-    .from(bucket)
-    .remove(filteredPaths)
+  const { error } = await getSupabaseAdminClient()
+    .storage.from(bucket)
+    .remove(filteredPaths);
 
   if (error) {
     console.error(`Supabase ${errorLabel} deletion failed:`, {
@@ -285,39 +291,46 @@ async function removeStorageObjects(
       name: error.name,
       bucket,
       paths: filteredPaths,
-    })
-    throw new AppError('UPLOAD_FAILED', `Failed to delete ${errorLabel}`, 500)
+    });
+    throw new AppError("UPLOAD_FAILED", `Failed to delete ${errorLabel}`, 500);
   }
 }
 
 function extractAvatarStoragePath(publicUrl: string): string | null {
-  const publicMarker = `/storage/v1/object/public/${AVATARS_BUCKET}/`
-  const objectMarker = `/object/public/${AVATARS_BUCKET}/`
-  const marker = publicUrl.includes(publicMarker) ? publicMarker : objectMarker
-  const index = publicUrl.indexOf(marker)
+  const publicMarker = `/storage/v1/object/public/${AVATARS_BUCKET}/`;
+  const objectMarker = `/object/public/${AVATARS_BUCKET}/`;
+  const marker = publicUrl.includes(publicMarker) ? publicMarker : objectMarker;
+  const index = publicUrl.indexOf(marker);
 
   if (index === -1) {
-    return null
+    return null;
   }
 
-  const rawPath = publicUrl.slice(index + marker.length)
-  const pathWithoutQuery = rawPath.split('?')[0] ?? rawPath
-  return decodeURIComponent(pathWithoutQuery)
+  const rawPath = publicUrl.slice(index + marker.length);
+  const pathWithoutQuery = rawPath.split("?")[0] ?? rawPath;
+  return decodeURIComponent(pathWithoutQuery);
 }
 
 export async function deleteAvatar(publicUrl: string): Promise<void> {
-  const path = extractAvatarStoragePath(publicUrl)
+  const path = extractAvatarStoragePath(publicUrl);
 
   if (!path) {
-    console.warn('[supabase] Unable to derive avatar storage path from public URL', {
-      publicUrl,
-    })
-    return
+    console.warn(
+      "[supabase] Unable to derive avatar storage path from public URL",
+      {
+        publicUrl,
+      },
+    );
+    return;
   }
 
-  await removeStorageObjects(AVATARS_BUCKET, [path], 'avatar')
+  await removeStorageObjects(AVATARS_BUCKET, [path], "avatar");
 }
 
 export async function deletePrivateDocuments(paths: string[]): Promise<void> {
-  await removeStorageObjects(PRIVATE_DOCUMENTS_BUCKET, paths, 'private documents')
+  await removeStorageObjects(
+    PRIVATE_DOCUMENTS_BUCKET,
+    paths,
+    "private documents",
+  );
 }

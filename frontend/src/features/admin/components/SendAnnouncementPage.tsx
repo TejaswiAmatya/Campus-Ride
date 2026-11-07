@@ -92,7 +92,10 @@ export function SendAnnouncementPage() {
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <label htmlFor="announcement-subject" className="text-sm font-medium">
+              <label
+                htmlFor="announcement-subject"
+                className="text-sm font-medium"
+              >
                 Subject
               </label>
               <Input
@@ -105,7 +108,10 @@ export function SendAnnouncementPage() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="announcement-message" className="text-sm font-medium">
+              <label
+                htmlFor="announcement-message"
+                className="text-sm font-medium"
+              >
                 Message
               </label>
               <textarea

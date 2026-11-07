@@ -1,9 +1,15 @@
-import type { Request, Response, NextFunction } from 'express'
-import { ZodError } from 'zod'
+import type { Request, Response, NextFunction } from "express";
+import { ZodError } from "zod";
 
-export const ACCOUNT_STATUSES = ['ACTIVE', 'WARNED', 'SUSPENDED', 'BANNED', 'DEACTIVATED'] as const
+export const ACCOUNT_STATUSES = [
+  "ACTIVE",
+  "WARNED",
+  "SUSPENDED",
+  "BANNED",
+  "DEACTIVATED",
+] as const;
 
-export type AccountStatus = (typeof ACCOUNT_STATUSES)[number]
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 /** Throw this from any controller to produce a structured HTTP error response. */
 export class AppError extends Error {
@@ -13,15 +19,15 @@ export class AppError extends Error {
     public readonly statusCode: number = 400,
     public readonly details?: unknown,
   ) {
-    super(message)
-    this.name = 'AppError'
+    super(message);
+    this.name = "AppError";
   }
 }
 
 type BlockedAccountErrorInput = {
-  accountStatus: AccountStatus
-  suspendedUntil?: Date | string | null
-}
+  accountStatus: AccountStatus;
+  suspendedUntil?: Date | string | null;
+};
 
 /**
  * Returns the standard auth-blocking error for moderated accounts.
@@ -31,34 +37,34 @@ export function getBlockedAccountError({
   accountStatus,
   suspendedUntil,
 }: BlockedAccountErrorInput): AppError | null {
-  if (accountStatus === 'SUSPENDED') {
+  if (accountStatus === "SUSPENDED") {
     return new AppError(
-      'ACCOUNT_SUSPENDED',
-      'Your account is suspended. Please try again later or contact support.',
+      "ACCOUNT_SUSPENDED",
+      "Your account is suspended. Please try again later or contact support.",
       403,
       suspendedUntil
         ? { suspendedUntil: toIsoString(suspendedUntil) }
         : undefined,
-    )
+    );
   }
 
-  if (accountStatus === 'BANNED') {
+  if (accountStatus === "BANNED") {
     return new AppError(
-      'ACCOUNT_BANNED',
-      'Your account has been banned. Please contact support if you think this is a mistake.',
+      "ACCOUNT_BANNED",
+      "Your account has been banned. Please contact support if you think this is a mistake.",
       403,
-    )
+    );
   }
 
-  if (accountStatus === 'DEACTIVATED') {
+  if (accountStatus === "DEACTIVATED") {
     return new AppError(
-      'ACCOUNT_DEACTIVATED',
-      'This account has been closed and is no longer available.',
+      "ACCOUNT_DEACTIVATED",
+      "This account has been closed and is no longer available.",
       403,
-    )
+    );
   }
 
-  return null
+  return null;
 }
 
 export function errorHandler(
@@ -71,12 +77,12 @@ export function errorHandler(
   if (err instanceof ZodError) {
     res.status(422).json({
       error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Request validation failed',
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
         details: err.flatten().fieldErrors,
       },
-    })
-    return
+    });
+    return;
   }
 
   // Known application errors
@@ -87,50 +93,53 @@ export function errorHandler(
         message: err.message,
         ...(err.details === undefined ? {} : { details: err.details }),
       },
-    })
-    return
+    });
+    return;
   }
 
   // Prisma: unique constraint violation → 409
-  if (isPrismaError(err, 'P2002')) {
+  if (isPrismaError(err, "P2002")) {
     res.status(409).json({
-      error: { code: 'CONFLICT', message: 'A record with that value already exists' },
-    })
-    return
+      error: {
+        code: "CONFLICT",
+        message: "A record with that value already exists",
+      },
+    });
+    return;
   }
 
   // Prisma: record not found → 404
-  if (isPrismaError(err, 'P2025')) {
+  if (isPrismaError(err, "P2025")) {
     res.status(404).json({
-      error: { code: 'NOT_FOUND', message: 'Record not found' },
-    })
-    return
+      error: { code: "NOT_FOUND", message: "Record not found" },
+    });
+    return;
   }
 
   // Prisma: transaction conflict (e.g. serializable retry)
-  if (isPrismaError(err, 'P2034')) {
+  if (isPrismaError(err, "P2034")) {
     res.status(409).json({
-      error: { code: 'TRANSACTION_CONFLICT', message: 'Please try again' },
-    })
-    return
+      error: { code: "TRANSACTION_CONFLICT", message: "Please try again" },
+    });
+    return;
   }
 
   // Fallback
-  console.error('[errorHandler] Unhandled error:', err)
+  console.error("[errorHandler] Unhandled error:", err);
   res.status(500).json({
-    error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
-  })
+    error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" },
+  });
 }
 
 function isPrismaError(err: unknown, code: string): boolean {
   return (
-    typeof err === 'object' &&
+    typeof err === "object" &&
     err !== null &&
-    'code' in err &&
+    "code" in err &&
     (err as Record<string, unknown>).code === code
-  )
+  );
 }
 
 function toIsoString(value: Date | string): string {
-  return value instanceof Date ? value.toISOString() : value
+  return value instanceof Date ? value.toISOString() : value;
 }

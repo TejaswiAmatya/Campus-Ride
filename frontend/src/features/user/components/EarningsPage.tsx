@@ -46,7 +46,9 @@ export function EarningsPage() {
   const { data, isLoading, isError, error } = useQuery<EarningsResponse>({
     queryKey: ["driverEarningsPage"],
     queryFn: async () => {
-      const res = await api.get<{ data: EarningsResponse }>("/api/bookings/earnings");
+      const res = await api.get<{ data: EarningsResponse }>(
+        "/api/bookings/earnings",
+      );
       return res.data.data;
     },
     staleTime: 60_000,
@@ -57,7 +59,9 @@ export function EarningsPage() {
       <div className="space-y-6">
         <div>
           <p className="text-xs font-medium text-mute">Driver</p>
-          <h1 className="mt-1 font-display text-display-md text-foreground">Earnings</h1>
+          <h1 className="mt-1 font-display text-display-md text-foreground">
+            Earnings
+          </h1>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="h-32 animate-pulse rounded-xl bg-soft" />
@@ -78,7 +82,9 @@ export function EarningsPage() {
       <div className="space-y-6">
         <div>
           <p className="text-xs font-medium text-mute">Driver</p>
-          <h1 className="mt-1 font-display text-display-md text-foreground">Earnings</h1>
+          <h1 className="mt-1 font-display text-display-md text-foreground">
+            Earnings
+          </h1>
         </div>
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           <p className="font-medium">Failed to load earnings.</p>
@@ -98,7 +104,9 @@ export function EarningsPage() {
     <div className="space-y-8">
       <div>
         <p className="text-xs font-medium text-mute">Driver</p>
-        <h1 className="mt-1 font-display text-display-md text-foreground">Earnings</h1>
+        <h1 className="mt-1 font-display text-display-md text-foreground">
+          Earnings
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Review completed ride payouts and the current platform fee of{" "}
           <span className="font-medium text-foreground">
@@ -132,7 +140,9 @@ export function EarningsPage() {
       <Card className="rounded-xl">
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle className="text-display-sm">Completed Ride Payouts</CardTitle>
+            <CardTitle className="text-display-sm">
+              Completed Ride Payouts
+            </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
               Each completed booking shows the fare, platform fee, and your
               payout.
@@ -148,10 +158,7 @@ export function EarningsPage() {
           ) : (
             <div className="space-y-3">
               {earnings.rides.map((ride) => (
-                <div
-                  key={ride.bookingId}
-                  className="rounded-xl bg-soft p-4"
-                >
+                <div key={ride.bookingId} className="rounded-xl bg-soft p-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-foreground">

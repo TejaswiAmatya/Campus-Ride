@@ -104,7 +104,10 @@ function isEmailNotConfirmedError(
   const code = error.code?.toLowerCase() ?? "";
   const message = error.message?.toLowerCase() ?? "";
 
-  return code.includes("email_not_confirmed") || message.includes("email not confirmed");
+  return (
+    code.includes("email_not_confirmed") ||
+    message.includes("email not confirmed")
+  );
 }
 
 // POST /api/auth/register

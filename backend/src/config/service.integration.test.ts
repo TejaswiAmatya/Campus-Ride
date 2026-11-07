@@ -32,7 +32,10 @@ describe("config service integration", () => {
   });
 
   it("ensures the default platform fee exists before listing admin config", async () => {
-    prismaMocks.upsert.mockResolvedValue({ key: PLATFORM_FEE_CONFIG_KEY, value: DEFAULT_PLATFORM_FEE_PERCENT });
+    prismaMocks.upsert.mockResolvedValue({
+      key: PLATFORM_FEE_CONFIG_KEY,
+      value: DEFAULT_PLATFORM_FEE_PERCENT,
+    });
     prismaMocks.findMany.mockResolvedValue([
       { key: "allowedEmailDomains", value: "edu,no" },
       { key: PLATFORM_FEE_CONFIG_KEY, value: "12" },
@@ -43,7 +46,10 @@ describe("config service integration", () => {
     expect(prismaMocks.upsert).toHaveBeenCalledWith({
       where: { key: PLATFORM_FEE_CONFIG_KEY },
       update: {},
-      create: { key: PLATFORM_FEE_CONFIG_KEY, value: DEFAULT_PLATFORM_FEE_PERCENT },
+      create: {
+        key: PLATFORM_FEE_CONFIG_KEY,
+        value: DEFAULT_PLATFORM_FEE_PERCENT,
+      },
     });
     expect(config).toEqual({
       allowedEmailDomains: "edu,no",

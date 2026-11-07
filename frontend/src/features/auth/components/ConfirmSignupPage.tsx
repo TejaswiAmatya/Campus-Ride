@@ -3,7 +3,10 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Car } from "lucide-react";
 import { extractApiError } from "@/api/client";
-import { useConfirmSignup, useConfirmSignupSession } from "@/features/auth/hooks/useAuth";
+import {
+  useConfirmSignup,
+  useConfirmSignupSession,
+} from "@/features/auth/hooks/useAuth";
 import { meQueryKey } from "@/features/user/hooks/useProfile";
 import { useAuthStore } from "@/store/authStore";
 
@@ -26,7 +29,8 @@ export function ConfirmSignupPage() {
   const confirmSignupMutation = useConfirmSignup();
   const confirmSignupSessionMutation = useConfirmSignupSession();
   const clearSession = useAuthStore((state) => state.clearSession);
-  const [hasRequestedConfirmation, setHasRequestedConfirmation] = useState(false);
+  const [hasRequestedConfirmation, setHasRequestedConfirmation] =
+    useState(false);
 
   const tokenHash = useMemo(
     () => searchParams.get("token_hash") ?? searchParams.get("token") ?? "",
@@ -86,7 +90,10 @@ export function ConfirmSignupPage() {
   ]);
 
   const confirmationError = activeMutation.isError
-    ? extractApiError(activeMutation.error, "We could not confirm that email link. Please request a new signup email.")
+    ? extractApiError(
+        activeMutation.error,
+        "We could not confirm that email link. Please request a new signup email.",
+      )
     : null;
 
   return (
@@ -95,7 +102,9 @@ export function ConfirmSignupPage() {
         <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-pill bg-soft">
           <Car className="h-6 w-6 text-foreground" />
         </span>
-        <h1 className="font-display text-display-md text-foreground">Confirm your account</h1>
+        <h1 className="font-display text-display-md text-foreground">
+          Confirm your account
+        </h1>
         <p className="mt-2 text-sm text-mute">
           Campus Ride finishes signup after email confirmation.
         </p>
@@ -104,9 +113,13 @@ export function ConfirmSignupPage() {
       {!tokenHash && !accessToken ? (
         <div className="space-y-4 rounded-xl bg-soft px-4 py-6 text-sm shadow-elev-2">
           <p className="text-foreground">
-            That confirmation link is missing its token. Open the latest email and use the full link.
+            That confirmation link is missing its token. Open the latest email
+            and use the full link.
           </p>
-          <Link to="/auth/register" className="font-medium text-foreground hover:underline">
+          <Link
+            to="/auth/register"
+            className="font-medium text-foreground hover:underline"
+          >
             Back to signup
           </Link>
         </div>
@@ -122,7 +135,10 @@ export function ConfirmSignupPage() {
       ) : confirmationError ? (
         <div className="space-y-4 rounded-xl bg-destructive/10 px-4 py-6 text-sm text-destructive">
           <p>{confirmationError.message}</p>
-          <Link to="/auth/register" className="font-medium text-foreground hover:underline">
+          <Link
+            to="/auth/register"
+            className="font-medium text-foreground hover:underline"
+          >
             Start signup again
           </Link>
         </div>

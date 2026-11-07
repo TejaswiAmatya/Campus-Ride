@@ -1,37 +1,43 @@
-import { Link } from 'react-router-dom'
-import { useState } from 'react'
-import { CalendarCheck, Clock, MapPin } from 'lucide-react'
-import { useBookings } from '../hooks/useBookings'
-import type { BookingListItem, BookingStatus } from '../types'
-import { StatusBadge } from './StatusBadge'
-import { cn } from '@/lib/utils'
+import { Link } from "react-router-dom";
+import { useState } from "react";
+import { CalendarCheck, Clock, MapPin } from "lucide-react";
+import { useBookings } from "../hooks/useBookings";
+import type { BookingListItem, BookingStatus } from "../types";
+import { StatusBadge } from "./StatusBadge";
+import { cn } from "@/lib/utils";
 
-type StatusFilter = 'ALL' | BookingStatus
+type StatusFilter = "ALL" | BookingStatus;
 
 const FILTERS: { label: string; value: StatusFilter }[] = [
-  { label: 'All', value: 'ALL' },
-  { label: 'Pending', value: 'PENDING' },
-  { label: 'Confirmed', value: 'CONFIRMED' },
-  { label: 'Cancelled', value: 'CANCELLED' },
-  { label: 'Completed', value: 'COMPLETED' },
-]
+  { label: "All", value: "ALL" },
+  { label: "Pending", value: "PENDING" },
+  { label: "Confirmed", value: "CONFIRMED" },
+  { label: "Cancelled", value: "CANCELLED" },
+  { label: "Completed", value: "COMPLETED" },
+];
 
 export function BookingHistoryPage() {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const { data: bookings, isLoading } = useBookings({
-    status: statusFilter === 'ALL' ? undefined : statusFilter,
-  })
+    status: statusFilter === "ALL" ? undefined : statusFilter,
+  });
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="font-display text-display-lg text-foreground">Booking history</h1>
+        <h1 className="font-display text-display-lg text-foreground">
+          Booking history
+        </h1>
         <p className="text-sm text-muted-foreground">
           Track your upcoming and past bookings in one place.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Booking status filters">
+      <div
+        className="flex flex-wrap gap-2"
+        role="tablist"
+        aria-label="Booking status filters"
+      >
         {FILTERS.map((filter) => (
           <button
             key={filter.value}
@@ -41,10 +47,10 @@ export function BookingHistoryPage() {
             aria-pressed={statusFilter === filter.value}
             onClick={() => setStatusFilter(filter.value)}
             className={cn(
-              'rounded-pill px-3 py-1.5 text-sm font-medium transition-colors',
+              "rounded-pill px-3 py-1.5 text-sm font-medium transition-colors",
               statusFilter === filter.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-soft text-foreground hover:bg-border',
+                ? "bg-primary text-primary-foreground"
+                : "bg-soft text-foreground hover:bg-border",
             )}
           >
             {filter.label}
@@ -62,7 +68,10 @@ export function BookingHistoryPage() {
         <div className="rounded-xl border border-dashed border-border p-12 text-center">
           <CalendarCheck className="mx-auto mb-3 h-10 w-10 text-mute" />
           <p className="text-muted-foreground">
-            No bookings found{statusFilter === 'ALL' ? '.' : ` for ${statusFilter.toLowerCase()}.`}
+            No bookings found
+            {statusFilter === "ALL"
+              ? "."
+              : ` for ${statusFilter.toLowerCase()}.`}
           </p>
         </div>
       ) : (
@@ -73,7 +82,7 @@ export function BookingHistoryPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function BookingCard({ booking }: { booking: BookingListItem }) {
@@ -91,27 +100,34 @@ function BookingCard({ booking }: { booking: BookingListItem }) {
           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
-              {new Date(booking.ride.departureTime).toLocaleString('en-GB', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
+              {new Date(booking.ride.departureTime).toLocaleString("en-GB", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
               })}
             </span>
             <span>{booking.seatsBooked} seat(s)</span>
-            <span className="font-medium text-foreground">{booking.totalFare} NOK</span>
+            <span className="font-medium text-foreground">
+              {booking.totalFare} NOK
+            </span>
           </div>
-          <p className="text-xs text-muted-foreground">Driver: {booking.ride.driver.name}</p>
+          <p className="text-xs text-muted-foreground">
+            Driver: {booking.ride.driver.name}
+          </p>
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-2">
           <StatusBadge status={booking.status} />
-          <Link to={`/rides/${booking.ride.id}`} className="text-xs font-medium text-foreground underline-offset-4 hover:underline">
+          <Link
+            to={`/rides/${booking.ride.id}`}
+            className="text-xs font-medium text-foreground underline-offset-4 hover:underline"
+          >
             View details
           </Link>
         </div>
       </div>
     </div>
-  )
+  );
 }

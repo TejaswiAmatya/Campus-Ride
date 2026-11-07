@@ -89,7 +89,11 @@ export function AnnouncementToast({
         </div>
 
         <div className="flex justify-end">
-          <Button size="sm" onClick={() => void handleDismiss()} disabled={isDismissing}>
+          <Button
+            size="sm"
+            onClick={() => void handleDismiss()}
+            disabled={isDismissing}
+          >
             {isDismissing ? "Dismissing..." : "Dismiss"}
           </Button>
         </div>

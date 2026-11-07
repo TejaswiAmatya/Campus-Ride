@@ -58,16 +58,18 @@ describe("email queue integration", () => {
     await module.emailQueue.welcomeEmail("user-1", "alice@university.edu");
     await module.emailQueue.rideUpdated("ride-1", "Delayed by 10 minutes");
 
-    expect(queueConstructors).toEqual([[
-      "email-notifications",
-      {
-        connection: { kind: "redis-connection" },
-        defaultJobOptions: {
-          attempts: 3,
-          backoff: { type: "exponential", delay: 5000 },
+    expect(queueConstructors).toEqual([
+      [
+        "email-notifications",
+        {
+          connection: { kind: "redis-connection" },
+          defaultJobOptions: {
+            attempts: 3,
+            backoff: { type: "exponential", delay: 5000 },
+          },
         },
-      },
-    ]]);
+      ],
+    ]);
     expect(add).toHaveBeenNthCalledWith(1, "welcomeEmail", {
       userId: "user-1",
       email: "alice@university.edu",

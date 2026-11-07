@@ -76,22 +76,21 @@ class SimulatedPaymentProvider implements PaymentProvider {
     const amount = new Prisma.Decimal(input.amount.toString());
     const capturedAmount =
       this.captureAmounts.get(input.bookingId) ?? new Prisma.Decimal(0);
-    const refundResult: RefundPaymentResult =
-      amount.gt(0)
-        ? {
-            provider: "simulated",
-            providerRefundId: `sim-refund-${input.bookingId}`,
-            status: amount.gte(capturedAmount)
-              ? PaymentStatus.REFUNDED
-              : PaymentStatus.PARTIALLY_REFUNDED,
-            refundedAt: new Date(),
-          }
-        : {
-            provider: "simulated",
-            providerRefundId: null,
-            status: PaymentStatus.PAID,
-            refundedAt: null,
-          };
+    const refundResult: RefundPaymentResult = amount.gt(0)
+      ? {
+          provider: "simulated",
+          providerRefundId: `sim-refund-${input.bookingId}`,
+          status: amount.gte(capturedAmount)
+            ? PaymentStatus.REFUNDED
+            : PaymentStatus.PARTIALLY_REFUNDED,
+          refundedAt: new Date(),
+        }
+      : {
+          provider: "simulated",
+          providerRefundId: null,
+          status: PaymentStatus.PAID,
+          refundedAt: null,
+        };
 
     this.refunds.set(input.bookingId, refundResult);
     return refundResult;

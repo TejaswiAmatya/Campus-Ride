@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
   Car,
@@ -8,31 +8,38 @@ import {
   Search,
   TrendingUp,
   User,
-} from 'lucide-react'
-import { Navigate } from 'react-router-dom'
-import { fetchMe } from '@/api/client'
-import { canAccessDriverRoutes, isDriverPending } from '@/features/auth/lib/routing'
-import { DashboardCard } from '@/features/user/components/DashboardCard'
-import { PendingDriverBanner } from '@/features/user/components/PendingDriverBanner'
+} from "lucide-react";
+import { Navigate } from "react-router-dom";
+import { fetchMe } from "@/api/client";
+import {
+  canAccessDriverRoutes,
+  isDriverPending,
+} from "@/features/auth/lib/routing";
+import { DashboardCard } from "@/features/user/components/DashboardCard";
+import { PendingDriverBanner } from "@/features/user/components/PendingDriverBanner";
 
 export function DashboardRoutingPage() {
-  const { data: user, isLoading, isError } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  const {
+    data: user,
+    isLoading,
+    isError,
+  } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
 
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <p className="animate-pulse text-sm text-mute">Loading…</p>
       </div>
-    )
+    );
   }
 
   if (isError || !user) {
-    return <Navigate to="/auth/login" replace />
+    return <Navigate to="/auth/login" replace />;
   }
 
-  const isDriver = canAccessDriverRoutes(user)
-  const pending = isDriverPending(user)
-  const firstName = user.name?.split(' ')[0] ?? 'there'
+  const isDriver = canAccessDriverRoutes(user);
+  const pending = isDriverPending(user);
+  const firstName = user.name?.split(" ")[0] ?? "there";
 
   return (
     <div className="-mx-4 -my-8 bg-background lg:-mx-8">
@@ -41,8 +48,8 @@ export function DashboardRoutingPage() {
       <div
         className={
           isDriver
-            ? 'mx-auto flex max-w-content flex-col gap-4 px-4 py-4 lg:px-8'
-            : 'mx-auto flex h-[calc(100vh-4rem)] max-w-content flex-col px-4 py-4 lg:px-8'
+            ? "mx-auto flex max-w-content flex-col gap-4 px-4 py-4 lg:px-8"
+            : "mx-auto flex h-[calc(100vh-4rem)] max-w-content flex-col px-4 py-4 lg:px-8"
         }
       >
         <header className="flex min-h-0 shrink-0 basis-[15%] items-center">
@@ -54,8 +61,8 @@ export function DashboardRoutingPage() {
         <div
           className={
             isDriver
-              ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4'
-              : 'mb-[5%] grid min-h-0 basis-[80%] grid-cols-1 grid-rows-4 gap-3 sm:grid-cols-2 sm:grid-rows-2 sm:gap-4'
+              ? "grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4"
+              : "mb-[5%] grid min-h-0 basis-[80%] grid-cols-1 grid-rows-4 gap-3 sm:grid-cols-2 sm:grid-rows-2 sm:gap-4"
           }
         >
           <DashboardCard
@@ -130,5 +137,5 @@ export function DashboardRoutingPage() {
         ) : null}
       </div>
     </div>
-  )
+  );
 }

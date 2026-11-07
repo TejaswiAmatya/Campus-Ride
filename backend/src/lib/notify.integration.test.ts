@@ -41,7 +41,10 @@ describe("notify wiring integration", () => {
       passengerId: "passenger-1",
     });
 
-    expect(mocks.notifyBookingStatus).toHaveBeenCalledWith("passenger-1", payload);
+    expect(mocks.notifyBookingStatus).toHaveBeenCalledWith(
+      "passenger-1",
+      payload,
+    );
     expect(mocks.notifyBookingNew).toHaveBeenCalledWith("driver-1", {
       bookingId: "booking-2",
       rideId: "ride-1",

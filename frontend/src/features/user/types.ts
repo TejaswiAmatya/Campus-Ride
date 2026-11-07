@@ -32,10 +32,7 @@ export interface PublicUserSummary {
   avatarPath: string | null;
   academicRole: "STUDENT" | "STAFF" | null;
   academicVerificationStatus:
-    | "NOT_SUBMITTED"
-    | "PENDING"
-    | "VERIFIED"
-    | "REJECTED";
+    "NOT_SUBMITTED" | "PENDING" | "VERIFIED" | "REJECTED";
 }
 
 export interface UserReview {

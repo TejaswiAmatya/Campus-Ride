@@ -245,7 +245,8 @@ export function useBookingRealtime() {
         id: `ride-updated:${eventKey}`,
         tone: "default",
         title: "Ride details updated",
-        description: payload.updateMessage ?? `Your driver updated ${updatedDate} ride.`,
+        description:
+          payload.updateMessage ?? `Your driver updated ${updatedDate} ride.`,
       });
     }
 
